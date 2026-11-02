@@ -1,0 +1,77 @@
+{
+  "name": "ramses-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist-electron/main.js",
+  "desktopName": "ramses-studio",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "package:linux": "npm run build && electron-builder --linux AppImage",
+    "package:windows": "npm run build && electron-builder --win portable"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "lucide-react": "^0.468.0",
+    "onnxruntime-node": "^1.31.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vite": "^5.4.11",
+    "vite-plugin-electron": "^0.28.8",
+    "zustand": "^5.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "electron": "^30.5.1",
+    "electron-builder": "^26.18.0",
+    "typescript": "^5.7.2"
+  },
+  "build": {
+    "appId": "com.ramses.multistem",
+    "productName": "Ramses Studio",
+    "icon": "build/icons/icon.png",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "dist-electron/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "src/components/stemsplitter/htdemucs_6s.onnx",
+        "to": "models/htdemucs_6s.onnx"
+      },
+      {
+        "from": "build/icons/icon.png",
+        "to": "icons/icon.png"
+      }
+    ],
+    "asarUnpack": [
+      "node_modules/onnxruntime-node/**"
+    ],
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "AudioVideo",
+      "syncDesktopName": true
+    },
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "extraResources": [
+        {
+          "from": "vendor/ffmpeg/win32/x64/ffmpeg.exe",
+          "to": "bin/ffmpeg.exe"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,42 @@
+const modelPath = fileURLToPath(new URL('./htdemucs_6s.onnx', import.meta.url));
+const targetStems: StemName[] = [...SIX_STEM_NAMES];
+
+function renderProgress(progress: number, currentSegment: number, totalSegments: number): void {
+  const width = 30;
+  const completed = Math.round(progress * width);
+  const bar = `${'='.repeat(completed)}${'-'.repeat(width - completed)}`;
+  process.stderr.write(`\rInference [${bar}] ${(progress * 100).toFixed(1)}% (${currentSegment}/${totalSegments})`);
+}
+
+describe.skipIf(process.env.RUN_MODEL_TEST !== '1')('HTDemucs model integration', () => {
+  it('splits the fixture WAV into six full-length stems', async () => {
+    const audio = decodeWav(await readFile(audioPath));
+    let wroteProgress = false;
+    const separator = await Separator.create({
+      modelPath,
+      lowMemory: true,
+      targetStems,
+      onProgress: ({ progress, currentSegment, totalSegments }) => {
+        wroteProgress = true;
+        renderProgress(progress, currentSegment, totalSegments);
+      },
+    });
+    try {
+      const stems = await separator.separate(audio);
+      expect(Object.keys(stems).sort()).toEqual([...targetStems].sort());
+   for (const [name, stem] of Object.entries(stems)) {
+        expect(stem.sampleRate).toBe(audio.sampleRate);
+        expect(stem.left).toHaveLength(audio.left.length);
+        expect(stem.right).toHaveLength(audio.left.length);
+        expect(Number.isFinite(stem.left[0])).toBe(true);
+        expect(Number.isFinite(stem.right![0])).toBe(true);
+
+        const outPath = fileURLToPath(new URL(`./${name}.wav`, import.meta.url));
+        await writeFile(outPath, encodeWav(stem));
+      }
+    } finally {
+      await separator.dispose();
+      if (wroteProgress) process.stderr.write('\n');
+    }
+  }, 30 * 60_000);
+});
