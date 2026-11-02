@@ -1,0 +1,10 @@
+export const SAMPLE_RATE = 44_100;
+export const CHANNELS = 2;
+export const SEGMENT_SECONDS = 7.8;
+export const TRAINING_SAMPLES = 343_980;
+export const FFT_SIZE = 4_096;
+export const HOP_SIZE = 1_024;
+export const SPECTROGRAM_BINS = FFT_SIZE / 2;
+export const SPECTROGRAM_FRAMES = 336;
+export const STEM_NAMES = ['drums', 'bass', 'other', 'vocals'] as const;
+export const SIX_STEM_NAMES = [...STEM_NAMES, 'guitar', 'piano'] as const;
