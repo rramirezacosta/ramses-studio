@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AudioEngine } from './audio/AudioEngine'
 import { TrackLane } from './components/daw/TrackLane'
 import { Sidebar } from './components/layout/Sidebar'
+import { TitleBar } from './components/layout/TitleBar'
 import { TransportBar } from './components/layout/TransportBar'
 import { useTransportStore } from './store/useTransportStore'
 import type { Song, TrackState } from './types/audio'
@@ -172,6 +173,7 @@ export default function App() {
 
   return (
     <main className="app-shell">
+      <TitleBar />
       <div className="app-content">
         <Sidebar songs={songs} activeSong={activeSong} loading={libraryLoading} importing={importing} importProgress={importProgress} onSelect={selectSong} onImport={importSong} onRename={openRenameDialog} onDelete={deleteSong} />
         <div className="workspace">
