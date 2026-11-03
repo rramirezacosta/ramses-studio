@@ -91,6 +91,25 @@ export class AudioEngine {
     this.applyMix()
   }
 
+  removeTrack(id: string) {
+    const channel = this.channels.get(id)
+    if (!channel) return
+    if (channel.source) {
+      channel.source.onended = null
+      channel.source.stop()
+      channel.source.disconnect()
+    }
+    channel.gain.disconnect()
+    channel.panner.disconnect()
+    this.channels.delete(id)
+    this.tracks = this.tracks.filter((track) => track.id !== id)
+    if (!this.tracks.length) {
+      this.stop()
+      return
+    }
+    this.applyMix()
+  }
+
   setMasterVolume(volume: number) {
     if (this.master) this.master.gain.setTargetAtTime(volume, this.ensureContext().currentTime, 0.01)
   }

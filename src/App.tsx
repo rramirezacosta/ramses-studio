@@ -21,6 +21,7 @@ export default function App() {
   const [importProgress, setImportProgress] = useState<number>()
   const [renamingSong, setRenamingSong] = useState<Song>()
   const [renameValue, setRenameValue] = useState('')
+  const [draggedTrackId, setDraggedTrackId] = useState<string>()
   const transport = useTransportStore()
 
   useEffect(() => {
@@ -171,6 +172,41 @@ export default function App() {
     }
   }
 
+  const deleteStem = async (track: TrackState) => {
+    if (!activeSong || !window.confirm(`Delete "${track.name}" from "${activeSong}"? This cannot be undone.`)) return
+    try {
+      await window.api.deleteStem(activeSong, track.name)
+      const remainingTracks = tracks.filter((item) => item.id !== track.id)
+      engine.removeTrack(track.id)
+      setTracks(remainingTracks)
+      setSongs(await window.api.getSongs())
+      if (!remainingTracks.length) {
+        engine.setLoopRange()
+        setActiveSong(undefined)
+        setLoopRange(undefined)
+        setLooping(false)
+        transport.setTransport({ currentTime: 0, duration: 0, isPlaying: false })
+      }
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : 'Unknown stem deletion error'
+      setError(`Could not delete "${track.name}": ${message}`)
+    }
+  }
+
+  const reorderTracks = (targetId: string) => {
+    if (!draggedTrackId || draggedTrackId === targetId) return
+    setTracks((items) => {
+      const sourceIndex = items.findIndex((item) => item.id === draggedTrackId)
+      const targetIndex = items.findIndex((item) => item.id === targetId)
+      if (sourceIndex < 0 || targetIndex < 0) return items
+      const reordered = [...items]
+      const [source] = reordered.splice(sourceIndex, 1)
+      reordered.splice(sourceIndex < targetIndex ? targetIndex - 1 : targetIndex, 0, source)
+      return reordered
+    })
+    setDraggedTrackId(undefined)
+  }
+
   return (
     <main className="app-shell">
       <TitleBar />
@@ -187,6 +223,11 @@ export default function App() {
               onRangeChange={updateLoopRange}
               onRangeCommit={startLoopRange}
               onClearRange={clearLoopRange}
+              onRemove={() => { void deleteStem(track) }}
+              dragging={draggedTrackId === track.id}
+              onDragStart={() => setDraggedTrackId(track.id)}
+              onDragEnd={() => setDraggedTrackId(undefined)}
+              onDrop={() => reorderTracks(track.id)}
               onUpdate={(patch) => {
                 engine.updateTrack(track.id, patch)
                 setTracks((items) => items.map((item) => item.id === track.id ? { ...item, ...patch } : item))

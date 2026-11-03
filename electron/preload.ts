@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('songs:load-buffer', { songName, stemFile }),
   renameSong: (songName: string, newName: string) => ipcRenderer.invoke('songs:rename', { songName, newName }),
   deleteSong: (songName: string) => ipcRenderer.invoke('songs:delete', songName),
+  deleteStem: (songName: string, stemFile: string) => ipcRenderer.invoke('songs:delete-stem', { songName, stemFile }),
   importSong: () => ipcRenderer.invoke('songs:import'),
   getWindowButtonLayout: () => ipcRenderer.invoke('window:button-layout'),
   minimizeWindow: () => ipcRenderer.invoke('window:minimize'),
