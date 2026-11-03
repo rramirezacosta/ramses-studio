@@ -1,3 +1,4 @@
+import { GripVertical, Trash2 } from 'lucide-react'
 import type { TrackState } from '../../types/audio'
 import { WaveformDisplay } from './WaveformDisplay'
 
@@ -9,6 +10,11 @@ interface Props {
   currentTime: number
   duration: number
   onUpdate: (patch: Partial<Pick<TrackState, 'volume' | 'pan' | 'muted' | 'soloed'>>) => void
+  onRemove: () => void
+  dragging: boolean
+  onDragStart: () => void
+  onDragEnd: () => void
+  onDrop: () => void
   onSeek: (time: number) => void
   loopRange?: [number, number]
   onRangeChange: (range: [number, number]) => void
@@ -16,14 +22,18 @@ interface Props {
   onClearRange: () => void
 }
 
-export function TrackLane({ track, index, currentTime, duration, onUpdate, onSeek, loopRange, onRangeChange, onRangeCommit, onClearRange }: Props) {
+export function TrackLane({ track, index, currentTime, duration, onUpdate, onRemove, dragging, onDragStart, onDragEnd, onDrop, onSeek, loopRange, onRangeChange, onRangeCommit, onClearRange }: Props) {
   return (
-    <section className="track-lane">
+    <section className={`track-lane ${dragging ? 'dragging' : ''}`} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); onDrop() }}>
       <div className="track-controls">
-        <strong>{track.name.replace(/\.wav$/i, '')}</strong>
+        <div className="track-name">
+          <span className="track-drag-handle" draggable onDragStart={onDragStart} onDragEnd={onDragEnd} title="Drag to reorder" aria-label="Drag to reorder"><GripVertical size={16} /></span>
+          <strong>{track.name.replace(/\.wav$/i, '')}</strong>
+        </div>
         <div className="toggle-row">
           <button className={track.muted ? 'active mute' : ''} onClick={() => onUpdate({ muted: !track.muted })}>M</button>
           <button className={track.soloed ? 'active solo' : ''} onClick={() => onUpdate({ soloed: !track.soloed })}>S</button>
+          <button className="remove-stem-button" onClick={onRemove} title={`Delete ${track.name}`} aria-label={`Delete ${track.name}`}><Trash2 size={12} /></button>
         </div>
         <label>VOL <input type="range" min="0" max="1" step="0.01" value={track.volume} onChange={(event) => onUpdate({ volume: Number(event.target.value) })} /></label>
         <label>PAN <input type="range" min="-1" max="1" step="0.01" value={track.pan} onChange={(event) => onUpdate({ pan: Number(event.target.value) })} /></label>

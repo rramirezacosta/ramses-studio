@@ -9,6 +9,7 @@ declare global {
       loadStemBuffer: (songName: string, stemFile: string) => Promise<ArrayBuffer>
       renameSong: (songName: string, newName: string) => Promise<void>
       deleteSong: (songName: string) => Promise<void>
+      deleteStem: (songName: string, stemFile: string) => Promise<void>
       importSong: () => Promise<Song | null>
       onImportProgress: (listener: (progress: { progress: number; currentSegment: number; totalSegments: number }) => void) => () => void
       getWindowButtonLayout: () => Promise<{ left: WindowButton[]; right: WindowButton[] }>

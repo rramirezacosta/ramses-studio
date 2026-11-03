@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import { readdir, readFile, rename, rm, stat } from 'node:fs/promises'
+import { readdir, readFile, rename, rmdir, rm, stat } from 'node:fs/promises'
 import { basename, join, resolve, sep } from 'node:path'
 import { ensureSongsDirectory, songsDirectory } from '../paths'
 
@@ -59,5 +59,12 @@ export function registerSongIpc() {
 
   ipcMain.handle('songs:delete', async (_event, songName: string) => {
     await rm(safeSongDirectory(songName), { recursive: true })
+  })
+
+  ipcMain.handle('songs:delete-stem', async (_event, { songName, stemFile }: { songName: string; stemFile: string }) => {
+    const directory = safeSongDirectory(songName)
+    await rm(safeStemPath(songName, stemFile))
+    const entries = await readdir(directory)
+    if (entries.length === 0) await rmdir(directory)
   })
 }
