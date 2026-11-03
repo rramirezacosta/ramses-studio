@@ -7,6 +7,10 @@ contextBridge.exposeInMainWorld('api', {
   renameSong: (songName: string, newName: string) => ipcRenderer.invoke('songs:rename', { songName, newName }),
   deleteSong: (songName: string) => ipcRenderer.invoke('songs:delete', songName),
   importSong: () => ipcRenderer.invoke('songs:import'),
+  getWindowButtonLayout: () => ipcRenderer.invoke('window:button-layout'),
+  minimizeWindow: () => ipcRenderer.invoke('window:minimize'),
+  toggleWindowMaximize: () => ipcRenderer.invoke('window:toggle-maximize'),
+  closeWindow: () => ipcRenderer.invoke('window:close'),
   onImportProgress: (listener: (progress: { progress: number; currentSegment: number; totalSegments: number }) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, progress: { progress: number; currentSegment: number; totalSegments: number }) => listener(progress)
     ipcRenderer.on('songs:import-progress', handler)

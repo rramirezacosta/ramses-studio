@@ -1,5 +1,7 @@
 import type { Song } from './audio'
 
+type WindowButton = 'minimize' | 'maximize' | 'close'
+
 declare global {
   interface Window {
     api: {
@@ -9,6 +11,10 @@ declare global {
       deleteSong: (songName: string) => Promise<void>
       importSong: () => Promise<Song | null>
       onImportProgress: (listener: (progress: { progress: number; currentSegment: number; totalSegments: number }) => void) => () => void
+      getWindowButtonLayout: () => Promise<{ left: WindowButton[]; right: WindowButton[] }>
+      minimizeWindow: () => Promise<void>
+      toggleWindowMaximize: () => Promise<boolean>
+      closeWindow: () => Promise<void>
     }
   }
 }
