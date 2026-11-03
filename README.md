@@ -1,2 +1,62 @@
-# ramses-studio
-musician's app that uses AI for stem separation to practice on backtrack
+# Ramses Studio
+
+Ramses Studio is a desktop practice tool for musicians. Import a WAV, FLAC, or MP3 recording and the app uses local ONNX Runtime inference to separate it into individual stems. Load a song into the DAW-style timeline to mute, solo, pan, adjust levels, seek, and loop sections while practicing.
+
+The application runs entirely on the desktop: songs and generated WAV stems remain on the local machine. The bundled six-stem HTDemucs model separates drums, bass, other, vocals, guitar, and piano.
+
+## Requirements
+
+- Node.js 20 or newer
+- npm
+- Git LFS
+- `ffmpeg` available on `PATH` when importing audio on Linux
+
+## Getting started
+
+Clone the repository, download the LFS-managed model, and install dependencies:
+
+```bash
+git clone git@github.com:rramirezacosta/ramses-studio.git
+cd ramses-studio
+git lfs install
+git lfs pull
+npm install
+```
+
+Start the Electron app in development mode:
+
+```bash
+npm run dev
+```
+
+## Building
+
+Run the type check and production build:
+
+```bash
+npm run build
+```
+
+Create a distributable package:
+
+| Platform | Command | Output |
+| --- | --- | --- |
+| Linux | `make linux` | AppImage in `release/` |
+| Windows | `make windows` | Portable executable in `release/` |
+| Both | `make packages` | Linux and Windows packages |
+
+The equivalent npm commands are `npm run package:linux` and `npm run package:windows`.
+
+## Usage
+
+1. Select **Import Audio** and choose a WAV, FLAC, or MP3 file.
+2. Wait for separation to complete; the generated stems are added to the song library.
+3. Select the song to open its tracks in the timeline.
+4. Use **M** and **S** on each track to mute or solo it, adjust its volume and pan, and drag over a waveform to create a loop.
+
+## Technology
+
+- Electron, React, and Vite
+- ONNX Runtime Node.js for local model inference
+- HTDemucs six-stem ONNX model
+- Web Audio API transport and mixing controls
