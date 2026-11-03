@@ -1,4 +1,5 @@
-import { FilePenLine, FilePlus2, Trash2 } from 'lucide-react'
+import { FilePenLine, FilePlus2, Search, Trash2 } from 'lucide-react'
+import { useState } from 'react'
 import logo from '../../assets/logo.png'
 import type { Song } from '../../types/audio'
 
@@ -15,6 +16,10 @@ interface Props {
 }
 
 export function Sidebar({ songs, activeSong, loading, importing, importProgress, onSelect, onImport, onRename, onDelete }: Props) {
+  const [query, setQuery] = useState('')
+  const normalizedQuery = query.trim().toLocaleLowerCase()
+  const visibleSongs = songs.filter((song) => song.name.toLocaleLowerCase().includes(normalizedQuery))
+
   return (
     <aside className="sidebar">
       <div className="brand"><img src={logo} alt="Ramses Studio" /></div>
@@ -24,8 +29,8 @@ export function Sidebar({ songs, activeSong, loading, importing, importProgress,
       </button>
       {loading && <p className="empty-state">Loading library...</p>}
       {!loading && songs.length === 0 && <p className="empty-state">No songs in your library</p>}
-      <nav>
-        {songs.map((song) => (
+      <nav className="song-list">
+        {visibleSongs.map((song) => (
           <div key={song.name} className={`song-row ${song.name === activeSong ? 'active' : ''}`}>
             <button className="song-item" onClick={() => onSelect(song)}>
               <strong>{song.name.replaceAll('-', ' ')}</strong>
@@ -38,6 +43,10 @@ export function Sidebar({ songs, activeSong, loading, importing, importProgress,
           </div>
         ))}
       </nav>
+      <label className="library-search">
+        <Search size={15} aria-hidden="true" />
+        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search library" aria-label="Search song library" />
+      </label>
     </aside>
   )
 }
