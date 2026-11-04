@@ -13,9 +13,11 @@
     "package:windows": "npm run build && electron-builder --win portable"
   },
   "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@vitejs/plugin-react": "^4.3.4",
     "lucide-react": "^0.468.0",
     "onnxruntime-node": "^1.31.1",
+    "onnxruntime-web": "^1.31.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "vite": "^5.4.11",
@@ -33,7 +35,7 @@
   "build": {
     "appId": "com.ramses.multistem",
     "productName": "Ramses Studio",
-    "icon": "build/icons/icon.png",
+    "icon": "build/icons/app_512.png",
     "directories": {
       "output": "release"
     },
@@ -48,8 +50,12 @@
         "to": "models/htdemucs_6s.onnx"
       },
       {
-        "from": "build/icons/icon.png",
-        "to": "icons/icon.png"
+        "from": "src/components/stemsplitter/htdemucs_6s_webgpu.onnx",
+        "to": "models/htdemucs_6s_webgpu.onnx"
+      },
+      {
+        "from": "build/icons/app_512.png",
+        "to": "icons/app_512.png"
       }
     ],
     "asarUnpack": [
@@ -60,7 +66,13 @@
         "AppImage"
       ],
       "category": "AudioVideo",
-      "syncDesktopName": true
+      "syncDesktopName": true,
+      "extraResources": [
+        {
+          "from": "vendor/ytdlp/linux/x64/yt-dlp_linux",
+          "to": "bin/yt-dlp"
+        }
+      ]
     },
     "win": {
       "target": [
@@ -70,6 +82,10 @@
         {
           "from": "vendor/ffmpeg/win32/x64/ffmpeg.exe",
           "to": "bin/ffmpeg.exe"
+        },
+        {
+          "from": "vendor/ytdlp/win32/x64/yt-dlp.exe",
+          "to": "bin/yt-dlp.exe"
         }
       ]
     }

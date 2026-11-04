@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url'
 import { registerSongIpc } from './ipc/fileScanner'
 import { registerStemImportIpc } from './ipc/stemImport'
 
+if (process.platform === 'linux') app.commandLine.appendSwitch('enable-features', 'Vulkan')
+
 let mainWindow: BrowserWindow | undefined
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const execFile = promisify(execFileCallback)
@@ -16,8 +18,8 @@ type WindowButtonLayout = { left: WindowButton[]; right: WindowButton[] }
 const defaultWindowButtonLayout: WindowButtonLayout = { left: [], right: ['minimize', 'maximize', 'close'] }
 
 const appIconPath = () => app.isPackaged
-  ? join(process.resourcesPath, 'icons', 'icon.png')
-  : join(app.getAppPath(), 'build', 'icons', 'icon.png')
+  ? join(process.resourcesPath, 'icons', 'app_512.png')
+  : join(app.getAppPath(), 'build', 'icons', 'app_512.png')
 
 function parseWindowButtons(buttons: string) {
   return buttons.split(',').filter((button): button is WindowButton => (windowButtons as readonly string[]).includes(button))
