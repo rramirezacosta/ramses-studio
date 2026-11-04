@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('api', {
   loadWebGpuModel: () => ipcRenderer.invoke('models:webgpu'),
   separateWithNative: (audio: { left: Float32Array; right: Float32Array; sampleRate: number }, forceCpu: boolean) => ipcRenderer.invoke('songs:separate-native', audio, forceCpu),
   saveImportedStems: (sourceName: string, stems: Record<string, Uint8Array>) => ipcRenderer.invoke('songs:save-import', { sourceName, stems }),
+  exportMix: (songName: string, wav: Uint8Array) => ipcRenderer.invoke('mix:export', { songName, wav }),
   getWindowButtonLayout: () => ipcRenderer.invoke('window:button-layout'),
   minimizeWindow: () => ipcRenderer.invoke('window:minimize'),
   toggleWindowMaximize: () => ipcRenderer.invoke('window:toggle-maximize'),

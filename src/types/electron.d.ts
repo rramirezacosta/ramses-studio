@@ -16,6 +16,7 @@ declare global {
       loadWebGpuModel: () => Promise<Uint8Array>
       separateWithNative: (audio: StereoAudio, forceCpu: boolean) => Promise<SeparationResult<StemName>>
       saveImportedStems: (sourceName: string, stems: Record<string, Uint8Array>) => Promise<Song>
+      exportMix: (songName: string, wav: Uint8Array) => Promise<string | null>
       onImportProgress: (listener: (progress: { progress: number; currentSegment: number; totalSegments: number }) => void) => () => void
       onImportCpuFallback: (listener: () => void) => () => void
       onImportStage: (listener: (stage: string) => void) => () => void
