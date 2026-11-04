@@ -4,8 +4,12 @@ import { TrackLane } from './components/daw/TrackLane'
 import { Sidebar } from './components/layout/Sidebar'
 import { TitleBar } from './components/layout/TitleBar'
 import { TransportBar } from './components/layout/TransportBar'
+import { encodeWav } from './components/stemsplitter/audio/wav'
+import { SIX_STEM_NAMES } from './components/stemsplitter/constants'
+import { WebGpuSeparator } from './components/stemsplitter/webgpu-separator'
 import { useTransportStore } from './store/useTransportStore'
 import type { Song, TrackState } from './types/audio'
+import type { StereoAudio } from './components/stemsplitter/types'
 
 export default function App() {
   const engine = useRef(new AudioEngine()).current
@@ -19,6 +23,8 @@ export default function App() {
   const [looping, setLooping] = useState(false)
   const [importing, setImporting] = useState(false)
   const [importProgress, setImportProgress] = useState<number>()
+  const [importSourceOpen, setImportSourceOpen] = useState(false)
+  const [youTubeUrl, setYouTubeUrl] = useState('')
   const [renamingSong, setRenamingSong] = useState<Song>()
   const [renameValue, setRenameValue] = useState('')
   const [draggedTrackId, setDraggedTrackId] = useState<string>()
@@ -111,13 +117,31 @@ export default function App() {
     setLooping(false)
   }
 
-  const importSong = async () => {
+  const importSong = async (prepareImport: () => Promise<{ sourceName: string; audio: StereoAudio } | null>) => {
     setImporting(true)
     setImportProgress(0)
     setError(undefined)
     try {
-      const song = await window.api.importSong()
-      if (!song) return
+      const source = await prepareImport()
+      if (!source) return
+      let stems
+      try {
+        const separator = await WebGpuSeparator.create({
+          model: new Uint8Array(await window.api.loadWebGpuModel()),
+          onProgress: ({ progress }) => setImportProgress(progress),
+        })
+        try {
+          stems = await separator.separate(source.audio)
+        } finally {
+          await separator.dispose()
+        }
+      } catch (webGpuError) {
+        console.warn('WebGPU stem separation is unavailable; using the native inference fallback.', webGpuError)
+        stems = await window.api.separateWithNative(source.audio)
+      }
+      const wavs: Record<string, Uint8Array> = {}
+      for (const stem of SIX_STEM_NAMES) wavs[stem] = encodeWav(stems[stem])
+      const song = await window.api.saveImportedStems(source.sourceName, wavs)
       setSongs(await window.api.getSongs())
       await selectSong(song)
     } catch (reason) {
@@ -127,6 +151,18 @@ export default function App() {
       setImporting(false)
       setImportProgress(undefined)
     }
+  }
+
+  const importLocalFile = () => {
+    setImportSourceOpen(false)
+    void importSong(() => window.api.prepareImport())
+  }
+
+  const importYouTubeAudio = () => {
+    const url = youTubeUrl.trim()
+    if (!url) return
+    setImportSourceOpen(false)
+    void importSong(() => window.api.prepareYouTubeImport(url))
   }
 
   const openRenameDialog = (song: Song) => {
@@ -211,7 +247,7 @@ export default function App() {
     <main className="app-shell">
       <TitleBar />
       <div className="app-content">
-        <Sidebar songs={songs} activeSong={activeSong} loading={libraryLoading} importing={importing} importProgress={importProgress} onSelect={selectSong} onImport={importSong} onRename={openRenameDialog} onDelete={deleteSong} />
+        <Sidebar songs={songs} activeSong={activeSong} loading={libraryLoading} importing={importing} importProgress={importProgress} onSelect={selectSong} onImport={() => setImportSourceOpen(true)} onRename={openRenameDialog} onDelete={deleteSong} />
         <div className="workspace">
         <div className="timeline-header"><span>TRACK</span><span>{activeSong ? activeSong.replaceAll('-', ' ') : 'Select a song from the library'}</span></div>
         {error && <div className="error-message" role="alert">{error}</div>}
@@ -257,6 +293,22 @@ export default function App() {
             <div className="dialog-actions">
               <button type="button" onClick={() => setRenamingSong(undefined)}>Cancel</button>
               <button type="submit" className="primary-button">Save</button>
+            </div>
+          </form>
+        </div>
+      )}
+      {importSourceOpen && (
+        <div className="dialog-backdrop" role="presentation">
+          <form className="rename-dialog import-source-dialog" onSubmit={(event) => { event.preventDefault(); importYouTubeAudio() }} role="dialog" aria-modal="true" aria-labelledby="import-source-title">
+            <h2 id="import-source-title">Import audio</h2>
+            <p>Choose an audio file from your computer or extract audio from a YouTube video.</p>
+            <button type="button" className="source-option" onClick={importLocalFile}>Choose local file</button>
+            <div className="source-option-divider">OR</div>
+            <label htmlFor="youtube-url">YouTube link</label>
+            <input id="youtube-url" type="url" value={youTubeUrl} onChange={(event) => setYouTubeUrl(event.target.value)} placeholder="https://www.youtube.com/watch?v=..." autoFocus />
+            <div className="dialog-actions">
+              <button type="button" onClick={() => setImportSourceOpen(false)}>Cancel</button>
+              <button type="submit" className="primary-button" disabled={!youTubeUrl.trim()}>Import</button>
             </div>
           </form>
         </div>

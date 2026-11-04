@@ -147,6 +147,7 @@ code { color: #b9b1ff; }
 .dialog-backdrop { position: fixed; z-index: 10; inset: 0; display: grid; place-items: center; padding: 24px; background: rgba(5, 6, 14, .66); backdrop-filter: blur(10px); }
 .rename-dialog { display: grid; width: min(390px, 100%); gap: 10px; padding: 26px; border: 1px solid rgba(209, 214, 255, .22); border-radius: 16px; background: linear-gradient(145deg, rgba(47, 51, 79, .92), rgba(23, 26, 44, .9)); box-shadow: 0 24px 70px rgba(0, 0, 0, .48), inset 0 1px rgba(255, 255, 255, .09); backdrop-filter: blur(24px); }
 .rename-dialog h2 { margin: 0 0 8px; font-size: 18px; }
+.import-source-dialog p { margin: -2px 0 8px; color: #bdc4d9; font-size: 13px; line-height: 1.5; }
 .rename-dialog label { color: #bdc4d9; font-size: 12px; font-weight: 700; }
 .rename-dialog input { width: 100%; padding: 11px; border: 1px solid rgba(201, 209, 247, .18); border-radius: 8px; outline: 0; color: #f3f4fb; background: rgba(8, 10, 21, .5); user-select: text; }
 .rename-dialog input:focus { border-color: #a297ff; box-shadow: 0 0 0 3px rgba(150, 138, 255, .16); }
@@ -154,6 +155,11 @@ code { color: #b9b1ff; }
 .dialog-actions button { padding: 9px 15px; border: 1px solid rgba(207, 215, 255, .18); border-radius: 8px; color: #e4e8f7; background: rgba(255, 255, 255, .08); font-weight: 700; }
 .dialog-actions button:hover { background: rgba(255, 255, 255, .14); }
 .dialog-actions .primary-button { border-color: #8d81fb; background: linear-gradient(135deg, #8b7ef8, #6757df); box-shadow: 0 7px 16px rgba(90, 71, 214, .28); color: #fff; }
+.dialog-actions .primary-button:disabled { cursor: not-allowed; opacity: .5; }
+.source-option { padding: 11px 15px; border: 1px solid rgba(172, 160, 255, .55); border-radius: 8px; color: #f3f1ff; background: rgba(130, 113, 237, .2); font-weight: 800; text-align: left; }
+.source-option:hover { border-color: #bfb7ff; background: rgba(130, 113, 237, .34); }
+.source-option-divider { display: flex; align-items: center; gap: 10px; color: #848daa; font-size: 10px; font-weight: 800; letter-spacing: .12em; }
+.source-option-divider::before, .source-option-divider::after { height: 1px; flex: 1; background: rgba(201, 209, 247, .14); content: ""; }
 .work-banner { position: fixed; z-index: 20; inset: 0; display: flex; align-items: center; justify-content: center; gap: 14px; background: rgba(9, 11, 22, .72); backdrop-filter: blur(12px); }
 .work-banner > div:last-child { display: grid; gap: 4px; min-width: 220px; }
 .work-banner strong { color: #f5f6ff; font-size: 15px; }

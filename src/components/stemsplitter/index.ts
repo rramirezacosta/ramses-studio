@@ -1,6 +1,7 @@
 export * from './constants.js';
 export * from './types.js';
 export * from './separator.js';
+export * from './webgpu-separator.js';
 export * from './audio/wav.js';
 export * from './dsp/chunker.js';
 export * from './dsp/fft.js';
