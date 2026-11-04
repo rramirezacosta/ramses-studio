@@ -9,7 +9,8 @@ The application runs entirely on the desktop: songs and generated WAV stems rema
 - Node.js 20 or newer
 - npm
 - Git LFS
-- `ffmpeg` available on `PATH` when importing audio on Linux
+
+
 
 ## Getting started
 
@@ -21,7 +22,27 @@ cd ramses-studio
 git lfs install
 git lfs pull
 npm install
+
 ```
+
+This project relies on FFMPEG and YTDLP for importing audio files, place binaries in vendor folder.
+
+
+```
+vendor/
+├── ffmpeg
+│   └── win32
+│       └── x64
+│           ├── ffmpeg.exe
+└── ytdlp
+    ├── linux
+    │   └── x64
+    │       └── yt-dlp_linux
+    └── win32
+        └── x64
+            └── yt-dlp.exe
+```
+
 
 Start the Electron app in development mode:
 
