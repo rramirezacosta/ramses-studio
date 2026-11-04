@@ -3,7 +3,6 @@ dist/
 dist-electron/
 release/
 songs/
-src/components/stemsplitter/*.onnx
 
 *.AppImage
 
