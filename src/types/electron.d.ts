@@ -17,6 +17,8 @@ declare global {
       separateWithNative: (audio: StereoAudio) => Promise<SeparationResult<StemName>>
       saveImportedStems: (sourceName: string, stems: Record<string, Uint8Array>) => Promise<Song>
       onImportProgress: (listener: (progress: { progress: number; currentSegment: number; totalSegments: number }) => void) => () => void
+      onImportCpuFallback: (listener: () => void) => () => void
+      onImportStage: (listener: (stage: string) => void) => () => void
       getWindowButtonLayout: () => Promise<{ left: WindowButton[]; right: WindowButton[] }>
       minimizeWindow: () => Promise<void>
       toggleWindowMaximize: () => Promise<boolean>

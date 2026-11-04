@@ -6,7 +6,7 @@ import { ensureSongsDirectory, songsDirectory } from '../paths'
 function safeStemPath(songName: string, stemFile: string) {
   const filePath = resolve(safeSongDirectory(songName), stemFile)
   const root = resolve(songsDirectory())
-  if (!filePath.startsWith(`${root}${sep}`) || !stemFile.toLowerCase().endsWith('.wav')) {
+  if (!filePath.startsWith(`${root}${sep}`) || !stemFile.toLowerCase().endsWith('.mp3')) {
     throw new Error('Invalid stem path')
   }
   return filePath
@@ -31,7 +31,7 @@ export function registerSongIpc() {
         return {
           name,
           stems: files
-            .filter((file) => file.isFile() && file.name.toLowerCase().endsWith('.wav'))
+            .filter((file) => file.isFile() && file.name.toLowerCase().endsWith('.mp3'))
             .map((file) => file.name)
             .sort(),
         }

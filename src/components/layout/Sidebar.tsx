@@ -9,13 +9,15 @@ interface Props {
   loading: boolean
   importing: boolean
   importProgress?: number
+  cpuFallback: boolean
+  importStage?: string
   onSelect: (song: Song) => void
   onImport: () => void
   onRename: (song: Song) => void
   onDelete: (song: Song) => void
 }
 
-export function Sidebar({ songs, activeSong, loading, importing, importProgress, onSelect, onImport, onRename, onDelete }: Props) {
+export function Sidebar({ songs, activeSong, loading, importing, importProgress, cpuFallback, importStage, onSelect, onImport, onRename, onDelete }: Props) {
   const [query, setQuery] = useState('')
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const visibleSongs = songs.filter((song) => song.name.toLocaleLowerCase().includes(normalizedQuery))
@@ -27,6 +29,8 @@ export function Sidebar({ songs, activeSong, loading, importing, importProgress,
       <button className="import-button" onClick={onImport} disabled={importing}>
         <FilePlus2 size={15} /> {importing ? `Splitting ${Math.round((importProgress ?? 0) * 100)}%` : 'Import Song'}
       </button>
+      {importing && importStage && <p className="import-stage-message">{importStage}</p>}
+      {importing && cpuFallback && <p className="import-fallback-message">WebGPU is unavailable. CPU separation may take longer.</p>}
       {loading && <p className="empty-state">Loading library...</p>}
       {!loading && songs.length === 0 && <p className="empty-state">No songs in your library</p>}
       <nav className="song-list">
