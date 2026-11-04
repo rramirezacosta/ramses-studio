@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { registerSongIpc } from './ipc/fileScanner'
 import { registerStemImportIpc } from './ipc/stemImport'
+import { registerMixIpc } from './ipc/mixExport'
 
 if (process.platform === 'linux') app.commandLine.appendSwitch('enable-features', 'Vulkan')
 
@@ -86,6 +87,7 @@ app.whenReady().then(() => {
   Menu.setApplicationMenu(null)
   registerSongIpc()
   registerStemImportIpc()
+  registerMixIpc()
   registerWindowIpc()
   createWindow()
   app.on('activate', () => {

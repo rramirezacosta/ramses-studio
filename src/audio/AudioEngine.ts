@@ -1,3 +1,4 @@
+import type { StereoAudio } from '../components/stemsplitter/types'
 import type { TrackState } from '../types/audio'
 
 type Channel = {
@@ -139,6 +140,34 @@ export class AudioEngine {
 
   get duration() {
     return Math.max(0, ...this.tracks.map((track) => track.buffer.duration))
+  }
+
+  async renderMix(): Promise<StereoAudio | null> {
+    if (!this.tracks.length) return null
+    const sampleRate = 44_100
+    const offline = new OfflineAudioContext(2, Math.max(1, Math.ceil(this.duration * sampleRate)), sampleRate)
+    const master = offline.createGain()
+    master.gain.value = this.master?.gain.value ?? 1
+    master.connect(offline.destination)
+    const hasSolo = this.tracks.some((track) => track.soloed)
+    this.tracks.forEach((track) => {
+      const audible = hasSolo ? track.soloed : !track.muted
+      if (!audible) return
+      const source = offline.createBufferSource()
+      source.buffer = track.buffer
+      const gain = offline.createGain()
+      gain.gain.value = track.volume
+      const panner = offline.createStereoPanner()
+      panner.pan.value = track.pan
+      source.connect(gain).connect(panner).connect(master)
+      source.start(0)
+    })
+    const rendered = await offline.startRendering()
+    return {
+      left: rendered.getChannelData(0).slice(),
+      right: rendered.getChannelData(1).slice(),
+      sampleRate,
+    }
   }
 
   destroy() {

@@ -29,6 +29,8 @@ export default function App() {
   const [renamingSong, setRenamingSong] = useState<Song>()
   const [renameValue, setRenameValue] = useState('')
   const [draggedTrackId, setDraggedTrackId] = useState<string>()
+  const [exportingMix, setExportingMix] = useState(false)
+  const [notice, setNotice] = useState<string>()
   const transport = useTransportStore()
 
   useEffect(() => {
@@ -65,6 +67,7 @@ export default function App() {
   const selectSong = useCallback(async (song: Song) => {
     setLoadingSong(song.name)
     setError(undefined)
+    setNotice(undefined)
     try {
       const loaded = await Promise.all(song.stems.map(async (name) => ({
         id: name,
@@ -243,6 +246,25 @@ export default function App() {
     }
   }
 
+  const exportMix = async () => {
+    if (!activeSong || !tracks.length || exportingMix) return
+    setExportingMix(true)
+    setError(undefined)
+    setNotice(undefined)
+    try {
+      const mix = await engine.renderMix()
+      if (!mix) return
+      const wav = encodeWav(mix)
+      const savedPath = await window.api.exportMix(activeSong, wav)
+      if (savedPath) setNotice(`Mix exported to ${savedPath}`)
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : 'Unknown export error'
+      setError(`Could not export the mix: ${message}`)
+    } finally {
+      setExportingMix(false)
+    }
+  }
+
   const reorderTracks = (targetId: string) => {
     if (!draggedTrackId || draggedTrackId === targetId) return
     setTracks((items) => {
@@ -265,6 +287,7 @@ export default function App() {
         <div className="workspace">
         <div className="timeline-header"><span>TRACK</span><span>{activeSong ? activeSong.replaceAll('-', ' ') : 'Select a song from the library'}</span></div>
         {error && <div className="error-message" role="alert">{error}</div>}
+        {notice && <div className="status-message" role="status">{notice}</div>}
         <div className="tracks">
           {tracks.map((track, index) => (
             <TrackLane key={track.id} track={track} index={index} currentTime={transport.currentTime} duration={transport.duration}
@@ -295,6 +318,8 @@ export default function App() {
           loopRange={loopRange}
           looping={looping}
           onToggleLoop={toggleLoop}
+          exportingMix={exportingMix}
+          onExportMix={() => { void exportMix() }}
         />
         </div>
       </div>
