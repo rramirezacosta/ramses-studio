@@ -10,7 +10,7 @@ contextBridge.exposeInMainWorld('api', {
   prepareImport: () => ipcRenderer.invoke('songs:prepare-import'),
   prepareYouTubeImport: (url: string) => ipcRenderer.invoke('songs:prepare-youtube-import', url),
   loadWebGpuModel: () => ipcRenderer.invoke('models:webgpu'),
-  separateWithNative: (audio: { left: Float32Array; right: Float32Array; sampleRate: number }) => ipcRenderer.invoke('songs:separate-native', audio),
+  separateWithNative: (audio: { left: Float32Array; right: Float32Array; sampleRate: number }, forceCpu: boolean) => ipcRenderer.invoke('songs:separate-native', audio, forceCpu),
   saveImportedStems: (sourceName: string, stems: Record<string, Uint8Array>) => ipcRenderer.invoke('songs:save-import', { sourceName, stems }),
   getWindowButtonLayout: () => ipcRenderer.invoke('window:button-layout'),
   minimizeWindow: () => ipcRenderer.invoke('window:minimize'),
