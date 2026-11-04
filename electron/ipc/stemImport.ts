@@ -17,7 +17,7 @@ const nativeModelPath = () => app.isPackaged
 const webGpuModelPath = () => app.isPackaged
   ? join(process.resourcesPath, 'models', 'htdemucs_6s_webgpu.onnx')
   : join(app.getAppPath(), 'src', 'components', 'stemsplitter', 'htdemucs_6s_webgpu.onnx')
-const ffmpegPath = () => app.isPackaged && process.platform === 'win32'
+export const ffmpegPath = () => app.isPackaged && process.platform === 'win32'
   ? join(process.resourcesPath, 'bin', 'ffmpeg.exe')
   : 'ffmpeg'
 const ytDlpPath = () => {

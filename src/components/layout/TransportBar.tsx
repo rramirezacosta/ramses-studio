@@ -1,4 +1,4 @@
-import { Pause, Play, Repeat, RotateCcw, Square } from 'lucide-react'
+import { Download, Pause, Play, Repeat, RotateCcw, Square } from 'lucide-react'
 
 interface Props {
   isPlaying: boolean
@@ -7,11 +7,13 @@ interface Props {
   masterVolume: number
   loopRange?: [number, number]
   looping: boolean
+  exportingMix: boolean
   onPlayPause: () => void
   onStop: () => void
   onSeek: (value: number) => void
   onMasterVolume: (value: number) => void
   onToggleLoop: () => void
+  onExportMix: () => void
 }
 
 const formatTime = (seconds: number) => {
@@ -34,6 +36,15 @@ export function TransportBar(props: Props) {
       {props.loopRange && <div className="loop-readout">LOOP {formatTime(props.loopRange[0])}–{formatTime(props.loopRange[1])}</div>}
       <input className="seek" type="range" min="0" max={Math.max(props.duration, 0.01)} step="0.01" value={props.currentTime} onChange={(event) => props.onSeek(Number(event.target.value))} />
       <label className="master-volume">MASTER <input type="range" min="0" max="1" step="0.01" value={props.masterVolume} onChange={(event) => props.onMasterVolume(Number(event.target.value))} /></label>
+      <button
+        className="export-mix-button"
+        onClick={props.onExportMix}
+        disabled={!props.duration || props.exportingMix}
+        title={props.duration ? 'Export the current stem mix as MP3' : 'Load a song to export its mix'}
+        aria-label="Export current mix"
+      >
+        <Download size={14} /> {props.exportingMix ? 'Exporting...' : 'Export mix'}
+      </button>
     </header>
   )
 }
