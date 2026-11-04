@@ -25,7 +25,7 @@ export function Sidebar({ songs, activeSong, loading, importing, importProgress,
       <div className="brand"><img src={logo} alt="Ramses Studio" /></div>
       <div className="library-title">SONG LIBRARY</div>
       <button className="import-button" onClick={onImport} disabled={importing}>
-        <FilePlus2 size={15} /> {importing ? `Splitting ${Math.round((importProgress ?? 0) * 100)}%` : 'Import Audio'}
+        <FilePlus2 size={15} /> {importing ? `Splitting ${Math.round((importProgress ?? 0) * 100)}%` : 'Import Song'}
       </button>
       {loading && <p className="empty-state">Loading library...</p>}
       {!loading && songs.length === 0 && <p className="empty-state">No songs in your library</p>}
