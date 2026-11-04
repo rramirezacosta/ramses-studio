@@ -21,4 +21,14 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('songs:import-progress', handler)
     return () => ipcRenderer.removeListener('songs:import-progress', handler)
   },
+  onImportCpuFallback: (listener: () => void) => {
+    const handler = () => listener()
+    ipcRenderer.on('songs:import-cpu-fallback', handler)
+    return () => ipcRenderer.removeListener('songs:import-cpu-fallback', handler)
+  },
+  onImportStage: (listener: (stage: string) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, stage: string) => listener(stage)
+    ipcRenderer.on('songs:import-stage', handler)
+    return () => ipcRenderer.removeListener('songs:import-stage', handler)
+  },
 })

@@ -23,6 +23,8 @@ export default function App() {
   const [looping, setLooping] = useState(false)
   const [importing, setImporting] = useState(false)
   const [importProgress, setImportProgress] = useState<number>()
+  const [cpuFallback, setCpuFallback] = useState(false)
+  const [importStage, setImportStage] = useState<string>()
   const [importSourceOpen, setImportSourceOpen] = useState(false)
   const [youTubeUrl, setYouTubeUrl] = useState('')
   const [renamingSong, setRenamingSong] = useState<Song>()
@@ -37,12 +39,16 @@ export default function App() {
       return
     }
     const unsubscribe = window.api.onImportProgress(({ progress }) => setImportProgress(progress))
+    const unsubscribeCpuFallback = window.api.onImportCpuFallback(() => setCpuFallback(true))
+    const unsubscribeImportStage = window.api.onImportStage(setImportStage)
     void window.api.getSongs().then(setSongs).catch((reason) => {
       const message = reason instanceof Error ? reason.message : 'Unknown library error'
       setError(`Could not read the song library: ${message}`)
     }).finally(() => setLibraryLoading(false))
     return () => {
       unsubscribe()
+      unsubscribeCpuFallback()
+      unsubscribeImportStage()
       engine.destroy()
     }
   }, [engine])
@@ -120,6 +126,8 @@ export default function App() {
   const importSong = async (prepareImport: () => Promise<{ sourceName: string; audio: StereoAudio } | null>) => {
     setImporting(true)
     setImportProgress(0)
+    setCpuFallback(false)
+    setImportStage(undefined)
     setError(undefined)
     try {
       const source = await prepareImport()
@@ -150,6 +158,8 @@ export default function App() {
     } finally {
       setImporting(false)
       setImportProgress(undefined)
+      setCpuFallback(false)
+      setImportStage(undefined)
     }
   }
 
@@ -247,7 +257,7 @@ export default function App() {
     <main className="app-shell">
       <TitleBar />
       <div className="app-content">
-        <Sidebar songs={songs} activeSong={activeSong} loading={libraryLoading} importing={importing} importProgress={importProgress} onSelect={selectSong} onImport={() => setImportSourceOpen(true)} onRename={openRenameDialog} onDelete={deleteSong} />
+        <Sidebar songs={songs} activeSong={activeSong} loading={libraryLoading} importing={importing} importProgress={importProgress} cpuFallback={cpuFallback} importStage={importStage} onSelect={selectSong} onImport={() => setImportSourceOpen(true)} onRename={openRenameDialog} onDelete={deleteSong} />
         <div className="workspace">
         <div className="timeline-header"><span>TRACK</span><span>{activeSong ? activeSong.replaceAll('-', ' ') : 'Select a song from the library'}</span></div>
         {error && <div className="error-message" role="alert">{error}</div>}
