@@ -161,7 +161,7 @@ export function registerStemImportIpc() {
     return readFile(model)
   })
 
-  ipcMain.handle('songs:separate-native', async (event, audio: unknown): Promise<SeparationResult<StemName>> => {
+  ipcMain.handle('songs:separate-native', async (event, audio: unknown, forceCpu: unknown): Promise<SeparationResult<StemName>> => {
     assertStereoAudio(audio)
     const model = nativeModelPath()
     try {
@@ -171,6 +171,7 @@ export function registerStemImportIpc() {
     }
     const separator = await Separator.create({
       modelPath: model,
+      executionProviders: forceCpu === true ? ['cpu'] : undefined,
       lowMemory: true,
       targetStems: [...SIX_STEM_NAMES],
       onProgress: (progress) => {

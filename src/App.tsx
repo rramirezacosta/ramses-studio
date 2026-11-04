@@ -6,7 +6,6 @@ import { TitleBar } from './components/layout/TitleBar'
 import { TransportBar } from './components/layout/TransportBar'
 import { encodeWav } from './components/stemsplitter/audio/wav'
 import { SIX_STEM_NAMES } from './components/stemsplitter/constants'
-import { WebGpuSeparator } from './components/stemsplitter/webgpu-separator'
 import { useTransportStore } from './store/useTransportStore'
 import type { Song, TrackState } from './types/audio'
 import type { StereoAudio } from './components/stemsplitter/types'
@@ -133,19 +132,24 @@ export default function App() {
       const source = await prepareImport()
       if (!source) return
       let stems
-      try {
-        const separator = await WebGpuSeparator.create({
-          model: new Uint8Array(await window.api.loadWebGpuModel()),
-          onProgress: ({ progress }) => setImportProgress(progress),
-        })
+      if (__CPU_ONLY__) {
+        stems = await window.api.separateWithNative(source.audio, true)
+      } else {
         try {
-          stems = await separator.separate(source.audio)
-        } finally {
-          await separator.dispose()
+          const { WebGpuSeparator } = await import('./components/stemsplitter/webgpu-separator')
+          const separator = await WebGpuSeparator.create({
+            model: new Uint8Array(await window.api.loadWebGpuModel()),
+            onProgress: ({ progress }) => setImportProgress(progress),
+          })
+          try {
+            stems = await separator.separate(source.audio)
+          } finally {
+            await separator.dispose()
+          }
+        } catch (webGpuError) {
+          console.warn('WebGPU stem separation is unavailable; using the native inference fallback.', webGpuError)
+          stems = await window.api.separateWithNative(source.audio, false)
         }
-      } catch (webGpuError) {
-        console.warn('WebGPU stem separation is unavailable; using the native inference fallback.', webGpuError)
-        stems = await window.api.separateWithNative(source.audio)
       }
       const wavs: Record<string, Uint8Array> = {}
       for (const stem of SIX_STEM_NAMES) wavs[stem] = encodeWav(stems[stem])

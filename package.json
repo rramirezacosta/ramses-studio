@@ -8,9 +8,12 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:cpu": "tsc --noEmit && vite build --mode cpu",
     "preview": "vite preview",
     "package:linux": "npm run build && electron-builder --linux AppImage",
-    "package:windows": "npm run build && electron-builder --win portable"
+    "package:windows": "npm run build && electron-builder --win portable",
+    "package:linux-cpu": "npm run build:cpu && electron-builder --config build.cpu.json --linux AppImage",
+    "package:windows-cpu": "npm run build:cpu && electron-builder --config build.cpu.json --win portable"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
