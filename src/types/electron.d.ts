@@ -14,7 +14,7 @@ declare global {
       prepareImport: () => Promise<{ sourceName: string; audio: StereoAudio } | null>
       prepareYouTubeImport: (url: string) => Promise<{ sourceName: string; audio: StereoAudio }>
       loadWebGpuModel: () => Promise<Uint8Array>
-      separateWithNative: (audio: StereoAudio) => Promise<SeparationResult<StemName>>
+      separateWithNative: (audio: StereoAudio, forceCpu: boolean) => Promise<SeparationResult<StemName>>
       saveImportedStems: (sourceName: string, stems: Record<string, Uint8Array>) => Promise<Song>
       onImportProgress: (listener: (progress: { progress: number; currentSegment: number; totalSegments: number }) => void) => () => void
       onImportCpuFallback: (listener: () => void) => () => void

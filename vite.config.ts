@@ -2,7 +2,10 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import electron from 'vite-plugin-electron/simple'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  define: {
+    __CPU_ONLY__: JSON.stringify(mode === 'cpu'),
+  },
   plugins: [
     react(),
     electron({
@@ -29,4 +32,4 @@ export default defineConfig({
       },
     }),
   ],
-})
+}))
