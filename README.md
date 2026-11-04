@@ -1,8 +1,14 @@
 # Ramses Studio
 
+<p align="center">
+  <img src="build/icons/app_512.png" alt="Ramses Studio icon" width="160">
+</p>
+
 Ramses Studio is a desktop practice tool for musicians. Import a WAV, FLAC, or MP3 recording and the app uses local ONNX Runtime inference to separate it into individual stems. Load a song into the DAW-style timeline to mute, solo, pan, adjust levels, seek, and loop sections while practicing.
 
 The application runs entirely on the desktop: songs and generated WAV stems remain on the local machine. The bundled six-stem HTDemucs model separates drums, bass, other, vocals, guitar, and piano.
+
+![Ramses Studio application](build/screenshots/screenshot.png)
 
 ## Requirements
 
