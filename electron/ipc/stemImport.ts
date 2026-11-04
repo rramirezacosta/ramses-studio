@@ -1,4 +1,4 @@
-import { app, dialog, ipcMain } from 'electron'
+import { app, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { execFile as execFileCallback } from 'node:child_process'
 import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join } from 'node:path'
@@ -62,13 +62,26 @@ function assertStemWavs(value: unknown): asserts value is Record<StemName, Uint8
   }
 }
 
-async function saveStems(inputPath: string, stems: Record<StemName, Uint8Array>) {
+function notifyImportStage(event: IpcMainInvokeEvent, stage: string): void {
+  if (!event.sender.isDestroyed()) event.sender.send('songs:import-stage', stage)
+}
+
+async function saveStems(inputPath: string, stems: Record<StemName, Uint8Array>, notifyStage: () => void) {
   const directory = await uniqueSongDirectory(songNameFrom(inputPath))
   await mkdir(directory, { recursive: true })
-  await Promise.all(SIX_STEM_NAMES.map((name) => writeFile(join(directory, `${name}.wav`), stems[name])))
-  return {
-    name: basename(directory),
-    stems: SIX_STEM_NAMES.map((name) => `${name}.wav`).sort(),
+  const wavPaths = Object.fromEntries(SIX_STEM_NAMES.map((name) => [name, join(directory, `${name}.wav`)])) as Record<StemName, string>
+  try {
+    await Promise.all(SIX_STEM_NAMES.map((name) => writeFile(wavPaths[name], stems[name])))
+    notifyStage()
+    await Promise.all(SIX_STEM_NAMES.map((name) => execFile(ffmpegPath(), ['-v', 'error', '-y', '-i', wavPaths[name], '-codec:a', 'libmp3lame', '-q:a', '2', join(directory, `${name}.mp3`)])))
+    await Promise.all(SIX_STEM_NAMES.map((name) => rm(wavPaths[name])))
+    return {
+      name: basename(directory),
+      stems: SIX_STEM_NAMES.map((name) => `${name}.mp3`).sort(),
+    }
+  } catch (error) {
+    await rm(directory, { recursive: true, force: true })
+    throw error
   }
 }
 
@@ -86,7 +99,7 @@ function validateYouTubeUrl(value: string): string {
   return url.toString()
 }
 
-async function downloadYouTubeAudio(url: string): Promise<{ sourceName: string; audio: StereoAudio }> {
+async function downloadYouTubeAudio(url: string, notifyStage: (stage: string) => void): Promise<{ sourceName: string; audio: StereoAudio }> {
   const executable = ytDlpPath()
   try {
     await stat(executable)
@@ -100,6 +113,7 @@ async function downloadYouTubeAudio(url: string): Promise<{ sourceName: string; 
     if (process.platform === 'win32') args.push('--ffmpeg-location', dirname(ffmpegPath()))
     args.push(url)
     try {
+      notifyStage('Downloading audio...')
       await execFile(executable, args, { maxBuffer: 10 * 1024 * 1024 })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
@@ -110,6 +124,7 @@ async function downloadYouTubeAudio(url: string): Promise<{ sourceName: string; 
     const sourceFile = files.find((file) => extname(file).toLowerCase() === '.mp3')
     if (!sourceFile) throw new Error('yt-dlp did not produce an MP3 file.')
     const sourceName = join(directory, sourceFile)
+    notifyStage('Decoding audio...')
     return { sourceName, audio: await decodeWithFfmpeg(sourceName, ffmpegPath()) }
   } finally {
     await rm(directory, { recursive: true, force: true })
@@ -117,7 +132,7 @@ async function downloadYouTubeAudio(url: string): Promise<{ sourceName: string; 
 }
 
 export function registerStemImportIpc() {
-  ipcMain.handle('songs:prepare-import', async () => {
+  ipcMain.handle('songs:prepare-import', async (event) => {
     const selection = await dialog.showOpenDialog({
       title: 'Import audio for stem separation',
       properties: ['openFile'],
@@ -126,13 +141,14 @@ export function registerStemImportIpc() {
     if (selection.canceled || !selection.filePaths[0]) return null
 
     const inputPath = selection.filePaths[0]
+    notifyImportStage(event, 'Decoding audio...')
     const input = await decodeWithFfmpeg(inputPath, ffmpegPath())
     return { sourceName: inputPath, audio: input }
   })
 
   ipcMain.handle('songs:prepare-youtube-import', async (_event, url: unknown) => {
     if (typeof url !== 'string') throw new Error('Enter a YouTube URL.')
-    return downloadYouTubeAudio(validateYouTubeUrl(url))
+    return downloadYouTubeAudio(validateYouTubeUrl(url), (stage) => notifyImportStage(_event, stage))
   })
 
   ipcMain.handle('models:webgpu', async () => {
@@ -161,6 +177,7 @@ export function registerStemImportIpc() {
         if (!event.sender.isDestroyed()) event.sender.send('songs:import-progress', progress)
       },
     })
+    if (separator.usesCpu() && !event.sender.isDestroyed()) event.sender.send('songs:import-cpu-fallback')
     try {
       const stems = await separator.separate(audio)
       const sixStemResult = stems as Partial<SeparationResult<StemName>>
@@ -173,10 +190,10 @@ export function registerStemImportIpc() {
     }
   })
 
-  ipcMain.handle('songs:save-import', async (_event, request: { sourceName?: unknown; stems?: unknown }) => {
+  ipcMain.handle('songs:save-import', async (event, request: { sourceName?: unknown; stems?: unknown }) => {
     if (typeof request?.sourceName !== 'string') throw new Error('Invalid import source.')
     assertStemWavs(request.stems)
     await ensureSongsDirectory()
-    return saveStems(request.sourceName, request.stems)
+    return saveStems(request.sourceName, request.stems, () => notifyImportStage(event, 'Encoding stems as MP3...'))
   })
 }

@@ -77,6 +77,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid #a9a0ff; outline-
 }
 .import-button:not(:disabled):hover { border-color: #fff; box-shadow: 0 14px 28px rgba(103, 78, 239, .45), inset 0 1px rgba(255, 255, 255, .35); transform: translateY(-2px); }
 .import-button:disabled { cursor: wait; opacity: .7; }
+.import-stage-message { margin: -10px 12px 14px; color: #bdb8f5; font-size: 11px; line-height: 1.4; }
+.import-stage-message + .import-fallback-message { margin-top: -6px; }
+.import-fallback-message { margin: -10px 12px 14px; color: #e7c68b; font-size: 11px; line-height: 1.4; }
 .song-row { display: flex; align-items: center; margin: 3px 0; border: 1px solid transparent; border-radius: 10px; }
 .song-row:hover { border-color: rgba(195, 202, 255, .11); background: rgba(255, 255, 255, .055); }
 .song-row.active { border-color: rgba(165, 153, 255, .36); background: linear-gradient(100deg, rgba(124, 101, 240, .34), rgba(91, 77, 183, .16)); box-shadow: inset 3px 0 #b5aeff, 0 6px 16px rgba(25, 16, 87, .18); }

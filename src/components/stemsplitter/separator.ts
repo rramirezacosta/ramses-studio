@@ -65,6 +65,10 @@ export class Separator {
     this.disposed = true;
   }
 
+  public usesCpu(): boolean {
+    return [...this.sessions.values()].some(({ executionProviders }) => executionProviders.some((provider) => provider === 'cpu'))
+  }
+
   private async initialize(): Promise<void> {
     const source = this.options.modelPath;
     if (typeof source === 'string' || source instanceof Uint8Array) {
