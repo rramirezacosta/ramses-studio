@@ -1,4 +1,5 @@
 import type { Song } from './audio'
+import type { SeparationResult, StereoAudio, StemName } from '../components/stemsplitter/types'
 
 type WindowButton = 'minimize' | 'maximize' | 'close'
 
@@ -10,7 +11,11 @@ declare global {
       renameSong: (songName: string, newName: string) => Promise<void>
       deleteSong: (songName: string) => Promise<void>
       deleteStem: (songName: string, stemFile: string) => Promise<void>
-      importSong: () => Promise<Song | null>
+      prepareImport: () => Promise<{ sourceName: string; audio: StereoAudio } | null>
+      prepareYouTubeImport: (url: string) => Promise<{ sourceName: string; audio: StereoAudio }>
+      loadWebGpuModel: () => Promise<Uint8Array>
+      separateWithNative: (audio: StereoAudio) => Promise<SeparationResult<StemName>>
+      saveImportedStems: (sourceName: string, stems: Record<string, Uint8Array>) => Promise<Song>
       onImportProgress: (listener: (progress: { progress: number; currentSegment: number; totalSegments: number }) => void) => () => void
       getWindowButtonLayout: () => Promise<{ left: WindowButton[]; right: WindowButton[] }>
       minimizeWindow: () => Promise<void>
