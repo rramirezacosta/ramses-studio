@@ -23,13 +23,17 @@ export async function decodeWithFfmpeg(
   input: Uint8Array | ArrayBuffer | string,
   _executable?: string,
   signal?: AbortSignal,
+  normalize?: boolean,
 ): Promise<StereoAudio> {
   const ffmpeg = await getFfmpeg();
   const inputName = 'input';
   const outputName = 'output.pcm';
   const data = typeof input === 'string' ? await fetchFile(input) : new Uint8Array(input);
   await ffmpeg.writeFile(inputName, data);
-  await ffmpeg.exec(['-v', 'error', '-i', inputName, '-ar', '44100', '-ac', '2', '-f', 's16le', outputName], -1, { signal });
+  const args = ['-v', 'error', '-i', inputName];
+  if (normalize) args.push('-af', 'loudnorm=I=-14:TP=-1.5:LRA=11');
+  args.push('-ar', '44100', '-ac', '2', '-f', 's16le', outputName);
+  await ffmpeg.exec(args, -1, { signal });
   const pcm = (await ffmpeg.readFile(outputName)) as Uint8Array;
   await ffmpeg.deleteFile(inputName).catch(() => undefined);
   await ffmpeg.deleteFile(outputName).catch(() => undefined);

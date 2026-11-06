@@ -135,7 +135,7 @@ export default function App() {
       if (!prepared || controller.signal.aborted) return
       setImportStage('Decoding audio...')
       const buffer = await window.api.readFileBuffer(prepared.sourceName)
-      const audio = await decodeWithFfmpeg(buffer, undefined, controller.signal)
+      const audio = await decodeWithFfmpeg(buffer, undefined, controller.signal, true)
       if (controller.signal.aborted) return
       const source = { sourceName: prepared.sourceName, audio }
       const song = await window.api.separateWithNative(source.sourceName, source.audio)
