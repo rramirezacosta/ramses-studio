@@ -5,7 +5,6 @@ import { Sidebar } from './components/layout/Sidebar'
 import { TitleBar } from './components/layout/TitleBar'
 import { TransportBar } from './components/layout/TransportBar'
 import { encodeWav } from './components/stemsplitter/audio/wav'
-import { SIX_STEM_NAMES } from './components/stemsplitter/constants'
 import { useTransportStore } from './store/useTransportStore'
 import type { Song, TrackState } from './types/audio'
 import type { StereoAudio } from './components/stemsplitter/types'
@@ -22,7 +21,6 @@ export default function App() {
   const [looping, setLooping] = useState(false)
   const [importing, setImporting] = useState(false)
   const [importProgress, setImportProgress] = useState<number>()
-  const [cpuFallback, setCpuFallback] = useState(false)
   const [importStage, setImportStage] = useState<string>()
   const [importSourceOpen, setImportSourceOpen] = useState(false)
   const [youTubeUrl, setYouTubeUrl] = useState('')
@@ -40,7 +38,6 @@ export default function App() {
       return
     }
     const unsubscribe = window.api.onImportProgress(({ progress }) => setImportProgress(progress))
-    const unsubscribeCpuFallback = window.api.onImportCpuFallback(() => setCpuFallback(true))
     const unsubscribeImportStage = window.api.onImportStage(setImportStage)
     void window.api.getSongs().then(setSongs).catch((reason) => {
       const message = reason instanceof Error ? reason.message : 'Unknown library error'
@@ -48,7 +45,6 @@ export default function App() {
     }).finally(() => setLibraryLoading(false))
     return () => {
       unsubscribe()
-      unsubscribeCpuFallback()
       unsubscribeImportStage()
       engine.destroy()
     }
@@ -128,35 +124,12 @@ export default function App() {
   const importSong = async (prepareImport: () => Promise<{ sourceName: string; audio: StereoAudio } | null>) => {
     setImporting(true)
     setImportProgress(0)
-    setCpuFallback(false)
     setImportStage(undefined)
     setError(undefined)
     try {
       const source = await prepareImport()
       if (!source) return
-      let stems
-      if (__CPU_ONLY__) {
-        stems = await window.api.separateWithNative(source.audio, true)
-      } else {
-        try {
-          const { WebGpuSeparator } = await import('./components/stemsplitter/webgpu-separator')
-          const separator = await WebGpuSeparator.create({
-            model: new Uint8Array(await window.api.loadWebGpuModel()),
-            onProgress: ({ progress }) => setImportProgress(progress),
-          })
-          try {
-            stems = await separator.separate(source.audio)
-          } finally {
-            await separator.dispose()
-          }
-        } catch (webGpuError) {
-          console.warn('WebGPU stem separation is unavailable; using the native inference fallback.', webGpuError)
-          stems = await window.api.separateWithNative(source.audio, false)
-        }
-      }
-      const wavs: Record<string, Uint8Array> = {}
-      for (const stem of SIX_STEM_NAMES) wavs[stem] = encodeWav(stems[stem])
-      const song = await window.api.saveImportedStems(source.sourceName, wavs)
+      const song = await window.api.separateWithNative(source.sourceName, source.audio)
       setSongs(await window.api.getSongs())
       await selectSong(song)
     } catch (reason) {
@@ -165,7 +138,6 @@ export default function App() {
     } finally {
       setImporting(false)
       setImportProgress(undefined)
-      setCpuFallback(false)
       setImportStage(undefined)
     }
   }
@@ -283,7 +255,7 @@ export default function App() {
     <main className="app-shell">
       <TitleBar />
       <div className="app-content">
-        <Sidebar songs={songs} activeSong={activeSong} loading={libraryLoading} importing={importing} importProgress={importProgress} cpuFallback={cpuFallback} importStage={importStage} onSelect={selectSong} onImport={() => setImportSourceOpen(true)} onRename={openRenameDialog} onDelete={deleteSong} />
+        <Sidebar songs={songs} activeSong={activeSong} loading={libraryLoading} importing={importing} importProgress={importProgress} importStage={importStage} onSelect={selectSong} onImport={() => setImportSourceOpen(true)} onRename={openRenameDialog} onDelete={deleteSong} />
         <div className="workspace">
         <div className="timeline-header"><span>TRACK</span><span>{activeSong ? activeSong.replaceAll('-', ' ') : 'Select a song from the library'}</span></div>
         {error && <div className="error-message" role="alert">{error}</div>}
