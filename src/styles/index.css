@@ -36,6 +36,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid #a9a0ff; outline-
 .titlebar { position: relative; z-index: 4; display: flex; height: 40px; flex: 0 0 40px; align-items: stretch; padding: 0 8px; background: transparent; }
 .titlebar-drag-region { display: flex; flex: 1; align-items: center; justify-content: center; min-width: 0; -webkit-app-region: drag; }
 .titlebar-name { overflow: hidden; color: #d3d9ec; font-size: 13px; font-weight: 800; letter-spacing: .09em; text-overflow: ellipsis; white-space: nowrap; text-transform: uppercase; }
+.titlebar-version { margin-left: 8px; color: #6f7691; font-size: 11px; font-weight: 600; white-space: nowrap; }
 .titlebar-window-controls { display: flex; min-width: 72px; align-items: center; gap: 2px; }
 .titlebar-window-controls:last-child { justify-content: flex-end; }
 .titlebar-button { display: grid; width: 30px; height: 28px; place-items: center; padding: 0; border: 0; border-radius: 7px; color: #aeb8d1; background: transparent; -webkit-app-region: no-drag; }
