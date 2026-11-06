@@ -78,6 +78,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid #a9a0ff; outline-
 }
 .import-button:not(:disabled):hover { border-color: #fff; box-shadow: 0 14px 28px rgba(103, 78, 239, .45), inset 0 1px rgba(255, 255, 255, .35); transform: translateY(-2px); }
 .import-button:disabled { cursor: wait; opacity: .7; }
+.import-button.cancel { border-color: rgba(255, 130, 140, .7); background: linear-gradient(135deg, rgba(220, 70, 85, .95), rgba(170, 45, 60, .95)); box-shadow: 0 10px 24px rgba(200, 50, 65, .35), inset 0 1px rgba(255, 255, 255, .26); }
+.import-button.cancel:hover { border-color: #fff; box-shadow: 0 14px 28px rgba(220, 60, 75, .45), inset 0 1px rgba(255, 255, 255, .35); transform: translateY(-2px); }
 .import-stage-message { margin: -10px 12px 14px; color: #bdb8f5; font-size: 11px; line-height: 1.4; }
 .import-stage-message + .import-fallback-message { margin-top: -6px; }
 .import-fallback-message { margin: -10px 12px 14px; color: #e7c68b; font-size: 11px; line-height: 1.4; }
