@@ -1,4 +1,4 @@
-.PHONY: clean linux windows packages
+.PHONY: clean linux windows flatpak packages
 
 clean:
 	rm -rf dist dist-electron release
@@ -9,4 +9,7 @@ linux:
 windows:
 	npm run package:windows
 
-packages: linux windows
+flatpak:
+	npm run package:flatpak
+
+packages: linux windows flatpak

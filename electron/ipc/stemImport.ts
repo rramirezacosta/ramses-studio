@@ -1,6 +1,7 @@
 import { app, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { execFile as execFileCallback } from 'node:child_process'
 import { mkdir, mkdtemp, readdir, rm, stat, writeFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import { basename, dirname, extname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -17,9 +18,16 @@ const moduleDirectory = dirname(fileURLToPath(import.meta.url))
 const nativeModelPath = () => app.isPackaged
   ? join(process.resourcesPath, 'models', 'htdemucs_6s.onnx')
   : join(app.getAppPath(), 'src', 'components', 'stemsplitter', 'htdemucs_6s.onnx')
-export const ffmpegPath = () => app.isPackaged && process.platform === 'win32'
-  ? join(process.resourcesPath, 'bin', 'ffmpeg.exe')
-  : 'ffmpeg'
+export const ffmpegPath = () => {
+  if (!app.isPackaged || process.platform === 'win32') {
+    if (app.isPackaged) return join(process.resourcesPath, 'bin', 'ffmpeg.exe')
+    return 'ffmpeg'
+  }
+  // Sandboxed bundles (Flatpak) cannot invoke host binaries, so prefer the bundled binary.
+  const bundled = join(process.resourcesPath, 'bin', 'ffmpeg')
+  if (existsSync(bundled)) return bundled
+  return 'ffmpeg'
+}
 const ytDlpPath = () => {
   const executable = process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp'
   return app.isPackaged

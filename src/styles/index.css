@@ -132,6 +132,10 @@ code { color: #b9b1ff; }
 .track-controls { display: grid; grid-template-columns: 1fr auto; grid-template-rows: 28px 32px 32px; align-items: center; gap: 0 10px; padding: 12px 28px 12px 18px; background: rgba(17, 20, 36, .58); border-right: 1px solid rgba(207, 213, 255, .08); }
 .track-name { display: flex; min-width: 0; align-items: center; gap: 5px; }
 .track-controls strong { overflow: hidden; color: #e8ebfa; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; text-transform: capitalize; }
+.track-stem-icon { overflow: visible; display: grid; flex: 0 0 auto; place-items: center; color: #ffffff; }
+.track-stem-icon:hover { filter: brightness(1.25); }
+.track-stem-label { flex: 0 0 auto; font-weight: 800; }
+.track-stem-label:hover { color: #ffffff; }
 .track-drag-handle { display: grid; flex: 0 0 auto; place-items: center; color: #77819f; cursor: grab; }
 .track-drag-handle:active { cursor: grabbing; }
 .track-drag-handle:hover { color: #d3d9ec; }
