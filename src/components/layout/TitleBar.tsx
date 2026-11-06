@@ -37,6 +37,7 @@ export function TitleBar() {
       <div className="titlebar-window-controls">{layout.left.map(renderButton)}</div>
       <div className="titlebar-drag-region" onDoubleClick={toggleMaximize}>
         <span className="titlebar-name">Ramses Studio</span>
+        <span className="titlebar-version">v{__APP_VERSION__}</span>
       </div>
       <div className="titlebar-window-controls">{layout.right.map(renderButton)}</div>
     </header>
