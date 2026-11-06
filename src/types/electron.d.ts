@@ -12,6 +12,7 @@ declare global {
       deleteSong: (songName: string) => Promise<void>
       deleteStem: (songName: string, stemFile: string) => Promise<void>
       prepareImport: () => Promise<{ sourceName: string } | null>
+      cancelImport: () => Promise<boolean>
       prepareYouTubeImport: (url: string) => Promise<{ sourceName: string }>
       separateWithNative: (sourceName: string, audio: StereoAudio) => Promise<Song>
       exportMix: (songName: string, wav: Uint8Array) => Promise<string | null>

@@ -23,6 +23,7 @@ export default function App() {
   const [importing, setImporting] = useState(false)
   const [importProgress, setImportProgress] = useState<number>()
   const [importStage, setImportStage] = useState<string>()
+  const importAbortRef = useRef<AbortController | null>(null)
   const [importSourceOpen, setImportSourceOpen] = useState(false)
   const [youTubeUrl, setYouTubeUrl] = useState('')
   const [renamingSong, setRenamingSong] = useState<Song>()
@@ -123,28 +124,39 @@ export default function App() {
   }
 
   const importSong = async (prepareImport: () => Promise<{ sourceName: string } | null>) => {
+    const controller = new AbortController()
+    importAbortRef.current = controller
     setImporting(true)
     setImportProgress(0)
     setImportStage(undefined)
     setError(undefined)
     try {
       const prepared = await prepareImport()
-      if (!prepared) return
+      if (!prepared || controller.signal.aborted) return
       setImportStage('Decoding audio...')
       const buffer = await window.api.readFileBuffer(prepared.sourceName)
-      const audio = await decodeWithFfmpeg(buffer)
+      const audio = await decodeWithFfmpeg(buffer, undefined, controller.signal)
+      if (controller.signal.aborted) return
       const source = { sourceName: prepared.sourceName, audio }
       const song = await window.api.separateWithNative(source.sourceName, source.audio)
+      if (controller.signal.aborted) return
       setSongs(await window.api.getSongs())
       await selectSong(song)
     } catch (reason) {
+      if (controller.signal.aborted || (reason instanceof Error && reason.name === 'AbortError')) return
       const message = reason instanceof Error ? reason.message : 'Unknown import error'
       setError(`Could not split the imported audio: ${message}`)
     } finally {
+      importAbortRef.current = null
       setImporting(false)
       setImportProgress(undefined)
       setImportStage(undefined)
     }
+  }
+
+  const cancelImport = () => {
+    importAbortRef.current?.abort()
+    void window.api.cancelImport?.()
   }
 
   const importLocalFile = () => {
@@ -260,7 +272,7 @@ export default function App() {
     <main className="app-shell">
       <TitleBar />
       <div className="app-content">
-        <Sidebar songs={songs} activeSong={activeSong} loading={libraryLoading} importing={importing} importProgress={importProgress} importStage={importStage} onSelect={selectSong} onImport={() => setImportSourceOpen(true)} onRename={openRenameDialog} onDelete={deleteSong} />
+        <Sidebar songs={songs} activeSong={activeSong} loading={libraryLoading} importing={importing} importProgress={importProgress} importStage={importStage} onSelect={selectSong} onImport={() => setImportSourceOpen(true)} onCancelImport={cancelImport} onRename={openRenameDialog} onDelete={deleteSong} />
         <div className="workspace">
         <div className="timeline-header"><span>TRACK</span><span>{activeSong ? activeSong.replaceAll('-', ' ') : 'Select a song from the library'}</span></div>
         {error && <div className="error-message" role="alert">{error}</div>}
