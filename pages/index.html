@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ramses Studio — A Desktop Stem-Splitting Practice Tool</title>
+  <meta name="description" content="Ramses Studio imports WAV, FLAC, or MP3 recordings and uses local ONNX Runtime inference to split them into drums, bass, other, vocals, guitar, and piano stems in a DAW-style practice timeline." />
+  <link rel="icon" type="image/png" href="assets/app_512.png" />
+  <style>
+    :root {
+      --background: #11131a;
+      --panel: #1a1d27;
+      --panel-border: #2a2e3d;
+      --text: #e8eaf2;
+      --text-muted: #9aa1b5;
+      --accent: #4f7cff;
+      --accent-hover: #6b92ff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--background);
+      color: var(--text);
+      font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+    }
+    a { color: var(--accent); }
+    a.button {
+      display: inline-block;
+      padding: 0.7rem 1.5rem;
+      border-radius: 8px;
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background 0.15s ease;
+    }
+    a.button:hover { background: var(--accent-hover); }
+    a.button.secondary {
+      background: transparent;
+      border: 1px solid var(--panel-border);
+      color: var(--text);
+    }
+    a.button.secondary:hover { border-color: var(--accent); color: var(--accent-hover); }
+    .container { max-width: 960px; margin: 0 auto; padding: 0 1.25rem; }
+    header.hero { padding: 4rem 0 2.5rem; text-align: center; }
+    header.hero img { width: 128px; height: 128px; border-radius: 24px; }
+    header.hero h1 { font-size: clamp(2rem, 5vw, 3rem); margin: 1rem 0 0.5rem; }
+    header.hero p.tagline {
+      color: var(--text-muted);
+      max-width: 42rem;
+      margin: 0 auto 1.75rem;
+      font-size: 1.05rem;
+    }
+    header.hero .actions { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
+    .screenshot {
+      display: block;
+      width: 100%;
+      max-width: 960px;
+      margin: 2.5rem auto;
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+    }
+    section { padding: 2.5rem 0; }
+    section h2 { font-size: 1.6rem; margin-bottom: 1.25rem; }
+    section p { color: var(--text-muted); }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+      gap: 1rem;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      padding: 1.1rem 1.25rem;
+    }
+    .card h3 { font-size: 1rem; margin-bottom: 0.35rem; }
+    .card p { font-size: 0.92rem; }
+    code, pre {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.9rem;
+    }
+    code { padding: 0.1rem 0.4rem; }
+    pre { padding: 1rem; overflow-x: auto; margin: 0.75rem 0; color: var(--text); }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--panel-border); }
+    th { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    ol li, ul li { color: var(--text-muted); margin: 0.35rem 0 0.35rem 1.5rem; }
+    footer {
+      border-top: 1px solid var(--panel-border);
+      padding: 1.5rem 0 2.5rem;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="hero">
+      <img src="assets/app_512.png" alt="Ramses Studio icon" />
+      <h1>Ramses Studio</h1>
+      <p class="tagline">
+        A desktop practice tool for musicians. Import a WAV, FLAC, or MP3 recording and
+        split it into individual stems with local ONNX Runtime inference — completely offline.
+      </p>
+      <div class="actions">
+        <a class="button" href="https://github.com/rramirezacosta/ramses-studio/releases">Download latest release</a>
+        <a class="button secondary" href="https://github.com/rramirezacosta/ramses-studio">View on GitHub</a>
+      </div>
+    </header>
+
+    <img class="screenshot" src="assets/screenshot.png" alt="Ramses Studio application" />
+
+    <section id="features">
+      <h2>Features</h2>
+      <div class="grid">
+        <div class="card"><h3>Six-stem separation</h3><p>Bundled HTDemucs ONNX model splits tracks into drums, bass, other, vocals, guitar, and piano.</p></div>
+        <div class="card"><h3>DAW-style timeline</h3><p>Load separated stems into track lanes with waveforms, mute/solo, volume, pan, and per-track controls.</p></div>
+        <div class="card"><h3>Section looping</h3><p>Drag over a waveform to create practice loops of the sections you are rehearsing.</p></div>
+        <div class="card"><h3>Local-first</h3><p>Inference, songs, and generated WAV stems stay on your machine. No accounts, no uploads.</p></div>
+        <div class="card"><h3>Audio decoding</h3><p>Bundled FFmpeg handles WAV, FLAC, and MP3 imports; yt-dlp integration supports YouTube audio sources.</p></div>
+        <div class="card"><h3>Web Audio transport</h3><p>Mixing playback via the Web Audio API with a shared transport state and window-level controls.</p></div>
+      </div>
+    </section>
+
+    <section id="getting-started">
+      <h2>Getting started</h2>
+      <p>Requires Node.js 20 or newer, npm, Git LFS, plus FFmpeg and yt-dlp binaries in <code>vendor/</code>.</p>
+      <pre><code>git clone git@github.com:rramirezacosta/ramses-studio.git
+cd ramses-studio
+git lfs install
+git lfs pull
+npm install
+npm run dev</code></pre>
+    </section>
+
+    <section id="build">
+      <h2>Building packages</h2>
+      <table>
+        <thead><tr><th>Platform</th><th>Command</th><th>Output</th></tr></thead>
+        <tbody>
+          <tr><td>Linux</td><td><code>make linux</code></td><td>AppImage in <code>release/</code></td></tr>
+          <tr><td>Windows</td><td><code>make windows</code></td><td>Portable executable in <code>release/</code></td></tr>
+          <tr><td>Both</td><td><code>make packages</code></td><td>Linux and Windows packages</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="usage">
+      <h2>Usage</h2>
+      <ol>
+        <li>Select <strong>Import Audio</strong> (or paste a YouTube URL) to decode a recording.</li>
+        <li>Wait for separation to complete; the generated stems are added to the song library.</li>
+        <li>Select the song to open its tracks in the timeline.</li>
+        <li>Use <strong>M</strong> and <strong>S</strong> on each track to mute or solo it, adjust its volume and pan, and drag over a waveform to create a loop.</li>
+      </ol>
+      <p>All separation happens in a background worker thread so the interface stays responsive while the model runs.</p>
+    </section>
+
+    <footer>
+      Ramses Studio — Electron, React, Vite, and ONNX Runtime.<br />
+      Built and maintained by <a href="https://github.com/rramirezacosta">rramirezacosta</a>.
+    </footer>
+  </div>
+</body>
+</html>
