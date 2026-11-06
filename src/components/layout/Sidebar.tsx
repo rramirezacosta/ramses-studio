@@ -29,6 +29,7 @@ export function Sidebar({ songs, activeSong, loading, importing, importProgress,
         <FilePlus2 size={15} /> {importing ? `Splitting ${Math.round((importProgress ?? 0) * 100)}%` : 'Import Song'}
       </button>
       {importing && importStage && <p className="import-stage-message">{importStage}</p>}
+      {importing && <p className="import-fallback-message">Using CPU for inference, it may take a while.</p>}
       {loading && <p className="empty-state">Loading library...</p>}
       {!loading && songs.length === 0 && <p className="empty-state">No songs in your library</p>}
       <nav className="song-list">

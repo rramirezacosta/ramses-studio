@@ -37,17 +37,24 @@ This project relies on FFMPEG and YTDLP for importing audio files, place binarie
 ```
 vendor/
 ├── ffmpeg
-│   └── win32
-│       └── x64
-│           ├── ffmpeg.exe
+│   ├── linux
+│   │   └── x64
+│   │       └── ffmpeg
+│   └── win32
+│       └── x64
+│           └── ffmpeg.exe
 └── ytdlp
     ├── linux
-    │   └── x64
-    │       └── yt-dlp_linux
+    │   └── x64
+    │       └── yt-dlp_linux
     └── win32
         └── x64
             └── yt-dlp.exe
 ```
+
+The Linux ffmpeg is required because sandboxed packages (Flatpak) cannot call the system ffmpeg; a static build (for example the one shipped at `node_modules/@ffmpeg-installer/linux-x64/ffmpeg`) works.
+
+Creating a Flatpak additionally requires `flatpak` and `flatpak-builder` with the `org.freedesktop.Sdk` runtime installed on the build machine.
 
 
 Start the Electron app in development mode:
@@ -70,9 +77,10 @@ Create a distributable package:
 | --- | --- | --- |
 | Linux | `make linux` | AppImage in `release/` |
 | Windows | `make windows` | Portable executable in `release/` |
-| Both | `make packages` | Linux and Windows packages |
+| Linux (Flatpak) | `make flatpak` | Flatpak bundle in `release/` |
+| Both | `make packages` | Linux AppImage, Flatpak, and Windows packages |
 
-The equivalent npm commands are `npm run package:linux` and `npm run package:windows`.
+The equivalent npm commands are `npm run package:linux`, `npm run package:flatpak`, and `npm run package:windows`.
 
 ## Usage
 

@@ -1,8 +1,21 @@
-import { GripVertical, Trash2 } from 'lucide-react'
+import { AudioLines, Drum, Guitar, GripVertical, MicVocal, Music, Piano, Speaker, Trash2, type LucideIcon } from 'lucide-react'
 import type { TrackState } from '../../types/audio'
 import { WaveformDisplay } from './WaveformDisplay'
 
 const colors = ['#7dd3fc', '#c4b5fd', '#f9a8d4', '#86efac', '#fcd34d', '#fb923c']
+
+const stemIcons: Record<string, LucideIcon> = {
+  drums: Drum,
+  bass: Speaker,
+  other: Music,
+  vocals: MicVocal,
+  guitar: Guitar,
+  piano: Piano,
+}
+
+function stemTitle(name: string): string {
+  return name.replace(/\.[^.]+$/, '')
+}
 
 interface Props {
   track: TrackState
@@ -23,12 +36,19 @@ interface Props {
 }
 
 export function TrackLane({ track, index, currentTime, duration, onUpdate, onRemove, dragging, onDragStart, onDragEnd, onDrop, onSeek, loopRange, onRangeChange, onRangeCommit, onClearRange }: Props) {
+  const stemName = track.name.replace(/\.[^.]+$/, '').trim().toLowerCase()
+  const StemIcon = stemIcons[stemName] ?? AudioLines
+  const isOther = stemName === 'other'
   return (
     <section className={`track-lane ${dragging ? 'dragging' : ''}`} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); onDrop() }}>
       <div className="track-controls">
         <div className="track-name">
           <span className="track-drag-handle" draggable onDragStart={onDragStart} onDragEnd={onDragEnd} title="Drag to reorder" aria-label="Drag to reorder"><GripVertical size={16} /></span>
-          <strong>{track.name.replace(/\.wav$/i, '')}</strong>
+          {isOther ? (
+            <strong className="track-stem-label" title={stemTitle(track.name)}>Other</strong>
+          ) : (
+            <strong className="track-stem-icon" title={stemTitle(track.name)} aria-label={stemTitle(track.name)}><StemIcon size={18} /></strong>
+          )}
         </div>
         <div className="toggle-row">
           <button className={track.muted ? 'active mute' : ''} onClick={() => onUpdate({ muted: !track.muted })}>M</button>
