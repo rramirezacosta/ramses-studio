@@ -1,13 +1,13 @@
 import { app, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { execFile as execFileCallback } from 'node:child_process'
-import { mkdir, mkdtemp, readdir, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { basename, dirname, extname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { Worker } from 'node:worker_threads'
-import { decodeWithFfmpeg } from '../../src/components/stemsplitter/audio/ffmpeg'
+
 import { SIX_STEM_NAMES } from '../../src/components/stemsplitter/constants'
 import { ensureSongsDirectory, songsDirectory } from '../paths'
 import type { SeparateWorkerData, SeparateWorkerMessage } from '../separation-worker'
@@ -18,16 +18,7 @@ const moduleDirectory = dirname(fileURLToPath(import.meta.url))
 const nativeModelPath = () => app.isPackaged
   ? join(process.resourcesPath, 'models', 'htdemucs_6s.onnx')
   : join(app.getAppPath(), 'src', 'components', 'stemsplitter', 'htdemucs_6s.onnx')
-export const ffmpegPath = () => {
-  if (!app.isPackaged || process.platform === 'win32') {
-    if (app.isPackaged) return join(process.resourcesPath, 'bin', 'ffmpeg.exe')
-    return 'ffmpeg'
-  }
-  // Sandboxed bundles (Flatpak) cannot invoke host binaries, so prefer the bundled binary.
-  const bundled = join(process.resourcesPath, 'bin', 'ffmpeg')
-  if (existsSync(bundled)) return bundled
-  return 'ffmpeg'
-}
+export const ffmpegPath = () => 'ffmpeg'
 const ytDlpPath = () => {
   const executable = process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp'
   return app.isPackaged
@@ -139,7 +130,7 @@ function validateYouTubeUrl(value: string): string {
   return url.toString()
 }
 
-async function downloadYouTubeAudio(url: string, notifyStage: (stage: string) => void): Promise<{ sourceName: string; audio: StereoAudio }> {
+async function downloadYouTubeAudio(url: string, notifyStage: (stage: string) => void): Promise<{ sourceName: string }> {
   const executable = ytDlpPath()
   try {
     await stat(executable)
@@ -148,8 +139,7 @@ async function downloadYouTubeAudio(url: string, notifyStage: (stage: string) =>
   }
 
   const directory = await mkdtemp(join(tmpdir(), 'ramses-ytdlp-'))
-  try {
-    const args = ['--no-playlist', '--no-progress', '--extract-audio', '--audio-format', 'mp3', '--output', join(directory, '%(title)s.%(ext)s')]
+  const args = ['--no-playlist', '--no-progress', '--extract-audio', '--audio-format', 'mp3', '--output', join(directory, '%(title)s.%(ext)s')]
     if (process.platform === 'win32') args.push('--ffmpeg-location', dirname(ffmpegPath()))
     args.push(url)
     try {
@@ -164,14 +154,16 @@ async function downloadYouTubeAudio(url: string, notifyStage: (stage: string) =>
     const sourceFile = files.find((file) => extname(file).toLowerCase() === '.mp3')
     if (!sourceFile) throw new Error('yt-dlp did not produce an MP3 file.')
     const sourceName = join(directory, sourceFile)
-    notifyStage('Decoding audio...')
-    return { sourceName, audio: await decodeWithFfmpeg(sourceName, ffmpegPath()) }
-  } finally {
-    await rm(directory, { recursive: true, force: true })
+    notifyStage('Preparing audio...')
+    return { sourceName }
   }
-}
 
 export function registerStemImportIpc() {
+  ipcMain.handle('files:read-buffer', async (_event, filePath: unknown) => {
+    if (typeof filePath !== 'string') throw new Error('Invalid file path.')
+    return readFile(filePath)
+  })
+
   ipcMain.handle('songs:prepare-import', async (event) => {
     const selection = await dialog.showOpenDialog({
       title: 'Import audio for stem separation',
@@ -181,9 +173,8 @@ export function registerStemImportIpc() {
     if (selection.canceled || !selection.filePaths[0]) return null
 
     const inputPath = selection.filePaths[0]
-    notifyImportStage(event, 'Decoding audio...')
-    const input = await decodeWithFfmpeg(inputPath, ffmpegPath())
-    return { sourceName: inputPath, audio: input }
+    notifyImportStage(event, 'Preparing audio...')
+    return { sourceName: inputPath }
   })
 
   ipcMain.handle('songs:prepare-youtube-import', async (_event, url: unknown) => {

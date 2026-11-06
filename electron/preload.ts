@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('api', {
   separateWithNative: (sourceName: string, audio: { left: Float32Array; right: Float32Array; sampleRate: number }) =>
     ipcRenderer.invoke('songs:separate-native', sourceName, audio),
   exportMix: (songName: string, wav: Uint8Array) => ipcRenderer.invoke('mix:export', { songName, wav }),
+  readFileBuffer: (filePath: string) => ipcRenderer.invoke('files:read-buffer', filePath),
   getWindowButtonLayout: () => ipcRenderer.invoke('window:button-layout'),
   minimizeWindow: () => ipcRenderer.invoke('window:minimize'),
   toggleWindowMaximize: () => ipcRenderer.invoke('window:toggle-maximize'),

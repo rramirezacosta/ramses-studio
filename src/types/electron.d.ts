@@ -11,10 +11,11 @@ declare global {
       renameSong: (songName: string, newName: string) => Promise<void>
       deleteSong: (songName: string) => Promise<void>
       deleteStem: (songName: string, stemFile: string) => Promise<void>
-      prepareImport: () => Promise<{ sourceName: string; audio: StereoAudio } | null>
-      prepareYouTubeImport: (url: string) => Promise<{ sourceName: string; audio: StereoAudio }>
+      prepareImport: () => Promise<{ sourceName: string } | null>
+      prepareYouTubeImport: (url: string) => Promise<{ sourceName: string }>
       separateWithNative: (sourceName: string, audio: StereoAudio) => Promise<Song>
       exportMix: (songName: string, wav: Uint8Array) => Promise<string | null>
+      readFileBuffer: (filePath: string) => Promise<ArrayBuffer>
       onImportProgress: (listener: (progress: { progress: number; currentSegment: number; totalSegments: number }) => void) => () => void
       onImportStage: (listener: (stage: string) => void) => () => void
       getWindowButtonLayout: () => Promise<{ left: WindowButton[]; right: WindowButton[] }>
