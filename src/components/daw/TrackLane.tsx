@@ -55,8 +55,8 @@ export function TrackLane({ track, index, currentTime, duration, onUpdate, onRem
           <button className={track.soloed ? 'active solo' : ''} onClick={() => onUpdate({ soloed: !track.soloed })}>S</button>
           <button className="remove-stem-button" onClick={onRemove} title={`Delete ${track.name}`} aria-label={`Delete ${track.name}`}><Trash2 size={12} /></button>
         </div>
-        <label>VOL <input type="range" min="0" max="1" step="0.01" value={track.volume} onChange={(event) => onUpdate({ volume: Number(event.target.value) })} /></label>
-        <label>PAN <input type="range" min="-1" max="1" step="0.01" value={track.pan} onChange={(event) => onUpdate({ pan: Number(event.target.value) })} /></label>
+        <label className="volume-control">VOL <input type="range" min="0" max="1" step="0.01" value={track.volume} onChange={(event) => onUpdate({ volume: Number(event.target.value) })} /> <span className="volume-tooltip">{Math.round(track.volume * 100)}%</span></label>
+        <label className="pan-control">PAN <input type="range" min="-1" max="1" step="0.01" value={track.pan} onChange={(event) => { const next = Number(event.target.value); onUpdate({ pan: Math.abs(next) < 0.03 ? 0 : next }) }} style={{ '--pan-left': track.pan < 0 ? Math.abs(track.pan) * 0.55 + 0.1 : 0, '--pan-right': track.pan > 0 ? track.pan * 0.55 + 0.1 : 0 } as React.CSSProperties} /> {track.pan !== 0 && <span className="pan-tooltip">{Math.round(track.pan * 100)}%</span>}</label>
       </div>
       <WaveformDisplay buffer={track.buffer} color={colors[index % colors.length]} currentTime={currentTime} duration={duration} onSeek={onSeek} loopRange={loopRange} onRangeChange={onRangeChange} onRangeCommit={onRangeCommit} onClearRange={onClearRange} />
     </section>
