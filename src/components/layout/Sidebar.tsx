@@ -1,4 +1,4 @@
-import { FilePenLine, FilePlus2, Search, Trash2 } from 'lucide-react'
+import { FilePenLine, FilePlus2, Search, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
 import logo from '../../assets/logo.png'
 import type { Song } from '../../types/audio'
@@ -12,12 +12,14 @@ interface Props {
   importStage?: string
   onSelect: (song: Song) => void
   onImport: () => void
+  onCancelImport?: () => void
   onRename: (song: Song) => void
   onDelete: (song: Song) => void
 }
 
-export function Sidebar({ songs, activeSong, loading, importing, importProgress, importStage, onSelect, onImport, onRename, onDelete }: Props) {
+export function Sidebar({ songs, activeSong, loading, importing, importProgress, importStage, onSelect, onImport, onCancelImport, onRename, onDelete }: Props) {
   const [query, setQuery] = useState('')
+  const [importHovered, setImportHovered] = useState(false)
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const visibleSongs = songs.filter((song) => song.name.toLocaleLowerCase().includes(normalizedQuery))
 
@@ -25,8 +27,13 @@ export function Sidebar({ songs, activeSong, loading, importing, importProgress,
     <aside className="sidebar">
       <div className="brand"><img src={logo} alt="Ramses Studio" /></div>
       <div className="library-title">SONG LIBRARY</div>
-      <button className="import-button" onClick={onImport} disabled={importing}>
-        <FilePlus2 size={15} /> {importing ? `Splitting ${Math.round((importProgress ?? 0) * 100)}%` : 'Import Song'}
+      <button
+        className={`import-button${importing && importHovered ? ' cancel' : ''}`}
+        onClick={importing ? () => onCancelImport?.() : onImport}
+        onMouseEnter={() => setImportHovered(true)}
+        onMouseLeave={() => setImportHovered(false)}
+      >
+        {importing && importHovered ? <X size={15} /> : <FilePlus2 size={15} />} {importing ? (importHovered ? 'Cancel' : `Splitting ${Math.round((importProgress ?? 0) * 100)}%`) : 'Import Song'}
       </button>
       {importing && importStage && <p className="import-stage-message">{importStage}</p>}
       {importing && <p className="import-fallback-message">Using CPU for inference, it may take a while.</p>}

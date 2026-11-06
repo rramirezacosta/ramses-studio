@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('api', {
   deleteSong: (songName: string) => ipcRenderer.invoke('songs:delete', songName),
   deleteStem: (songName: string, stemFile: string) => ipcRenderer.invoke('songs:delete-stem', { songName, stemFile }),
   prepareImport: () => ipcRenderer.invoke('songs:prepare-import'),
+  cancelImport: () => ipcRenderer.invoke('songs:cancel-import'),
   prepareYouTubeImport: (url: string) => ipcRenderer.invoke('songs:prepare-youtube-import', url),
   separateWithNative: (sourceName: string, audio: { left: Float32Array; right: Float32Array; sampleRate: number }) =>
     ipcRenderer.invoke('songs:separate-native', sourceName, audio),

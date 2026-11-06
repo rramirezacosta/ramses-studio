@@ -16,6 +16,13 @@ export type SeparateWorkerMessage =
 
 const request = workerData as SeparateWorkerData
 
+const cancelController = new AbortController()
+if (parentPort) {
+  parentPort.on('message', (message: { type?: string } | null) => {
+    if (message?.type === 'cancel') cancelController.abort()
+  })
+}
+
 function post(message: SeparateWorkerMessage): void {
   if (parentPort) parentPort.postMessage(message)
 }
@@ -36,6 +43,7 @@ async function run(): Promise<void> {
     modelPath: request.modelPath,
     lowMemory: true,
     targetStems: [...SIX_STEM_NAMES],
+    signal: cancelController.signal,
     onProgress: throttle((info: ProgressInfo) => post({ type: 'progress', progress: info }), 250),
   })
   const stems = await separator.separate(request.audio) as Partial<SeparationResult<StemName>>

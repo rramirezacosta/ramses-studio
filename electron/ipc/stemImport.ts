@@ -1,5 +1,5 @@
 import { app, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron'
-import { execFile as execFileCallback } from 'node:child_process'
+import { execFile as execFileCallback, type ChildProcess } from 'node:child_process'
 import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { basename, dirname, extname, join } from 'node:path'
@@ -60,6 +60,9 @@ function transferableBuffers(audio: StereoAudio): ArrayBuffer[] {
   return left === right ? [left] : [left, right]
 }
 
+let activeSeparationWorker: Worker | null = null
+let activeYouTubeProcess: ChildProcess | null = null
+
 function runSeparationWorker(event: IpcMainInvokeEvent, modelPath: string, audio: StereoAudio): Promise<Record<string, Uint8Array>> {
   const request: SeparateWorkerData = { modelPath, audio }
   return new Promise((resolve, reject) => {
@@ -68,9 +71,11 @@ function runSeparationWorker(event: IpcMainInvokeEvent, modelPath: string, audio
       workerData: request,
       transferList: transferableBuffers(audio),
     })
+    activeSeparationWorker = worker
     const fail = (reason: string) => {
       if (settled) return
       settled = true
+      activeSeparationWorker = null
       reject(new Error(reason))
       worker.terminate()
     }
@@ -84,11 +89,13 @@ function runSeparationWorker(event: IpcMainInvokeEvent, modelPath: string, audio
         return
       }
       settled = true
+      activeSeparationWorker = null
       resolve(message.wavs)
     })
     worker.on('error', (error) => fail(`Could not run stem separation: ${error.message}`))
     worker.on('exit', (code) => {
       if (!settled) fail(`The stem separation worker exited unexpectedly (code ${code}).`)
+      activeSeparationWorker = null
     })
   })
 }
@@ -144,7 +151,14 @@ async function downloadYouTubeAudio(url: string, notifyStage: (stage: string) =>
     args.push(url)
     try {
       notifyStage('Downloading audio...')
-      await execFile(executable, args, { maxBuffer: 10 * 1024 * 1024 })
+      await new Promise<void>((resolve, reject) => {
+        const child = execFileCallback(executable, args, { maxBuffer: 10 * 1024 * 1024 }, (error) => {
+          activeYouTubeProcess = null
+          if (error) reject(error)
+          else resolve()
+        })
+        activeYouTubeProcess = child
+      })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       throw new Error(`Could not download YouTube audio: ${message}`)
@@ -158,7 +172,21 @@ async function downloadYouTubeAudio(url: string, notifyStage: (stage: string) =>
     return { sourceName }
   }
 
+export function cancelActiveImport() {
+  if (activeSeparationWorker) {
+    try { activeSeparationWorker.postMessage({ type: 'cancel' }) } catch { /* ignore */ }
+  }
+  if (activeYouTubeProcess) {
+    activeYouTubeProcess.kill()
+    activeYouTubeProcess = null
+  }
+}
+
 export function registerStemImportIpc() {
+  ipcMain.handle('songs:cancel-import', () => {
+    cancelActiveImport()
+    return true
+  })
   ipcMain.handle('files:read-buffer', async (_event, filePath: unknown) => {
     if (typeof filePath !== 'string') throw new Error('Invalid file path.')
     return readFile(filePath)
