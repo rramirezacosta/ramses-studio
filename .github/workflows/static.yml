@@ -31,13 +31,25 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Assemble site
+        run: |
+          mkdir -v -p site/assets
+          cp -v pages/index.html site/
+          cp -v build/icons/app_512.png site/assets/
+          cp -v build/screenshots/screenshot.png site/assets/
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Upload entire repository
-          path: '.'
+          # Upload the assembled site directory, not the whole repository
+          path: 'site'
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
