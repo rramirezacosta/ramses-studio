@@ -4,6 +4,9 @@ import react from '@vitejs/plugin-react'
 import electron from 'vite-plugin-electron'
 
 export default defineConfig(() => ({
+  optimizeDeps: {
+    exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util', '@ffmpeg/core'],
+  },
   define: {
     __APP_VERSION__: JSON.stringify(version),
   },

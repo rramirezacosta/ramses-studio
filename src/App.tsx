@@ -5,6 +5,7 @@ import { Sidebar } from './components/layout/Sidebar'
 import { TitleBar } from './components/layout/TitleBar'
 import { TransportBar } from './components/layout/TransportBar'
 import { encodeWav } from './components/stemsplitter/audio/wav'
+import { decodeWithFfmpeg } from './components/stemsplitter/audio/ffmpeg'
 import { useTransportStore } from './store/useTransportStore'
 import type { Song, TrackState } from './types/audio'
 import type { StereoAudio } from './components/stemsplitter/types'
@@ -121,14 +122,18 @@ export default function App() {
     setLooping(false)
   }
 
-  const importSong = async (prepareImport: () => Promise<{ sourceName: string; audio: StereoAudio } | null>) => {
+  const importSong = async (prepareImport: () => Promise<{ sourceName: string } | null>) => {
     setImporting(true)
     setImportProgress(0)
     setImportStage(undefined)
     setError(undefined)
     try {
-      const source = await prepareImport()
-      if (!source) return
+      const prepared = await prepareImport()
+      if (!prepared) return
+      setImportStage('Decoding audio...')
+      const buffer = await window.api.readFileBuffer(prepared.sourceName)
+      const audio = await decodeWithFfmpeg(buffer)
+      const source = { sourceName: prepared.sourceName, audio }
       const song = await window.api.separateWithNative(source.sourceName, source.audio)
       setSongs(await window.api.getSongs())
       await selectSong(song)

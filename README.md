@@ -31,18 +31,11 @@ npm install
 
 ```
 
-This project relies on FFMPEG and YTDLP for importing audio files, place binaries in vendor folder.
+This project relies on YTDLP for importing youtube files, place binaries in vendor folder.
 
 
 ```
 vendor/
-├── ffmpeg
-│   ├── linux
-│   │   └── x64
-│   │       └── ffmpeg
-│   └── win32
-│       └── x64
-│           └── ffmpeg.exe
 └── ytdlp
     ├── linux
     │   └── x64

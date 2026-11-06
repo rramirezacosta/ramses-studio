@@ -4,7 +4,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { promisify } from 'node:util'
-import { ffmpegPath } from './stemImport'
+const ffmpegPath = () => 'ffmpeg'
 
 const execFile = promisify(execFileCallback)
 
