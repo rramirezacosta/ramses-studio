@@ -1,22 +1,22 @@
 import { app, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { execFile as execFileCallback } from 'node:child_process'
-import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
-import { Separator } from '../../src/components/stemsplitter/separator'
+import { Worker } from 'node:worker_threads'
 import { decodeWithFfmpeg } from '../../src/components/stemsplitter/audio/ffmpeg'
 import { SIX_STEM_NAMES } from '../../src/components/stemsplitter/constants'
-import type { SeparationResult, StemName, StereoAudio } from '../../src/components/stemsplitter/types'
 import { ensureSongsDirectory, songsDirectory } from '../paths'
+import type { SeparateWorkerData, SeparateWorkerMessage } from '../separation-worker'
+import type { StereoAudio, StemName } from '../../src/components/stemsplitter/types'
 
 const execFile = promisify(execFileCallback)
+const moduleDirectory = dirname(fileURLToPath(import.meta.url))
 const nativeModelPath = () => app.isPackaged
   ? join(process.resourcesPath, 'models', 'htdemucs_6s.onnx')
   : join(app.getAppPath(), 'src', 'components', 'stemsplitter', 'htdemucs_6s.onnx')
-const webGpuModelPath = () => app.isPackaged
-  ? join(process.resourcesPath, 'models', 'htdemucs_6s_webgpu.onnx')
-  : join(app.getAppPath(), 'src', 'components', 'stemsplitter', 'htdemucs_6s_webgpu.onnx')
 export const ffmpegPath = () => app.isPackaged && process.platform === 'win32'
   ? join(process.resourcesPath, 'bin', 'ffmpeg.exe')
   : 'ffmpeg'
@@ -55,11 +55,43 @@ function assertStereoAudio(value: unknown): asserts value is StereoAudio {
   }
 }
 
-function assertStemWavs(value: unknown): asserts value is Record<StemName, Uint8Array> {
-  if (!value || typeof value !== 'object') throw new Error('Invalid stem output.')
-  for (const stem of SIX_STEM_NAMES) {
-    if (!((value as Record<string, unknown>)[stem] instanceof Uint8Array)) throw new Error(`Missing WAV data for "${stem}".`)
-  }
+function transferableBuffers(audio: StereoAudio): ArrayBuffer[] {
+  const left = audio.left.buffer as ArrayBuffer
+  const right = (audio.right ?? audio.left).buffer as ArrayBuffer
+  return left === right ? [left] : [left, right]
+}
+
+function runSeparationWorker(event: IpcMainInvokeEvent, modelPath: string, audio: StereoAudio): Promise<Record<string, Uint8Array>> {
+  const request: SeparateWorkerData = { modelPath, audio }
+  return new Promise((resolve, reject) => {
+    let settled = false
+    const worker = new Worker(join(moduleDirectory, 'separation-worker.cjs'), {
+      workerData: request,
+      transferList: transferableBuffers(audio),
+    })
+    const fail = (reason: string) => {
+      if (settled) return
+      settled = true
+      reject(new Error(reason))
+      worker.terminate()
+    }
+    worker.on('message', (message: SeparateWorkerMessage) => {
+      if (message.type === 'progress') {
+        if (!event.sender.isDestroyed()) event.sender.send('songs:import-progress', message.progress)
+        return
+      }
+      if (message.type === 'error') {
+        fail(message.message)
+        return
+      }
+      settled = true
+      resolve(message.wavs)
+    })
+    worker.on('error', (error) => fail(`Could not run stem separation: ${error.message}`))
+    worker.on('exit', (code) => {
+      if (!settled) fail(`The stem separation worker exited unexpectedly (code ${code}).`)
+    })
+  })
 }
 
 function notifyImportStage(event: IpcMainInvokeEvent, stage: string): void {
@@ -151,17 +183,8 @@ export function registerStemImportIpc() {
     return downloadYouTubeAudio(validateYouTubeUrl(url), (stage) => notifyImportStage(_event, stage))
   })
 
-  ipcMain.handle('models:webgpu', async () => {
-    const model = webGpuModelPath()
-    try {
-      await stat(model)
-    } catch {
-      throw new Error('The WebGPU StemSplitter model is missing from this application.')
-    }
-    return readFile(model)
-  })
-
-  ipcMain.handle('songs:separate-native', async (event, audio: unknown, forceCpu: unknown): Promise<SeparationResult<StemName>> => {
+  ipcMain.handle('songs:separate-native', async (event, sourceName: unknown, audio: unknown): Promise<{ name: string; stems: string[] }> => {
+    if (typeof sourceName !== 'string') throw new Error('Invalid import source.')
     assertStereoAudio(audio)
     const model = nativeModelPath()
     try {
@@ -169,32 +192,8 @@ export function registerStemImportIpc() {
     } catch {
       throw new Error('The native StemSplitter model is missing from this application.')
     }
-    const separator = await Separator.create({
-      modelPath: model,
-      executionProviders: forceCpu === true ? ['cpu'] : undefined,
-      lowMemory: true,
-      targetStems: [...SIX_STEM_NAMES],
-      onProgress: (progress) => {
-        if (!event.sender.isDestroyed()) event.sender.send('songs:import-progress', progress)
-      },
-    })
-    if (separator.usesCpu() && !event.sender.isDestroyed()) event.sender.send('songs:import-cpu-fallback')
-    try {
-      const stems = await separator.separate(audio)
-      const sixStemResult = stems as Partial<SeparationResult<StemName>>
-      for (const stem of SIX_STEM_NAMES) {
-        if (!sixStemResult[stem]) throw new Error(`The native model did not return the "${stem}" stem.`)
-      }
-      return sixStemResult as SeparationResult<StemName>
-    } finally {
-      await separator.dispose()
-    }
-  })
-
-  ipcMain.handle('songs:save-import', async (event, request: { sourceName?: unknown; stems?: unknown }) => {
-    if (typeof request?.sourceName !== 'string') throw new Error('Invalid import source.')
-    assertStemWavs(request.stems)
+    const wavs = await runSeparationWorker(event, model, audio)
     await ensureSongsDirectory()
-    return saveStems(request.sourceName, request.stems, () => notifyImportStage(event, 'Encoding stems as MP3...'))
+    return saveStems(sourceName, wavs, () => notifyImportStage(event, 'Encoding stems as MP3...'))
   })
 }
