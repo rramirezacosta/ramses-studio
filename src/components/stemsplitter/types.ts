@@ -21,7 +21,6 @@ export interface ProgressInfo {
 
 export interface SeparatorOptions {
   modelPath: ModelSource | ModelBag;
-  executionProviders?: ort.InferenceSession.ExecutionProviderConfig[];
   overlap?: number;
   lowMemory?: boolean;
   targetStems?: StemName[];

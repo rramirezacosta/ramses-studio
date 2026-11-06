@@ -1,4 +1,4 @@
-.PHONY: clean linux windows linux-cpu windows-cpu packages
+.PHONY: clean linux windows packages
 
 clean:
 	rm -rf dist dist-electron release
@@ -9,10 +9,4 @@ linux:
 windows:
 	npm run package:windows
 
-linux-cpu:
-	npm run package:linux-cpu
-
-windows-cpu:
-	npm run package:windows-cpu
-
-packages: linux windows linux-cpu windows-cpu
+packages: linux windows
