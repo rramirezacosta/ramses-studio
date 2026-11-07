@@ -1,4 +1,4 @@
-import { FilePenLine, FilePlus2, Search, Trash2, X } from 'lucide-react'
+import { FilePenLine, FilePlus2, Search, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import logo from '../../assets/logo.png'
 import type { Song } from '../../types/audio'
@@ -8,6 +8,7 @@ interface Props {
   activeSong?: string
   loading: boolean
   importing: boolean
+  cancelling?: boolean
   importProgress?: number
   importStage?: string
   onSelect: (song: Song) => void
@@ -17,7 +18,7 @@ interface Props {
   onDelete: (song: Song) => void
 }
 
-export function Sidebar({ songs, activeSong, loading, importing, importProgress, importStage, onSelect, onImport, onCancelImport, onRename, onDelete }: Props) {
+export function Sidebar({ songs, activeSong, loading, importing, cancelling, importProgress, importStage, onSelect, onImport, onCancelImport, onRename, onDelete }: Props) {
   const [query, setQuery] = useState('')
   const [importHovered, setImportHovered] = useState(false)
   const normalizedQuery = query.trim().toLocaleLowerCase()
@@ -28,12 +29,13 @@ export function Sidebar({ songs, activeSong, loading, importing, importProgress,
       <div className="brand"><img src={logo} alt="Ramses Studio" /></div>
       <div className="library-title">SONG LIBRARY</div>
       <button
-        className={`import-button${importing && importHovered ? ' cancel' : ''}`}
-        onClick={importing ? () => onCancelImport?.() : onImport}
+        className={`import-button${importing && importHovered && !cancelling ? ' cancel' : ''}${cancelling ? ' cancelling' : ''}`}
+        onClick={importing && !cancelling ? () => onCancelImport?.() : onImport}
+        disabled={cancelling}
         onMouseEnter={() => setImportHovered(true)}
         onMouseLeave={() => setImportHovered(false)}
       >
-        {importing && importHovered ? <X size={15} /> : <FilePlus2 size={15} />} <span>{importing ? (importHovered ? 'Cancel' : importStage ?? `Splitting ${Math.round((importProgress ?? 0) * 100)}%`) : 'Import Song'}</span>
+        {!importing ? <FilePlus2 size={15} /> : null} <span>{cancelling ? 'Cancelling...' : importing ? (importHovered ? 'Cancel' : importStage ?? `Splitting ${Math.round((importProgress ?? 0) * 100)}%`) : 'Import Song'}</span>
       </button>
       {importing && <p className="import-fallback-message">Using CPU for inference, it may take a while.</p>}
       {loading && <p className="empty-state">Loading library...</p>}

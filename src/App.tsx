@@ -10,6 +10,12 @@ import { useTransportStore } from './store/useTransportStore'
 import type { Song, TrackState } from './types/audio'
 import type { StereoAudio } from './components/stemsplitter/types'
 
+interface ConfirmData {
+  title: string
+  body: string
+  action: () => Promise<void>
+}
+
 export default function App() {
   const engine = useRef(new AudioEngine()).current
   const [songs, setSongs] = useState<Song[]>([])
@@ -21,6 +27,7 @@ export default function App() {
   const [loopRange, setLoopRange] = useState<[number, number]>()
   const [looping, setLooping] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
   const [importProgress, setImportProgress] = useState<number>()
   const [importStage, setImportStage] = useState<string>()
   const importAbortRef = useRef<AbortController | null>(null)
@@ -28,6 +35,7 @@ export default function App() {
   const [youTubeUrl, setYouTubeUrl] = useState('')
   const [renamingSong, setRenamingSong] = useState<Song>()
   const [renameValue, setRenameValue] = useState('')
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmData>()
   const [draggedTrackId, setDraggedTrackId] = useState<string>()
   const [exportingMix, setExportingMix] = useState(false)
   const [notice, setNotice] = useState<string>()
@@ -154,10 +162,13 @@ export default function App() {
       setImporting(false)
       setImportProgress(undefined)
       setImportStage(undefined)
+      setCancelling(false)
     }
   }
 
   const cancelImport = () => {
+    if (cancelling) return
+    setCancelling(true)
     importAbortRef.current?.abort()
     void window.api.cancelImport?.()
   }
@@ -197,45 +208,57 @@ export default function App() {
     }
   }
 
-  const deleteSong = async (song: Song) => {
-    if (!window.confirm(`Delete "${song.name}" and all of its stems? This cannot be undone.`)) return
-    try {
-      await window.api.deleteSong(song.name)
-      setSongs(await window.api.getSongs())
-      if (activeSong === song.name) {
-        engine.stop()
-        engine.setLoopRange()
-        setActiveSong(undefined)
-        setTracks([])
-        setLoopRange(undefined)
-        setLooping(false)
-        transport.setTransport({ currentTime: 0, duration: 0, isPlaying: false })
-      }
-    } catch (reason) {
-      const message = reason instanceof Error ? reason.message : 'Unknown deletion error'
-      setError(`Could not delete "${song.name}": ${message}`)
-    }
+  const deleteSong = (song: Song) => {
+    setConfirmDialog({
+      title: 'Delete song',
+      body: `This permanently deletes "${song.name.replaceAll('-', ' ')}" and all of its stems. This cannot be undone.`,
+      action: async () => {
+        try {
+          await window.api.deleteSong(song.name)
+          setSongs(await window.api.getSongs())
+          if (activeSong === song.name) {
+            engine.stop()
+            engine.setLoopRange()
+            setActiveSong(undefined)
+            setTracks([])
+            setLoopRange(undefined)
+            setLooping(false)
+            transport.setTransport({ currentTime: 0, duration: 0, isPlaying: false })
+          }
+        } catch (reason) {
+          const message = reason instanceof Error ? reason.message : 'Unknown deletion error'
+          setError(`Could not delete "${song.name}": ${message}`)
+        }
+      },
+    })
   }
 
-  const deleteStem = async (track: TrackState) => {
-    if (!activeSong || !window.confirm(`Delete "${track.name}" from "${activeSong}"? This cannot be undone.`)) return
-    try {
-      await window.api.deleteStem(activeSong, track.name)
-      const remainingTracks = tracks.filter((item) => item.id !== track.id)
-      engine.removeTrack(track.id)
-      setTracks(remainingTracks)
-      setSongs(await window.api.getSongs())
-      if (!remainingTracks.length) {
-        engine.setLoopRange()
-        setActiveSong(undefined)
-        setLoopRange(undefined)
-        setLooping(false)
-        transport.setTransport({ currentTime: 0, duration: 0, isPlaying: false })
-      }
-    } catch (reason) {
-      const message = reason instanceof Error ? reason.message : 'Unknown stem deletion error'
-      setError(`Could not delete "${track.name}": ${message}`)
-    }
+  const deleteStem = (track: TrackState) => {
+    if (!activeSong) return
+    const stemTitle = track.name.replace(/\.[^.]+$/, '')
+    setConfirmDialog({
+      title: 'Delete stem',
+      body: `This deletes "${stemTitle}" from "${activeSong.replaceAll('-', ' ')}". This cannot be undone.`,
+      action: async () => {
+        try {
+          await window.api.deleteStem(activeSong, track.name)
+          const remainingTracks = tracks.filter((item) => item.id !== track.id)
+          engine.removeTrack(track.id)
+          setTracks(remainingTracks)
+          setSongs(await window.api.getSongs())
+          if (!remainingTracks.length) {
+            engine.setLoopRange()
+            setActiveSong(undefined)
+            setLoopRange(undefined)
+            setLooping(false)
+            transport.setTransport({ currentTime: 0, duration: 0, isPlaying: false })
+          }
+        } catch (reason) {
+          const message = reason instanceof Error ? reason.message : 'Unknown stem deletion error'
+          setError(`Could not delete "${track.name}": ${message}`)
+        }
+      },
+    })
   }
 
   const exportMix = async () => {
@@ -275,7 +298,7 @@ export default function App() {
     <main className="app-shell">
       <TitleBar />
       <div className="app-content">
-        <Sidebar songs={songs} activeSong={activeSong} loading={libraryLoading} importing={importing} importProgress={importProgress} importStage={importStage} onSelect={selectSong} onImport={() => setImportSourceOpen(true)} onCancelImport={cancelImport} onRename={openRenameDialog} onDelete={deleteSong} />
+        <Sidebar songs={songs} activeSong={activeSong} loading={libraryLoading} importing={importing} cancelling={cancelling} importProgress={importProgress} importStage={importStage} onSelect={selectSong} onImport={() => setImportSourceOpen(true)} onCancelImport={cancelImport} onRename={openRenameDialog} onDelete={deleteSong} />
         <div className="workspace">
         <div className="timeline-header"><span>TRACK</span><span>{activeSong ? activeSong.replaceAll('-', ' ') : 'Select a song from the library'}</span></div>
         {error && <div className="error-message" role="alert">{error}</div>}
@@ -326,6 +349,18 @@ export default function App() {
               <button type="submit" className="primary-button">Save</button>
             </div>
           </form>
+        </div>
+      )}
+      {confirmDialog && (
+        <div className="dialog-backdrop" role="presentation">
+          <div className="rename-dialog confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body">
+            <h2 id="confirm-title">{confirmDialog.title}</h2>
+            <p id="confirm-body">{confirmDialog.body}</p>
+            <div className="dialog-actions">
+              <button type="button" onClick={() => setConfirmDialog(undefined)}>Cancel</button>
+              <button type="button" autoFocus className="primary-button danger" onClick={() => { const dialog = confirmDialog; setConfirmDialog(undefined); void dialog.action() }}>Delete</button>
+            </div>
+          </div>
         </div>
       )}
       {importSourceOpen && (
