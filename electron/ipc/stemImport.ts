@@ -146,31 +146,35 @@ async function downloadYouTubeAudio(url: string, notifyStage: (stage: string) =>
   }
 
   const directory = await mkdtemp(join(tmpdir(), 'ramses-ytdlp-'))
-  const args = ['--no-playlist', '--no-progress', '--extract-audio', '--audio-format', 'mp3', '--output', join(directory, '%(title)s.%(ext)s')]
-    if (process.platform === 'win32') args.push('--ffmpeg-location', dirname(ffmpegPath()))
-    args.push(url)
-    try {
-      notifyStage('Downloading audio...')
-      await new Promise<void>((resolve, reject) => {
-        const child = execFileCallback(executable, args, { maxBuffer: 10 * 1024 * 1024 }, (error) => {
-          activeYouTubeProcess = null
-          if (error) reject(error)
-          else resolve()
-        })
-        activeYouTubeProcess = child
+  const args = ['--no-playlist', '--newline', '--extract-audio', '--audio-format', 'mp3', '--output', join(directory, '%(title)s.%(ext)s')]
+  if (process.platform === 'win32') args.push('--ffmpeg-location', dirname(ffmpegPath()))
+  args.push(url)
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const child = execFileCallback(executable, args, { maxBuffer: 10 * 1024 * 1024 }, (error) => {
+        if (error) reject(error)
+        else resolve()
       })
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      throw new Error(`Could not download YouTube audio: ${message}`)
-    }
-
-    const files = await readdir(directory)
-    const sourceFile = files.find((file) => extname(file).toLowerCase() === '.mp3')
-    if (!sourceFile) throw new Error('yt-dlp did not produce an MP3 file.')
-    const sourceName = join(directory, sourceFile)
-    notifyStage('Preparing audio...')
-    return { sourceName }
+      child.stdout?.setEncoding('utf8')
+      child.stdout?.on('data', (chunk: string) => {
+        const match = chunk.match(/\[download\]\s+([\d.]+)%/)
+        if (match) notifyStage(`Downloading audio... ${Math.round(Number(match[1]))}%`)
+      })
+      activeYouTubeProcess = child
+    })
+    notifyStage('Downloading audio... 100%')
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`Could not download YouTube audio: ${message}`)
   }
+
+  const files = await readdir(directory)
+  const sourceFile = files.find((file) => extname(file).toLowerCase() === '.mp3')
+  if (!sourceFile) throw new Error('yt-dlp did not produce an MP3 file.')
+  const sourceName = join(directory, sourceFile)
+  notifyStage('Preparing audio...')
+  return { sourceName }
+}
 
 export function cancelActiveImport() {
   if (activeSeparationWorker) {

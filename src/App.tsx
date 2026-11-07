@@ -39,7 +39,10 @@ export default function App() {
       setLibraryLoading(false)
       return
     }
-    const unsubscribe = window.api.onImportProgress(({ progress }) => setImportProgress(progress))
+    const unsubscribe = window.api.onImportProgress(({ progress }) => {
+      setImportProgress(progress)
+      setImportStage(undefined)
+    })
     const unsubscribeImportStage = window.api.onImportStage(setImportStage)
     void window.api.getSongs().then(setSongs).catch((reason) => {
       const message = reason instanceof Error ? reason.message : 'Unknown library error'

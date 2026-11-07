@@ -33,9 +33,8 @@ export function Sidebar({ songs, activeSong, loading, importing, importProgress,
         onMouseEnter={() => setImportHovered(true)}
         onMouseLeave={() => setImportHovered(false)}
       >
-        {importing && importHovered ? <X size={15} /> : <FilePlus2 size={15} />} {importing ? (importHovered ? 'Cancel' : `Splitting ${Math.round((importProgress ?? 0) * 100)}%`) : 'Import Song'}
+        {importing && importHovered ? <X size={15} /> : <FilePlus2 size={15} />} <span>{importing ? (importHovered ? 'Cancel' : importStage ?? `Splitting ${Math.round((importProgress ?? 0) * 100)}%`) : 'Import Song'}</span>
       </button>
-      {importing && importStage && <p className="import-stage-message">{importStage}</p>}
       {importing && <p className="import-fallback-message">Using CPU for inference, it may take a while.</p>}
       {loading && <p className="empty-state">Loading library...</p>}
       {!loading && songs.length === 0 && <p className="empty-state">No songs in your library</p>}
