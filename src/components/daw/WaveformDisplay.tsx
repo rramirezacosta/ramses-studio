@@ -1,11 +1,11 @@
-import { useEffect, useRef, type PointerEvent } from 'react'
+import { memo, useEffect, useRef, type PointerEvent } from 'react'
 import { generatePeaks } from '../../audio/peakGenerator'
 import { useTranslation } from '../../i18n'
+import { useTransportStore } from '../../store/useTransportStore'
 
 interface Props {
   buffer: AudioBuffer
   color: string
-  currentTime: number
   duration: number
   onSeek: (time: number) => void
   loopRange?: [number, number]
@@ -14,7 +14,13 @@ interface Props {
   onClearRange: () => void
 }
 
-export function WaveformDisplay({ buffer, color, currentTime, duration, onSeek, loopRange, onRangeChange, onRangeCommit, onClearRange }: Props) {
+const Playhead = memo(function Playhead({ duration }: { duration: number }) {
+  const currentTime = useTransportStore((store) => store.currentTime)
+  if (duration <= 0) return null
+  return <div className="waveform-playhead" style={{ left: `${(currentTime / duration) * 100}%` }} />
+})
+
+export const WaveformDisplay = memo(function WaveformDisplay({ buffer, color, duration, onSeek, loopRange, onRangeChange, onRangeCommit, onClearRange }: Props) {
   const t = useTranslation()
   const canvas = useRef<HTMLCanvasElement>(null)
   const dragStart = useRef<number>()
@@ -79,6 +85,6 @@ export function WaveformDisplay({ buffer, color, currentTime, duration, onSeek, 
   }} onPointerUp={finishRangeSelection} onPointerCancel={finishRangeSelection}>
     <canvas ref={canvas} className="waveform" />
     {loopStyle && <div className="loop-selection" style={loopStyle} />}
-    {duration > 0 && <div className="waveform-playhead" style={{ left: `${(currentTime / duration) * 100}%` }} />}
+    <Playhead duration={duration} />
   </div>
-}
+})
