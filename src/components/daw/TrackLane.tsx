@@ -1,4 +1,5 @@
 import { AudioLines, Drum, Guitar, GripVertical, MicVocal, Music, Piano, Speaker, Trash2, type LucideIcon } from 'lucide-react'
+import { useTranslation } from '../../i18n'
 import type { TrackState } from '../../types/audio'
 import { WaveformDisplay } from './WaveformDisplay'
 
@@ -36,6 +37,7 @@ interface Props {
 }
 
 export function TrackLane({ track, index, currentTime, duration, onUpdate, onRemove, dragging, onDragStart, onDragEnd, onDrop, onSeek, loopRange, onRangeChange, onRangeCommit, onClearRange }: Props) {
+  const t = useTranslation()
   const stemName = track.name.replace(/\.[^.]+$/, '').trim().toLowerCase()
   const StemIcon = stemIcons[stemName] ?? AudioLines
   const isOther = stemName === 'other'
@@ -43,9 +45,9 @@ export function TrackLane({ track, index, currentTime, duration, onUpdate, onRem
     <section className={`track-lane ${dragging ? 'dragging' : ''}`} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); onDrop() }}>
       <div className="track-controls">
         <div className="track-name">
-          <span className="track-drag-handle" draggable onDragStart={onDragStart} onDragEnd={onDragEnd} title="Drag to reorder" aria-label="Drag to reorder"><GripVertical size={16} /></span>
+          <span className="track-drag-handle" draggable onDragStart={onDragStart} onDragEnd={onDragEnd} title={t('dragToReorder')} aria-label={t('dragToReorder')}><GripVertical size={16} /></span>
           {isOther ? (
-            <strong className="track-stem-label" title={stemTitle(track.name)}>Other</strong>
+            <strong className="track-stem-label" title={stemTitle(track.name)}>{t('otherStem')}</strong>
           ) : (
             <strong className="track-stem-icon" title={stemTitle(track.name)} aria-label={stemTitle(track.name)}><StemIcon size={18} /></strong>
           )}
@@ -53,7 +55,7 @@ export function TrackLane({ track, index, currentTime, duration, onUpdate, onRem
         <div className="toggle-row">
           <button className={track.muted ? 'active mute' : ''} onClick={() => onUpdate({ muted: !track.muted })}>M</button>
           <button className={track.soloed ? 'active solo' : ''} onClick={() => onUpdate({ soloed: !track.soloed })}>S</button>
-          <button className="remove-stem-button" onClick={onRemove} title={`Delete ${track.name}`} aria-label={`Delete ${track.name}`}><Trash2 size={12} /></button>
+          <button className="remove-stem-button" onClick={onRemove} title={t('deleteAction', { name: track.name })} aria-label={t('deleteAction', { name: track.name })}><Trash2 size={12} /></button>
         </div>
         <label className="volume-control">VOL <input type="range" min="0" max="1" step="0.01" value={track.volume} onChange={(event) => onUpdate({ volume: Number(event.target.value) })} /> <span className="volume-tooltip">{Math.round(track.volume * 100)}%</span></label>
         <label className="pan-control">PAN <input type="range" min="-1" max="1" step="0.01" value={track.pan} onChange={(event) => { const next = Number(event.target.value); onUpdate({ pan: Math.abs(next) < 0.03 ? 0 : next }) }} style={{ '--pan-left': track.pan < 0 ? Math.abs(track.pan) * 0.55 + 0.1 : 0, '--pan-right': track.pan > 0 ? track.pan * 0.55 + 0.1 : 0 } as React.CSSProperties} /> {track.pan !== 0 && <span className="pan-tooltip">{Math.round(track.pan * 100)}%</span>}</label>

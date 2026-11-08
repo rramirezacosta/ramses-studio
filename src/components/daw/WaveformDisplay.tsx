@@ -1,5 +1,6 @@
 import { useEffect, useRef, type PointerEvent } from 'react'
 import { generatePeaks } from '../../audio/peakGenerator'
+import { useTranslation } from '../../i18n'
 
 interface Props {
   buffer: AudioBuffer
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export function WaveformDisplay({ buffer, color, currentTime, duration, onSeek, loopRange, onRangeChange, onRangeCommit, onClearRange }: Props) {
+  const t = useTranslation()
   const canvas = useRef<HTMLCanvasElement>(null)
   const dragStart = useRef<number>()
 
@@ -63,7 +65,7 @@ export function WaveformDisplay({ buffer, color, currentTime, duration, onSeek, 
     dragStart.current = undefined
   }
 
-  return <div className="waveform-container" title="Drag to select a loop range" onContextMenu={(event) => {
+  return <div className="waveform-container" title={t('dragToLoopRange')} onContextMenu={(event) => {
     event.preventDefault()
     onClearRange()
   }} onPointerDown={(event) => {

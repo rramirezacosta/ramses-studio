@@ -6,6 +6,8 @@ import { TitleBar } from './components/layout/TitleBar'
 import { TransportBar } from './components/layout/TransportBar'
 import { encodeWav } from './components/stemsplitter/audio/wav'
 import { decodeWithFfmpeg } from './components/stemsplitter/audio/ffmpeg'
+import { useTranslation, LANGUAGES } from './i18n'
+import { useSettingsStore } from './store/useSettingsStore'
 import { useTransportStore } from './store/useTransportStore'
 import type { Song, TrackState } from './types/audio'
 import type { StereoAudio } from './components/stemsplitter/types'
@@ -16,8 +18,29 @@ interface ConfirmData {
   action: () => Promise<void>
 }
 
+const THEMES = [
+  { id: 'midnight', label: 'Midnight', swatch: '#a9a0ff' },
+  { id: 'adwaita', label: 'Adwaita Dark', swatch: '#3584e4' },
+  { id: 'ocean', label: 'Ocean', swatch: '#55b2ff' },
+  { id: 'ember', label: 'Ember', swatch: '#ff9e64' },
+  { id: 'aurora', label: 'Aurora', swatch: '#4fd88f' },
+  { id: 'orchid', label: 'Orchid', swatch: '#f386d8' },
+] as const
+
+type ThemeId = (typeof THEMES)[number]['id']
+
+const THEME_STORAGE_KEY = 'ramses-studio-theme'
+
+const loadStoredTheme = (): ThemeId => {
+  const stored = localStorage.getItem(THEME_STORAGE_KEY)
+  return THEMES.some((theme) => theme.id === stored) ? (stored as ThemeId) : 'midnight'
+}
+
 export default function App() {
   const engine = useRef(new AudioEngine()).current
+  const t = useTranslation()
+  const language = useSettingsStore((store) => store.language)
+  const setLanguage = useSettingsStore((store) => store.setLanguage)
   const [songs, setSongs] = useState<Song[]>([])
   const [activeSong, setActiveSong] = useState<string>()
   const [tracks, setTracks] = useState<TrackState[]>([])
@@ -39,11 +62,18 @@ export default function App() {
   const [draggedTrackId, setDraggedTrackId] = useState<string>()
   const [exportingMix, setExportingMix] = useState(false)
   const [notice, setNotice] = useState<string>()
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [theme, setTheme] = useState<ThemeId>(loadStoredTheme)
   const transport = useTransportStore()
 
   useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    localStorage.setItem(THEME_STORAGE_KEY, theme)
+  }, [theme])
+
+  useEffect(() => {
     if (!window.api) {
-      setError('The Electron bridge is unavailable. Restart the application with npm run dev.')
+      setError(t('electronBridgeError'))
       setLibraryLoading(false)
       return
     }
@@ -53,8 +83,8 @@ export default function App() {
     })
     const unsubscribeImportStage = window.api.onImportStage(setImportStage)
     void window.api.getSongs().then(setSongs).catch((reason) => {
-      const message = reason instanceof Error ? reason.message : 'Unknown library error'
-      setError(`Could not read the song library: ${message}`)
+      const message = reason instanceof Error ? reason.message : t('unknownLibraryError')
+      setError(t('readingLibraryFailed', { message }))
     }).finally(() => setLibraryLoading(false))
     return () => {
       unsubscribe()
@@ -95,8 +125,8 @@ export default function App() {
       setLooping(false)
       transport.setTransport({ currentTime: 0, duration: engine.duration, isPlaying: false })
     } catch (reason) {
-      const message = reason instanceof Error ? reason.message : 'Unknown audio loading error'
-      setError(`Could not load "${song.name}": ${message}`)
+      const message = reason instanceof Error ? reason.message : t('unknownAudioLoadingError')
+      setError(t('loadSongFailed', { name: song.name, message }))
     } finally {
       setLoadingSong(undefined)
     }
@@ -144,7 +174,7 @@ export default function App() {
     try {
       const prepared = await prepareImport()
       if (!prepared || controller.signal.aborted) return
-      setImportStage('Decoding audio...')
+      setImportStage(t('decodingAudio'))
       const buffer = await window.api.readFileBuffer(prepared.sourceName)
       const audio = await decodeWithFfmpeg(buffer, undefined, controller.signal, true)
       if (controller.signal.aborted) return
@@ -155,8 +185,8 @@ export default function App() {
       await selectSong(song)
     } catch (reason) {
       if (controller.signal.aborted || (reason instanceof Error && reason.name === 'AbortError')) return
-      const message = reason instanceof Error ? reason.message : 'Unknown import error'
-      setError(`Could not split the imported audio: ${message}`)
+      const message = reason instanceof Error ? reason.message : t('unknownImportError')
+      setError(t('importFailed', { message }))
     } finally {
       importAbortRef.current = null
       setImporting(false)
@@ -203,15 +233,15 @@ export default function App() {
       if (activeSong === renamingSong.name) setActiveSong(newName)
       setRenamingSong(undefined)
     } catch (reason) {
-      const message = reason instanceof Error ? reason.message : 'Unknown rename error'
-      setError(`Could not rename "${renamingSong.name}": ${message}`)
+      const message = reason instanceof Error ? reason.message : t('unknownRenameError')
+      setError(t('renameFailed', { name: renamingSong.name, message }))
     }
   }
 
   const deleteSong = (song: Song) => {
     setConfirmDialog({
-      title: 'Delete song',
-      body: `This permanently deletes "${song.name.replaceAll('-', ' ')}" and all of its stems. This cannot be undone.`,
+      title: t('deleteSongTitle'),
+      body: t('deleteSongBody', { name: song.name.replaceAll('-', ' ') }),
       action: async () => {
         try {
           await window.api.deleteSong(song.name)
@@ -226,8 +256,8 @@ export default function App() {
             transport.setTransport({ currentTime: 0, duration: 0, isPlaying: false })
           }
         } catch (reason) {
-          const message = reason instanceof Error ? reason.message : 'Unknown deletion error'
-          setError(`Could not delete "${song.name}": ${message}`)
+          const message = reason instanceof Error ? reason.message : t('unknownDeletionError')
+          setError(t('deleteSongFailed', { name: song.name, message }))
         }
       },
     })
@@ -237,8 +267,8 @@ export default function App() {
     if (!activeSong) return
     const stemTitle = track.name.replace(/\.[^.]+$/, '')
     setConfirmDialog({
-      title: 'Delete stem',
-      body: `This deletes "${stemTitle}" from "${activeSong.replaceAll('-', ' ')}". This cannot be undone.`,
+      title: t('deleteStemTitle'),
+      body: t('deleteStemBody', { stem: stemTitle, song: activeSong.replaceAll('-', ' ') }),
       action: async () => {
         try {
           await window.api.deleteStem(activeSong, track.name)
@@ -254,8 +284,8 @@ export default function App() {
             transport.setTransport({ currentTime: 0, duration: 0, isPlaying: false })
           }
         } catch (reason) {
-          const message = reason instanceof Error ? reason.message : 'Unknown stem deletion error'
-          setError(`Could not delete "${track.name}": ${message}`)
+          const message = reason instanceof Error ? reason.message : t('unknownStemDeletionError')
+          setError(t('deleteStemFailed', { stem: track.name, message }))
         }
       },
     })
@@ -271,10 +301,10 @@ export default function App() {
       if (!mix) return
       const wav = encodeWav(mix)
       const savedPath = await window.api.exportMix(activeSong, wav)
-      if (savedPath) setNotice(`Mix exported to ${savedPath}`)
+      if (savedPath) setNotice(t('mixExported', { path: savedPath }))
     } catch (reason) {
-      const message = reason instanceof Error ? reason.message : 'Unknown export error'
-      setError(`Could not export the mix: ${message}`)
+      const message = reason instanceof Error ? reason.message : t('unknownExportError')
+      setError(t('exportFailed', { message }))
     } finally {
       setExportingMix(false)
     }
@@ -296,11 +326,11 @@ export default function App() {
 
   return (
     <main className="app-shell">
-      <TitleBar />
+      <TitleBar onOpenSettings={() => setSettingsOpen(true)} />
       <div className="app-content">
         <Sidebar songs={songs} activeSong={activeSong} loading={libraryLoading} importing={importing} cancelling={cancelling} importProgress={importProgress} importStage={importStage} onSelect={selectSong} onImport={() => setImportSourceOpen(true)} onCancelImport={cancelImport} onRename={openRenameDialog} onDelete={deleteSong} />
         <div className="workspace">
-        <div className="timeline-header"><span>TRACK</span><span>{activeSong ? activeSong.replaceAll('-', ' ') : 'Select a song from the library'}</span></div>
+        <div className="timeline-header"><span>TRACK</span><span>{activeSong ? activeSong.replaceAll('-', ' ') : t('selectSongHint')}</span></div>
         {error && <div className="error-message" role="alert">{error}</div>}
         {notice && <div className="status-message" role="status">{notice}</div>}
         <div className="tracks">
@@ -322,7 +352,7 @@ export default function App() {
               }}
             />
           ))}
-          {!libraryLoading && !tracks.length && <div className="welcome"><h1>Multi-Stem Studio</h1><p>Choose a song to load its stems into the timeline.</p></div>}
+          {!libraryLoading && !tracks.length && <div className="welcome"><h1>{t('welcomeTitle')}</h1><p>{t('welcomeBody')}</p></div>}
         </div>
         <TransportBar
           {...transport}
@@ -341,12 +371,12 @@ export default function App() {
       {renamingSong && (
         <div className="dialog-backdrop" role="presentation">
           <form className="rename-dialog" onSubmit={(event) => { event.preventDefault(); void renameSong() }} role="dialog" aria-modal="true" aria-labelledby="rename-title">
-            <h2 id="rename-title">Rename song</h2>
-            <label htmlFor="song-name">Song folder name</label>
+            <h2 id="rename-title">{t('renameSong')}</h2>
+            <label htmlFor="song-name">{t('songFolderName')}</label>
             <input id="song-name" value={renameValue} onChange={(event) => setRenameValue(event.target.value)} autoFocus />
             <div className="dialog-actions">
-              <button type="button" onClick={() => setRenamingSong(undefined)}>Cancel</button>
-              <button type="submit" className="primary-button">Save</button>
+              <button type="button" onClick={() => setRenamingSong(undefined)}>{t('cancel')}</button>
+              <button type="submit" className="primary-button">{t('save')}</button>
             </div>
           </form>
         </div>
@@ -357,8 +387,8 @@ export default function App() {
             <h2 id="confirm-title">{confirmDialog.title}</h2>
             <p id="confirm-body">{confirmDialog.body}</p>
             <div className="dialog-actions">
-              <button type="button" onClick={() => setConfirmDialog(undefined)}>Cancel</button>
-              <button type="button" autoFocus className="primary-button danger" onClick={() => { const dialog = confirmDialog; setConfirmDialog(undefined); void dialog.action() }}>Delete</button>
+              <button type="button" onClick={() => setConfirmDialog(undefined)}>{t('cancel')}</button>
+              <button type="button" autoFocus className="primary-button danger" onClick={() => { const dialog = confirmDialog; setConfirmDialog(undefined); void dialog.action() }}>{t('delete')}</button>
             </div>
           </div>
         </div>
@@ -366,23 +396,54 @@ export default function App() {
       {importSourceOpen && (
         <div className="dialog-backdrop" role="presentation">
           <form className="rename-dialog import-source-dialog" onSubmit={(event) => { event.preventDefault(); importYouTubeAudio() }} role="dialog" aria-modal="true" aria-labelledby="import-source-title">
-            <h2 id="import-source-title">Import audio</h2>
-            <p>Choose an audio file from your computer or extract audio from a YouTube video.</p>
-            <button type="button" className="source-option" onClick={importLocalFile}>Choose local file</button>
-            <div className="source-option-divider">OR</div>
-            <label htmlFor="youtube-url">YouTube link</label>
+            <h2 id="import-source-title">{t('importAudio')}</h2>
+            <p>{t('importAudioDescription')}</p>
+            <button type="button" className="source-option" onClick={importLocalFile}>{t('chooseLocalFile')}</button>
+            <div className="source-option-divider">{t('or')}</div>
+            <label htmlFor="youtube-url">{t('youTubeLink')}</label>
             <input id="youtube-url" type="url" value={youTubeUrl} onChange={(event) => setYouTubeUrl(event.target.value)} placeholder="https://www.youtube.com/watch?v=..." autoFocus />
             <div className="dialog-actions">
-              <button type="button" onClick={() => setImportSourceOpen(false)}>Cancel</button>
-              <button type="submit" className="primary-button" disabled={!youTubeUrl.trim()}>Import</button>
+              <button type="button" onClick={() => setImportSourceOpen(false)}>{t('cancel')}</button>
+              <button type="submit" className="primary-button" disabled={!youTubeUrl.trim()}>{t('import')}</button>
             </div>
           </form>
+        </div>
+      )}
+      {settingsOpen && (
+        <div className="dialog-backdrop" role="presentation">
+          <div className="rename-dialog confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+            <h2 id="settings-title">{t('settings')}</h2>
+            <div className="settings-section" role="group" aria-label={t('theme')}>
+              <span className="settings-section-label">{t('theme')}</span>
+              <div className="theme-grid">
+                {THEMES.map((item) => (
+                  <button key={item.id} type="button" aria-pressed={theme === item.id} className={`theme-option${theme === item.id ? ' active' : ''}`} onClick={() => setTheme(item.id)}>
+                    <span className="theme-swatch" style={{ background: item.swatch }} />
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="settings-section" role="group" aria-label={t('language')}>
+              <span className="settings-section-label">{t('language')}</span>
+              <div className="language-grid">
+                {LANGUAGES.map((item) => (
+                  <button key={item.id} type="button" aria-pressed={language === item.id} className={`theme-option${language === item.id ? ' active' : ''}`} onClick={() => setLanguage(item.id)}>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="dialog-actions">
+              <button type="button" autoFocus onClick={() => setSettingsOpen(false)} className="primary-button">{t('close')}</button>
+            </div>
+          </div>
         </div>
       )}
       {(libraryLoading || loadingSong) && (
         <div className="work-banner" role="status" aria-live="polite">
           <div className="work-spinner" />
-          <div><strong>{loadingSong ? 'Loading song stems' : 'Loading library'}</strong><span>{loadingSong ? loadingSong.replaceAll('-', ' ') : 'Preparing your workspace'}</span></div>
+          <div><strong>{loadingSong ? t('loadingSongStems') : t('loadingLibrary')}</strong><span>{loadingSong ? loadingSong.replaceAll('-', ' ') : t('preparingWorkspace')}</span></div>
         </div>
       )}
     </main>
