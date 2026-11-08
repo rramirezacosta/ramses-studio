@@ -1,5 +1,5 @@
 import { FilePenLine, FilePlus2, Search, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import logo from '../../assets/logo.png'
 import { useTranslation } from '../../i18n'
 import type { Song } from '../../types/audio'
@@ -19,7 +19,7 @@ interface Props {
   onDelete: (song: Song) => void
 }
 
-export function Sidebar({ songs, activeSong, loading, importing, cancelling, importProgress, importStage, onSelect, onImport, onCancelImport, onRename, onDelete }: Props) {
+export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, importing, cancelling, importProgress, importStage, onSelect, onImport, onCancelImport, onRename, onDelete }: Props) {
   const t = useTranslation()
   const [query, setQuery] = useState('')
   const [importHovered, setImportHovered] = useState(false)
@@ -62,4 +62,4 @@ export function Sidebar({ songs, activeSong, loading, importing, cancelling, imp
       </label>
     </aside>
   )
-}
+})

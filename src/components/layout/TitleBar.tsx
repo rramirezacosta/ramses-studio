@@ -1,5 +1,5 @@
 import { Copy, Minus, Settings, Square, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import { useTranslation } from '../../i18n'
 
 type WindowButton = 'minimize' | 'maximize' | 'close'
@@ -15,7 +15,7 @@ interface TitleBarProps {
   onOpenSettings?: () => void
 }
 
-export function TitleBar({ onOpenSettings }: TitleBarProps) {
+export const TitleBar = memo(function TitleBar({ onOpenSettings }: TitleBarProps) {
   const t = useTranslation()
   const [layout, setLayout] = useState<ButtonLayout>(defaultLayout)
   const [maximized, setMaximized] = useState(false)
@@ -72,4 +72,4 @@ export function TitleBar({ onOpenSettings }: TitleBarProps) {
       </div>
     </header>
   )
-}
+})

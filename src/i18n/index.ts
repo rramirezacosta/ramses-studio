@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useSettingsStore, type Language } from '../store/useSettingsStore'
 
 export { LANGUAGES } from '../store/useSettingsStore'
@@ -738,12 +739,11 @@ export type TranslationKey = keyof typeof en
 
 export function useTranslation() {
   const language = useSettingsStore((store) => store.language)
-  const t = (key: TranslationKey, vars?: Record<string, string | number>) => {
+  return useMemo(() => (key: TranslationKey, vars?: Record<string, string | number>) => {
     let text: string = dictionaries[language][key] ?? key
     if (vars) {
       for (const [name, value] of Object.entries(vars)) text = text.replaceAll(`{${name}}`, String(value))
     }
     return text
-  }
-  return t
+  }, [language])
 }

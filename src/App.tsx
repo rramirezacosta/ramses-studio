@@ -64,7 +64,7 @@ export default function App() {
   const [notice, setNotice] = useState<string>()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [theme, setTheme] = useState<ThemeId>(loadStoredTheme)
-  const transport = useTransportStore()
+  const setTransport = useTransportStore((store) => store.setTransport)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -95,13 +95,21 @@ export default function App() {
 
   useEffect(() => {
     let frame = 0
+    let lastTime = -1
+    let lastPlaying: boolean | null = null
     const update = () => {
-      transport.setTransport({ currentTime: engine.position, isPlaying: engine.isPlaying })
+      const position = engine.position
+      const isPlaying = engine.isPlaying
+      if (position !== lastTime || isPlaying !== lastPlaying) {
+        lastTime = position
+        lastPlaying = isPlaying
+        setTransport({ currentTime: position, isPlaying })
+      }
       frame = requestAnimationFrame(update)
     }
     frame = requestAnimationFrame(update)
     return () => cancelAnimationFrame(frame)
-  }, [engine, transport])
+  }, [engine, setTransport])
 
   const selectSong = useCallback(async (song: Song) => {
     setLoadingSong(song.name)
@@ -123,48 +131,63 @@ export default function App() {
       setActiveSong(song.name)
       setLoopRange(undefined)
       setLooping(false)
-      transport.setTransport({ currentTime: 0, duration: engine.duration, isPlaying: false })
+      setTransport({ currentTime: 0, duration: engine.duration, isPlaying: false })
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : t('unknownAudioLoadingError')
       setError(t('loadSongFailed', { name: song.name, message }))
     } finally {
       setLoadingSong(undefined)
     }
-  }, [engine, transport])
+  }, [engine, setTransport])
 
-  const seek = (time: number) => {
+  const seek = useCallback((time: number) => {
     engine.seek(time)
-    transport.setTransport({ currentTime: engine.position })
-  }
+    setTransport({ currentTime: engine.position })
+  }, [engine, setTransport])
 
-  const updateLoopRange = (range: [number, number]) => {
+  const updateLoopRange = useCallback((range: [number, number]) => {
     const validRange = range[1] - range[0] >= 0.05 ? range : undefined
     setLoopRange(validRange)
-  }
+  }, [])
 
-  const startLoopRange = (range: [number, number]) => {
+  const startLoopRange = useCallback((range: [number, number]) => {
     engine.setLoopRange({ start: range[0], end: range[1] })
     engine.seek(range[0])
     if (!engine.isPlaying) engine.play()
     setLoopRange(range)
     setLooping(true)
-    transport.setTransport({ currentTime: range[0], isPlaying: true })
-  }
+    setTransport({ currentTime: range[0], isPlaying: true })
+  }, [engine, setTransport])
 
-  const toggleLoop = () => {
+  const toggleLoop = useCallback(() => {
     if (!loopRange) return
     const nextLooping = !looping
     setLooping(nextLooping)
     engine.setLoopRange(nextLooping ? { start: loopRange[0], end: loopRange[1] } : undefined)
-  }
+  }, [loopRange, looping, engine])
 
-  const clearLoopRange = () => {
+  const clearLoopRange = useCallback(() => {
     engine.setLoopRange()
     setLoopRange(undefined)
     setLooping(false)
-  }
+  }, [engine])
 
-  const importSong = async (prepareImport: () => Promise<{ sourceName: string } | null>) => {
+  const togglePlayback = useCallback(() => {
+    engine.isPlaying ? engine.pause() : engine.play()
+    setTransport({ isPlaying: engine.isPlaying })
+  }, [engine, setTransport])
+
+  const stopPlayback = useCallback(() => {
+    engine.stop()
+    setTransport({ currentTime: 0, isPlaying: false })
+  }, [engine, setTransport])
+
+  const setMasterVolume = useCallback((masterVolume: number) => {
+    engine.setMasterVolume(masterVolume)
+    setTransport({ masterVolume })
+  }, [engine, setTransport])
+
+  const importSong = useCallback(async (prepareImport: () => Promise<{ sourceName: string } | null>) => {
     const controller = new AbortController()
     importAbortRef.current = controller
     setImporting(true)
@@ -194,14 +217,14 @@ export default function App() {
       setImportStage(undefined)
       setCancelling(false)
     }
-  }
+  }, [selectSong, t])
 
-  const cancelImport = () => {
+  const cancelImport = useCallback(() => {
     if (cancelling) return
     setCancelling(true)
     importAbortRef.current?.abort()
     void window.api.cancelImport?.()
-  }
+  }, [cancelling])
 
   const importLocalFile = () => {
     setImportSourceOpen(false)
@@ -215,12 +238,16 @@ export default function App() {
     void importSong(() => window.api.prepareYouTubeImport(url))
   }
 
-  const openRenameDialog = (song: Song) => {
+  const openRenameDialog = useCallback((song: Song) => {
     setRenamingSong(song)
     setRenameValue(song.name)
-  }
+  }, [])
 
-  const renameSong = async () => {
+  const openImportSource = useCallback(() => setImportSourceOpen(true), [])
+
+  const openSettings = useCallback(() => setSettingsOpen(true), [])
+
+  const renameSong = useCallback(async () => {
     if (!renamingSong) return
     const newName = renameValue.trim()
     if (!newName || newName === renamingSong.name) {
@@ -236,9 +263,9 @@ export default function App() {
       const message = reason instanceof Error ? reason.message : t('unknownRenameError')
       setError(t('renameFailed', { name: renamingSong.name, message }))
     }
-  }
+  }, [activeSong, renameValue, renamingSong, t])
 
-  const deleteSong = (song: Song) => {
+  const deleteSong = useCallback((song: Song) => {
     setConfirmDialog({
       title: t('deleteSongTitle'),
       body: t('deleteSongBody', { name: song.name.replaceAll('-', ' ') }),
@@ -253,7 +280,7 @@ export default function App() {
             setTracks([])
             setLoopRange(undefined)
             setLooping(false)
-            transport.setTransport({ currentTime: 0, duration: 0, isPlaying: false })
+            setTransport({ currentTime: 0, duration: 0, isPlaying: false })
           }
         } catch (reason) {
           const message = reason instanceof Error ? reason.message : t('unknownDeletionError')
@@ -261,10 +288,10 @@ export default function App() {
         }
       },
     })
-  }
+  }, [activeSong, engine, setTransport, t])
 
-  const deleteStem = (track: TrackState) => {
-    if (!activeSong) return
+  const deleteStem = useCallback((track: TrackState) => {
+    if (!track || !activeSong) return
     const stemTitle = track.name.replace(/\.[^.]+$/, '')
     setConfirmDialog({
       title: t('deleteStemTitle'),
@@ -281,7 +308,7 @@ export default function App() {
             setActiveSong(undefined)
             setLoopRange(undefined)
             setLooping(false)
-            transport.setTransport({ currentTime: 0, duration: 0, isPlaying: false })
+            setTransport({ currentTime: 0, duration: 0, isPlaying: false })
           }
         } catch (reason) {
           const message = reason instanceof Error ? reason.message : t('unknownStemDeletionError')
@@ -289,9 +316,9 @@ export default function App() {
         }
       },
     })
-  }
+  }, [activeSong, engine, setTransport, t])
 
-  const exportMix = async () => {
+  const exportMix = useCallback(async () => {
     if (!activeSong || !tracks.length || exportingMix) return
     setExportingMix(true)
     setError(undefined)
@@ -308,9 +335,18 @@ export default function App() {
     } finally {
       setExportingMix(false)
     }
-  }
+  }, [activeSong, tracks, exportingMix, engine, t])
 
-  const reorderTracks = (targetId: string) => {
+  const handleExportMix = useCallback(() => { void exportMix() }, [exportMix])
+
+  const updateTrack = useCallback((trackId: string, patch: Partial<Pick<TrackState, 'volume' | 'pan' | 'muted' | 'soloed'>>) => {
+    engine.updateTrack(trackId, patch)
+    setTracks((items) => items.map((item) => item.id === trackId ? { ...item, ...patch } : item))
+  }, [engine])
+
+  const endTrackDrag = useCallback(() => setDraggedTrackId(undefined), [])
+
+  const reorderTracks = useCallback((targetId: string) => {
     if (!draggedTrackId || draggedTrackId === targetId) return
     setTracks((items) => {
       const sourceIndex = items.findIndex((item) => item.id === draggedTrackId)
@@ -322,49 +358,45 @@ export default function App() {
       return reordered
     })
     setDraggedTrackId(undefined)
-  }
+  }, [draggedTrackId])
 
   return (
     <main className="app-shell">
-      <TitleBar onOpenSettings={() => setSettingsOpen(true)} />
+      <TitleBar onOpenSettings={openSettings} />
       <div className="app-content">
-        <Sidebar songs={songs} activeSong={activeSong} loading={libraryLoading} importing={importing} cancelling={cancelling} importProgress={importProgress} importStage={importStage} onSelect={selectSong} onImport={() => setImportSourceOpen(true)} onCancelImport={cancelImport} onRename={openRenameDialog} onDelete={deleteSong} />
+        <Sidebar songs={songs} activeSong={activeSong} loading={libraryLoading} importing={importing} cancelling={cancelling} importProgress={importProgress} importStage={importStage} onSelect={selectSong} onImport={openImportSource} onCancelImport={cancelImport} onRename={openRenameDialog} onDelete={deleteSong} />
         <div className="workspace">
         <div className="timeline-header"><span>TRACK</span><span>{activeSong ? activeSong.replaceAll('-', ' ') : t('selectSongHint')}</span></div>
         {error && <div className="error-message" role="alert">{error}</div>}
         {notice && <div className="status-message" role="status">{notice}</div>}
         <div className="tracks">
           {tracks.map((track, index) => (
-            <TrackLane key={track.id} track={track} index={index} currentTime={transport.currentTime} duration={transport.duration}
+            <TrackLane key={track.id} track={track} index={index}
               onSeek={seek}
               loopRange={loopRange}
               onRangeChange={updateLoopRange}
               onRangeCommit={startLoopRange}
               onClearRange={clearLoopRange}
-              onRemove={() => { void deleteStem(track) }}
+              onRemove={deleteStem}
               dragging={draggedTrackId === track.id}
-              onDragStart={() => setDraggedTrackId(track.id)}
-              onDragEnd={() => setDraggedTrackId(undefined)}
-              onDrop={() => reorderTracks(track.id)}
-              onUpdate={(patch) => {
-                engine.updateTrack(track.id, patch)
-                setTracks((items) => items.map((item) => item.id === track.id ? { ...item, ...patch } : item))
-              }}
+              onDragStart={setDraggedTrackId}
+              onDragEnd={endTrackDrag}
+              onDrop={reorderTracks}
+              onUpdate={updateTrack}
             />
           ))}
           {!libraryLoading && !tracks.length && <div className="welcome"><h1>{t('welcomeTitle')}</h1><p>{t('welcomeBody')}</p></div>}
         </div>
         <TransportBar
-          {...transport}
-          onPlayPause={() => { engine.isPlaying ? engine.pause() : engine.play(); transport.setTransport({ isPlaying: engine.isPlaying }) }}
-          onStop={() => { engine.stop(); transport.setTransport({ currentTime: 0, isPlaying: false }) }}
+          onPlayPause={togglePlayback}
+          onStop={stopPlayback}
           onSeek={seek}
-          onMasterVolume={(masterVolume) => { engine.setMasterVolume(masterVolume); transport.setTransport({ masterVolume }) }}
+          onMasterVolume={setMasterVolume}
           loopRange={loopRange}
           looping={looping}
           onToggleLoop={toggleLoop}
           exportingMix={exportingMix}
-          onExportMix={() => { void exportMix() }}
+          onExportMix={handleExportMix}
         />
         </div>
       </div>
