@@ -120,11 +120,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 .song-row:hover .song-item, .song-row.active .song-item { color: #fff; }
 .song-row.active .song-item { color: #eeeaff; }
 .song-item small { color: #8d96b0; font-size: 11px; font-weight: 550; letter-spacing: .02em; }
-.song-actions { display: none; gap: 2px; padding-right: 7px; }
-.song-row:hover .song-actions, .song-row.active .song-actions { display: flex; }
-.song-actions button { display: grid; width: 27px; height: 27px; place-items: center; padding: 0; border: 1px solid transparent; border-radius: 7px; color: #aeb8d1; background: transparent; }
-.song-actions button:hover { border-color: rgba(204, 211, 255, .16); color: #fff; background: rgba(255, 255, 255, .1); }
-.song-actions button:last-child:hover { color: #ffd9df; background: rgba(202, 62, 85, .3); }
+.song-menu { position: fixed; z-index: 30; display: grid; min-width: 170px; padding: 5px; border: 1px solid var(--panel-border); border-radius: 11px; background: rgba(10, 12, 24, .97); box-shadow: 0 16px 40px rgba(0, 0, 0, .45), inset 0 1px rgba(255, 255, 255, .05); backdrop-filter: blur(18px); outline: none; }
+.song-menu button { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: 1px solid transparent; border-radius: 8px; color: #bec5da; background: transparent; font-size: 12px; font-weight: 600; text-align: left; white-space: nowrap; }
+.song-menu button svg { flex: none; opacity: .8; }
+.song-menu button:hover { border-color: rgba(204, 211, 255, .14); color: #fff; background: rgba(255, 255, 255, .08); }
+.song-menu button.danger:hover { border-color: rgba(220, 90, 110, .3); color: #ffd9df; background: rgba(202, 62, 85, .28); }
 .song-list { min-height: 0; overflow-y: auto; margin: 0 -4px; padding: 0 4px; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--accent) 32%, transparent) transparent; }
 .library-search { display: flex; align-items: center; gap: 8px; margin: auto 8px 0; padding: 9px 11px; border: 1px solid rgba(201, 209, 247, .15); border-radius: 10px; color: #9da6c0; background: rgba(7, 9, 20, .3); box-shadow: inset 0 1px rgba(255, 255, 255, .04); }
 .library-search:focus-within { border-color: color-mix(in srgb, var(--accent) 60%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent), inset 0 1px rgba(255, 255, 255, .04); }
