@@ -74,6 +74,7 @@ const en = {
   preparingWorkspace: 'Preparing your workspace',
   theme: 'Theme',
   language: 'Language',
+  version: 'Version',
 }
 
 const es: Record<keyof typeof en, string> = {
@@ -147,6 +148,7 @@ const es: Record<keyof typeof en, string> = {
   preparingWorkspace: 'Preparando tu espacio de trabajo',
   theme: 'Tema',
   language: 'Idioma',
+  version: 'Versión',
 }
 
 const pt: Record<keyof typeof en, string> = {
@@ -220,6 +222,7 @@ const pt: Record<keyof typeof en, string> = {
   preparingWorkspace: 'Preparando seu espaço de trabalho',
   theme: 'Tema',
   language: 'Idioma',
+  version: 'Versão',
 }
 
 const ru: Record<keyof typeof en, string> = {
@@ -293,6 +296,7 @@ const ru: Record<keyof typeof en, string> = {
   preparingWorkspace: 'Подготовка рабочего пространства',
   theme: 'Тема',
   language: 'Язык',
+  version: 'Версия',
 }
 
 const ja: Record<keyof typeof en, string> = {
@@ -366,6 +370,7 @@ const ja: Record<keyof typeof en, string> = {
   preparingWorkspace: 'ワークスペースを準備中',
   theme: 'テーマ',
   language: '言語',
+  version: 'バージョン',
 }
 
 const ko: Record<keyof typeof en, string> = {
@@ -439,6 +444,7 @@ const ko: Record<keyof typeof en, string> = {
   preparingWorkspace: '작업 공간 준비 중',
   theme: '테마',
   language: '언어',
+  version: '버전',
 }
 
 const fr: Record<keyof typeof en, string> = {
@@ -512,6 +518,7 @@ const fr: Record<keyof typeof en, string> = {
   preparingWorkspace: 'Préparation de l’espace de travail',
   theme: 'Thème',
   language: 'Langue',
+  version: 'Version',
 }
 
 const zh: Record<keyof typeof en, string> = {
@@ -585,6 +592,7 @@ const zh: Record<keyof typeof en, string> = {
   preparingWorkspace: '正在准备工作区',
   theme: '主题',
   language: '语言',
+  version: '版本',
 }
 
 const de: Record<keyof typeof en, string> = {
@@ -658,6 +666,7 @@ const de: Record<keyof typeof en, string> = {
   preparingWorkspace: 'Arbeitsbereich wird vorbereitet',
   theme: 'Design',
   language: 'Sprache',
+  version: 'Version',
 }
 
 const eo: Record<keyof typeof en, string> = {
@@ -731,6 +740,7 @@ const eo: Record<keyof typeof en, string> = {
   preparingWorkspace: 'Preparado de via laborospaco',
   theme: 'Temo',
   language: 'Lingvo',
+  version: 'Versio',
 }
 
 const dictionaries: Record<Language, typeof en> = { en, es, pt, ru, ja, ko, fr, zh, de, eo }
