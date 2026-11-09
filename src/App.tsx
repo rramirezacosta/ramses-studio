@@ -333,7 +333,7 @@ export default function App() {
         }
       },
     })
-  }, [activeSong, engine, setTransport, t])
+  }, [activeSong, engine, tracks, setTransport, t])
 
   const exportMix = useCallback(async () => {
     if (!activeSong || !tracks.length || exportingMix) return
