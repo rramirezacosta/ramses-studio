@@ -510,6 +510,10 @@ export default function App() {
                 ))}
               </div>
             </div>
+            <p className="settings-footer">
+              <span>{t('version')} {__APP_VERSION__}</span>
+              <span>{LANGUAGES.find((item) => item.id === language)?.label}</span>
+            </p>
             <div className="dialog-actions">
               <button type="button" autoFocus onClick={() => setSettingsOpen(false)} className="primary-button">{t('close')}</button>
             </div>

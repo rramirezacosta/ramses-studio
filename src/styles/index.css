@@ -260,6 +260,7 @@ code { color: #b9b1ff; }
 .dialog-actions .primary-button:disabled { cursor: not-allowed; opacity: .5; }
 .confirm-dialog p { margin: 0; color: #bdc4d9; font-size: 13px; line-height: 1.55; }
 .settings-section { display: grid; gap: 8px; margin-top: 2px; }
+.settings-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 6px; padding-top: 12px; border-top: 1px solid rgba(206, 211, 255, .12); color: #9aa2bd; font-size: 12px; }
 .settings-section-label { color: var(--label-color); font-size: var(--label-size); font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .theme-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .language-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
