@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { AudioLines, Drum, Guitar, GripVertical, MicVocal, Music, Piano, Speaker, Trash2, type LucideIcon } from 'lucide-react'
+import { AudioLines, ClefBass, Drum, GuitarElectric, GripVertical, KeyboardMusic, MicVocal, Music, Trash2, type LucideIcon } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 import { useTransportStore } from '../../store/useTransportStore'
 import type { TrackState } from '../../types/audio'
@@ -9,11 +9,11 @@ const colors = ['#7dd3fc', '#c4b5fd', '#f9a8d4', '#86efac', '#fcd34d', '#fb923c'
 
 const stemIcons: Record<string, LucideIcon> = {
   drums: Drum,
-  bass: Speaker,
+  bass: ClefBass,
+  guitar: GuitarElectric,
+  piano: KeyboardMusic,
   other: Music,
   vocals: MicVocal,
-  guitar: Guitar,
-  piano: Piano,
 }
 
 function stemTitle(name: string): string {
