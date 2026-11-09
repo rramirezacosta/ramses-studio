@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('api', {
   prepareImport: () => ipcRenderer.invoke('songs:prepare-import'),
   cancelImport: () => ipcRenderer.invoke('songs:cancel-import'),
   prepareYouTubeImport: (url: string) => ipcRenderer.invoke('songs:prepare-youtube-import', url),
+  checkSongDuplicate: (sourceName: string) => ipcRenderer.invoke('songs:duplicate-check', sourceName),
   separateWithNative: (sourceName: string, audio: { left: Float32Array; right: Float32Array; sampleRate: number }) =>
     ipcRenderer.invoke('songs:separate-native', sourceName, audio),
   exportMix: (songName: string, wav: Uint8Array) => ipcRenderer.invoke('mix:export', { songName, wav }),
