@@ -47,6 +47,7 @@ function copyPadded(source: Float32Array, start: number, length: number): Float3
 export class OverlapAccumulator {
   private readonly weights: Float32Array;
   private readonly channels = new Map<string, [Float32Array, Float32Array]>();
+  private readonly weightedStarts = new Set<number>();
 
   public constructor(private readonly length: number, private readonly window: Float32Array) {
     this.weights = new Float32Array(length);
@@ -64,7 +65,14 @@ export class OverlapAccumulator {
       const weight = this.window[i];
       output[0][start + i] += data[i] * weight;
       output[1][start + i] += data[this.window.length + i] * weight;
-      this.weights[start + i] += weight;
+    }
+    // The divisor must count each chunk's window exactly once, regardless of how many
+    // stems are written into the same chunk. Accumulating inside add() (per stem) made
+    // every stem's divisor N × window-sum (N = requested stem count), uniformly
+    // attenuating all stems by ~20·log10(N) dB.
+    if (!this.weightedStarts.has(start)) {
+      this.weightedStarts.add(start);
+      for (let i = 0; i < segmentLength; i++) this.weights[start + i] += this.window[i];
     }
   }
 
