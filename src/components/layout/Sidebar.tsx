@@ -1,8 +1,64 @@
-import { FilePenLine, FilePlus2, Search, Trash2 } from 'lucide-react'
 import { memo, useState } from 'react'
+import { FilePenLine, FilePlus2, Search, Trash2 } from 'lucide-react'
 import logo from '../../assets/logo.png'
 import { useTranslation } from '../../i18n'
 import type { Song } from '../../types/audio'
+
+/** Split the folder slug "artist-title" into display parts (single-part names keep everything as the title). */
+function songDisplay(name: string): { artist?: string; title: string } {
+  const dash = name.indexOf('-')
+  if (dash > 0 && dash < name.length - 1) {
+    return {
+      artist: name.slice(0, dash).replaceAll('-', ' ').trim(),
+      title: name.slice(dash + 1).replaceAll('-', ' ').trim(),
+    }
+  }
+  return { title: name.replaceAll('-', ' ').trim() }
+}
+
+/** Stable hue derived from the song name so the gradient placeholder is consistent per song. */
+function artHue(name: string): number {
+  return [...name].reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) % 360, 0)
+}
+
+function initialsFor(artist: string | undefined, title: string): string {
+  const letters = artist ? `${artist[0] ?? ''}${title[0] ?? ''}` : `${title[0] ?? ''}${title[1] ?? ''}`
+  return letters.toUpperCase()
+}
+
+interface RowProps {
+  song: Song
+  active: boolean
+  onSelect: (song: Song) => void
+  onRename: (song: Song) => void
+  onDelete: (song: Song) => void
+}
+
+const SongRow = memo(function SongRow({ song, active, onSelect, onRename, onDelete }: RowProps) {
+  const t = useTranslation()
+  const [coverFailed, setCoverFailed] = useState(false)
+  const { artist, title } = songDisplay(song.name)
+  const hasCover = Boolean(song.cover) && !coverFailed
+  return (
+    <div className={`song-row ${active ? 'active' : ''}`}>
+      <button className="song-item" onClick={() => onSelect(song)} title={song.name.replaceAll('-', ' ')}>
+        {hasCover ? (
+          <img className="song-cover" src={`ramses-cover://song/${encodeURIComponent(song.name)}`} alt="" loading="lazy" onError={() => setCoverFailed(true)} />
+        ) : (
+          <span className="song-cover song-cover-fallback" style={{ '--art-hue': artHue(song.name) } as React.CSSProperties}>{initialsFor(artist, title)}</span>
+        )}
+        <span className="song-meta">
+          <strong>{title}</strong>
+          <small>{artist ?? t('stemsCount', { count: song.stems.length })}</small>
+        </span>
+      </button>
+      <div className="song-actions">
+        <button onClick={() => onRename(song)} title={t('renameSongAction', { name: song.name })} aria-label={t('renameSongAction', { name: song.name })}><FilePenLine size={14} /></button>
+        <button onClick={() => onDelete(song)} title={t('deleteAction', { name: song.name })} aria-label={t('deleteAction', { name: song.name })}><Trash2 size={14} /></button>
+      </div>
+    </div>
+  )
+})
 
 interface Props {
   songs: Song[]
@@ -44,16 +100,7 @@ export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, impor
       {!loading && songs.length === 0 && <p className="empty-state">{t('noSongs')}</p>}
       <nav className="song-list">
         {visibleSongs.map((song) => (
-          <div key={song.name} className={`song-row ${song.name === activeSong ? 'active' : ''}`}>
-            <button className="song-item" onClick={() => onSelect(song)}>
-              <strong>{song.name.replaceAll('-', ' ')}</strong>
-              <small>{t('stemsCount', { count: song.stems.length })}</small>
-            </button>
-            <div className="song-actions">
-              <button onClick={() => onRename(song)} title={t('renameSongAction', { name: song.name })} aria-label={t('renameSongAction', { name: song.name })}><FilePenLine size={14} /></button>
-              <button onClick={() => onDelete(song)} title={t('deleteAction', { name: song.name })} aria-label={t('deleteAction', { name: song.name })}><Trash2 size={14} /></button>
-            </div>
-          </div>
+          <SongRow key={song.name} song={song} active={song.name === activeSong} onSelect={onSelect} onRename={onRename} onDelete={onDelete} />
         ))}
       </nav>
       <label className="library-search">
