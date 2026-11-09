@@ -10,6 +10,7 @@ import { useTranslation, LANGUAGES } from './i18n'
 import { useSettingsStore } from './store/useSettingsStore'
 import { useTransportStore } from './store/useTransportStore'
 import { useDialogFocusTrap } from './hooks/useDialogFocusTrap'
+import { parseSongName, songFolderName } from './utils/songName'
 import type { Song, TrackState } from './types/audio'
 import type { StereoAudio } from './components/stemsplitter/types'
 
@@ -62,7 +63,8 @@ export default function App() {
   const [importSourceOpen, setImportSourceOpen] = useState(false)
   const [youTubeUrl, setYouTubeUrl] = useState('')
   const [renamingSong, setRenamingSong] = useState<Song>()
-  const [renameValue, setRenameValue] = useState('')
+  const [renameArtist, setRenameArtist] = useState('')
+  const [renameTitle, setRenameTitle] = useState('')
   const [confirmDialog, setConfirmDialog] = useState<ConfirmData>()
   const [draggedTrackId, setDraggedTrackId] = useState<string>()
   const [exportingMix, setExportingMix] = useState(false)
@@ -249,8 +251,10 @@ export default function App() {
   }
 
   const openRenameDialog = useCallback((song: Song) => {
+    const parts = parseSongName(song.name)
     setRenamingSong(song)
-    setRenameValue(song.name)
+    setRenameArtist(parts.artist ?? '')
+    setRenameTitle(parts.title)
   }, [])
 
   const openImportSource = useCallback(() => setImportSourceOpen(true), [])
@@ -259,7 +263,7 @@ export default function App() {
 
   const renameSong = useCallback(async () => {
     if (!renamingSong) return
-    const newName = renameValue.trim()
+    const newName = songFolderName(renameArtist, renameTitle)
     if (!newName || newName === renamingSong.name) {
       setRenamingSong(undefined)
       return
@@ -273,7 +277,7 @@ export default function App() {
       const message = reason instanceof Error ? reason.message : t('unknownRenameError')
       setError(t('renameFailed', { name: renamingSong.name, message }))
     }
-  }, [activeSong, renameValue, renamingSong, t])
+  }, [activeSong, renameArtist, renameTitle, renamingSong, t])
 
   const deleteSong = useCallback((song: Song) => {
     setConfirmDialog({
@@ -448,8 +452,10 @@ export default function App() {
         <div className="dialog-backdrop" role="presentation" onClick={() => setRenamingSong(undefined)}>
           <form className="rename-dialog" ref={renameDialogRef} onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); void renameSong() }} role="dialog" aria-modal="true" aria-labelledby="rename-title">
             <h2 id="rename-title">{t('renameSong')}</h2>
-            <label htmlFor="song-name">{t('songFolderName')}</label>
-            <input id="song-name" value={renameValue} onChange={(event) => setRenameValue(event.target.value)} autoFocus />
+            <label htmlFor="rename-artist">{t('artistName')}</label>
+            <input id="rename-artist" value={renameArtist} onChange={(event) => setRenameArtist(event.target.value)} autoFocus />
+            <label htmlFor="rename-title">{t('songTitle')}</label>
+            <input id="rename-title" value={renameTitle} onChange={(event) => setRenameTitle(event.target.value)} />
             <div className="dialog-actions">
               <button type="button" onClick={() => setRenamingSong(undefined)}>{t('cancel')}</button>
               <button type="submit" className="primary-button">{t('save')}</button>

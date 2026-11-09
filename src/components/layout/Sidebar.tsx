@@ -2,19 +2,8 @@ import { memo, useState } from 'react'
 import { FilePenLine, FilePlus2, Search, Trash2 } from 'lucide-react'
 import logo from '../../assets/logo.png'
 import { useTranslation } from '../../i18n'
+import { parseSongName } from '../../utils/songName'
 import type { Song } from '../../types/audio'
-
-/** Split the folder slug "artist-title" into display parts (single-part names keep everything as the title). */
-function songDisplay(name: string): { artist?: string; title: string } {
-  const dash = name.indexOf('-')
-  if (dash > 0 && dash < name.length - 1) {
-    return {
-      artist: name.slice(0, dash).replaceAll('-', ' ').trim(),
-      title: name.slice(dash + 1).replaceAll('-', ' ').trim(),
-    }
-  }
-  return { title: name.replaceAll('-', ' ').trim() }
-}
 
 /** Stable hue derived from the song name so the gradient placeholder is consistent per song. */
 function artHue(name: string): number {
@@ -37,7 +26,7 @@ interface RowProps {
 const SongRow = memo(function SongRow({ song, active, onSelect, onRename, onDelete }: RowProps) {
   const t = useTranslation()
   const [coverFailed, setCoverFailed] = useState(false)
-  const { artist, title } = songDisplay(song.name)
+  const { artist, title } = parseSongName(song.name)
   const hasCover = Boolean(song.cover) && !coverFailed
   return (
     <div className={`song-row ${active ? 'active' : ''}`}>
