@@ -1,7 +1,9 @@
 import { ipcMain } from 'electron'
-import { readdir, readFile, rename, rmdir, rm, stat } from 'node:fs/promises'
+import { readdir, readFile, rename, rm, rmdir, stat } from 'node:fs/promises'
 import { basename, join, resolve, sep } from 'node:path'
 import { ensureSongsDirectory, songsDirectory } from '../paths'
+
+const COVER_PATTERN = /^cover\.(jpe?g|png|webp)$/i
 
 function safeStemPath(songName: string, stemFile: string) {
   const filePath = resolve(safeSongDirectory(songName), stemFile)
@@ -28,8 +30,10 @@ export function registerSongIpc() {
     return Promise.all(
       directories.map(async ({ name }) => {
         const files = await readdir(join(songsDirectory(), name), { withFileTypes: true })
+        const cover = files.find((file) => file.isFile() && COVER_PATTERN.test(file.name))?.name
         return {
           name,
+          ...(cover ? { cover } : {}),
           stems: files
             .filter((file) => file.isFile() && file.name.toLowerCase().endsWith('.mp3'))
             .map((file) => file.name)
@@ -64,7 +68,8 @@ export function registerSongIpc() {
   ipcMain.handle('songs:delete-stem', async (_event, { songName, stemFile }: { songName: string; stemFile: string }) => {
     const directory = safeSongDirectory(songName)
     await rm(safeStemPath(songName, stemFile))
-    const entries = await readdir(directory)
-    if (entries.length === 0) await rmdir(directory)
+    // Covers alone do not keep a song alive, so drop the directory when it no longer holds stems.
+    const remaining = await readdir(directory)
+    if (!remaining.some((file) => file.toLowerCase().endsWith('.mp3'))) await rm(directory, { recursive: true })
   })
 }

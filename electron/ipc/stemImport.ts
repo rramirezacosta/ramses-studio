@@ -104,6 +104,48 @@ function notifyImportStage(event: IpcMainInvokeEvent, stage: string): void {
   if (!event.sender.isDestroyed()) event.sender.send('songs:import-stage', stage)
 }
 
+const IMAGE_PATTERN = /\.(jpe?g|webp|png)$/i
+
+/**Extract one frame (typically the embedded picture) as a raw image, or null when the media has none. */
+async function extractEmbeddedArt(sourcePath: string, temp: string): Promise<string | null> {
+  if (!existsSync(sourcePath)) return null
+  const target = join(temp, 'embedded.png')
+  try {
+    await execFile(ffmpegPath(), ['-v', 'error', '-i', sourcePath, '-map', '0:v', '-frames:v', '1', '-y', target])
+  } catch {
+    return null
+  }
+  try {
+    await stat(target)
+    return target
+  } catch {
+    return null
+  }
+}
+
+/** Produce a square 300x300 JPEG cover for the song, or null when no source image is available. */
+async function createCoverArt(sourcePath: string): Promise<Buffer | null> {
+  const temp = await mkdtemp(join(tmpdir(), 'ramses-cover-'))
+  try {
+    let raw: string | null = null
+    // yt-dlp writes the video thumbnail next to the downloaded audio in its temp directory.
+    if (basename(dirname(sourcePath)).startsWith('ramses-ytdlp-')) {
+      const entries = await readdir(dirname(sourcePath))
+      const thumbnail = entries.find((entry) => IMAGE_PATTERN.test(entry))
+      if (thumbnail) raw = join(dirname(sourcePath), thumbnail)
+    }
+    if (!raw) raw = await extractEmbeddedArt(sourcePath, temp)
+    if (!raw) return null
+    const square = join(temp, 'cover.jpg')
+    await execFile(ffmpegPath(), ['-v', 'error', '-y', '-i', raw, '-vf', 'scale=300:300:force_original_aspect_ratio=increase,crop=300:300', '-frames:v', '1', '-q:v', '7', square])
+    return await readFile(square)
+  } catch {
+    return null
+  } finally {
+    await rm(temp, { recursive: true, force: true }).catch(() => undefined)
+  }
+}
+
 async function saveStems(inputPath: string, stems: Record<StemName, Uint8Array>, notifyStage: () => void) {
   const directory = await uniqueSongDirectory(songNameFrom(inputPath))
   await mkdir(directory, { recursive: true })
@@ -113,6 +155,12 @@ async function saveStems(inputPath: string, stems: Record<StemName, Uint8Array>,
     notifyStage()
     await Promise.all(SIX_STEM_NAMES.map((name) => execFile(ffmpegPath(), ['-v', 'error', '-y', '-i', wavPaths[name], '-codec:a', 'libmp3lame', '-q:a', '2', join(directory, `${name}.mp3`)])))
     await Promise.all(SIX_STEM_NAMES.map((name) => rm(wavPaths[name])))
+    try {
+      const cover = await createCoverArt(inputPath)
+      if (cover) await writeFile(join(directory, 'cover.jpg'), cover)
+    } catch {
+      // Cover art is best-effort; a failed extraction must not discard the stems.
+    }
     return {
       name: basename(directory),
       stems: SIX_STEM_NAMES.map((name) => `${name}.mp3`).sort(),
@@ -146,7 +194,7 @@ async function downloadYouTubeAudio(url: string, notifyStage: (stage: string) =>
   }
 
   const directory = await mkdtemp(join(tmpdir(), 'ramses-ytdlp-'))
-  const args = ['--no-playlist', '--newline', '--extract-audio', '--audio-format', 'mp3', '--output', join(directory, '%(title)s.%(ext)s')]
+  const args = ['--no-playlist', '--newline', '--write-thumbnail', '--extract-audio', '--audio-format', 'mp3', '--output', join(directory, '%(title)s.%(ext)s')]
   if (process.platform === 'win32') args.push('--ffmpeg-location', dirname(ffmpegPath()))
   args.push(url)
   try {

@@ -111,7 +111,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 .song-row { display: flex; align-items: center; margin: 2px 0; border: 1px solid transparent; border-radius: 10px; transition: background .15s ease, border-color .15s ease; }
 .song-row:hover { border-color: rgba(195, 202, 255, .11); background: rgba(255, 255, 255, .05); }
 .song-row.active { border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: linear-gradient(100deg, color-mix(in srgb, var(--accent) 40%, transparent), color-mix(in srgb, var(--accent-deeper) 20%, transparent)); box-shadow: inset 3px 0 var(--accent-bright), 0 5px 14px color-mix(in srgb, var(--accent-deeper) 22%, transparent); }
-.song-item { display: flex; flex: 1; min-width: 0; padding: 10px 12px; border: 0; border-radius: 9px; color: #bec5da; background: transparent; text-align: left; flex-direction: column; gap: 3px; text-transform: capitalize; }
+.song-item { display: flex; flex: 1; min-width: 0; align-items: center; gap: 10px; padding: 8px 12px; border: 0; border-radius: 9px; color: #bec5da; background: transparent; text-align: left; }
+.song-cover { width: 44px; height: 44px; flex: none; border-radius: 8px; object-fit: cover; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08); }
+.song-cover-fallback { display: grid; place-items: center; background: linear-gradient(135deg, hsl(var(--art-hue) 55% 44%), hsl(calc(var(--art-hue) + 45) 62% 28%)); color: rgba(255, 255, 255, .88); font-size: 15px; font-weight: 800; letter-spacing: .04em; }
+.song-meta { display: grid; min-width: 0; gap: 2px; text-transform: capitalize; }
+.song-meta strong, .song-meta small { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .song-row:hover .song-item, .song-row.active .song-item { color: #fff; }
 .song-row.active .song-item { color: #eeeaff; }
 .song-item small { color: #8d96b0; font-size: 11px; font-weight: 550; letter-spacing: .02em; }

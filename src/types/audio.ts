@@ -1,6 +1,7 @@
 export interface Song {
   name: string
   stems: string[]
+  cover?: string
 }
 
 export interface TrackState {
