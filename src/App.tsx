@@ -9,6 +9,7 @@ import { decodeWithFfmpeg } from './components/stemsplitter/audio/ffmpeg'
 import { useTranslation, LANGUAGES } from './i18n'
 import { useSettingsStore } from './store/useSettingsStore'
 import { useTransportStore } from './store/useTransportStore'
+import { useDialogFocusTrap } from './hooks/useDialogFocusTrap'
 import type { Song, TrackState } from './types/audio'
 import type { StereoAudio } from './components/stemsplitter/types'
 
@@ -39,6 +40,10 @@ const loadStoredTheme = (): ThemeId => {
 export default function App() {
   const engine = useRef(new AudioEngine()).current
   const t = useTranslation()
+  const renameDialogRef = useRef<HTMLFormElement>(null)
+  const confirmDialogRef = useRef<HTMLDivElement>(null)
+  const importSourceRef = useRef<HTMLFormElement>(null)
+  const settingsDialogRef = useRef<HTMLDivElement>(null)
   const language = useSettingsStore((store) => store.language)
   const setLanguage = useSettingsStore((store) => store.setLanguage)
   const [songs, setSongs] = useState<Song[]>([])
@@ -65,6 +70,11 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [theme, setTheme] = useState<ThemeId>(loadStoredTheme)
   const setTransport = useTransportStore((store) => store.setTransport)
+
+  useDialogFocusTrap(renameDialogRef, Boolean(renamingSong))
+  useDialogFocusTrap(confirmDialogRef, Boolean(confirmDialog))
+  useDialogFocusTrap(importSourceRef, importSourceOpen)
+  useDialogFocusTrap(settingsDialogRef, settingsOpen)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -360,6 +370,40 @@ export default function App() {
     setDraggedTrackId(undefined)
   }, [draggedTrackId])
 
+  useEffect(() => {
+    const dialogOpen = Boolean(renamingSong || confirmDialog || importSourceOpen || settingsOpen)
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const onControl = event.target instanceof HTMLElement && Boolean(event.target.closest('input, textarea, select, button, a, [contenteditable="true"]'))
+
+      if (event.key === 'Escape') {
+        if (renamingSong) setRenamingSong(undefined)
+        else if (confirmDialog) setConfirmDialog(undefined)
+        else if (importSourceOpen) setImportSourceOpen(false)
+        else if (settingsOpen) setSettingsOpen(false)
+        else if (draggedTrackId) setDraggedTrackId(undefined)
+        return
+      }
+      if (dialogOpen || onControl) return
+
+      if (event.code === 'Space') {
+        event.preventDefault()
+        togglePlayback()
+      } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        event.preventDefault()
+        const delta = (event.key === 'ArrowLeft' ? -1 : 1) * (event.shiftKey ? 0.5 : 5)
+        seek(Math.min(Math.max(engine.position + delta, 0), engine.duration))
+      } else if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'e') {
+        event.preventDefault()
+        void exportMix()
+      } else if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'o') {
+        event.preventDefault()
+        if (!importing) setImportSourceOpen(true)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [renamingSong, confirmDialog, importSourceOpen, settingsOpen, draggedTrackId, importing, togglePlayback, seek, exportMix, engine])
+
   return (
     <main className="app-shell">
       <TitleBar onOpenSettings={openSettings} />
@@ -401,8 +445,8 @@ export default function App() {
         </div>
       </div>
       {renamingSong && (
-        <div className="dialog-backdrop" role="presentation">
-          <form className="rename-dialog" onSubmit={(event) => { event.preventDefault(); void renameSong() }} role="dialog" aria-modal="true" aria-labelledby="rename-title">
+        <div className="dialog-backdrop" role="presentation" onClick={() => setRenamingSong(undefined)}>
+          <form className="rename-dialog" ref={renameDialogRef} onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); void renameSong() }} role="dialog" aria-modal="true" aria-labelledby="rename-title">
             <h2 id="rename-title">{t('renameSong')}</h2>
             <label htmlFor="song-name">{t('songFolderName')}</label>
             <input id="song-name" value={renameValue} onChange={(event) => setRenameValue(event.target.value)} autoFocus />
@@ -414,8 +458,8 @@ export default function App() {
         </div>
       )}
       {confirmDialog && (
-        <div className="dialog-backdrop" role="presentation">
-          <div className="rename-dialog confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body">
+        <div className="dialog-backdrop" role="presentation" onClick={() => setConfirmDialog(undefined)}>
+          <div className="rename-dialog confirm-dialog" ref={confirmDialogRef} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body">
             <h2 id="confirm-title">{confirmDialog.title}</h2>
             <p id="confirm-body">{confirmDialog.body}</p>
             <div className="dialog-actions">
@@ -426,8 +470,8 @@ export default function App() {
         </div>
       )}
       {importSourceOpen && (
-        <div className="dialog-backdrop" role="presentation">
-          <form className="rename-dialog import-source-dialog" onSubmit={(event) => { event.preventDefault(); importYouTubeAudio() }} role="dialog" aria-modal="true" aria-labelledby="import-source-title">
+        <div className="dialog-backdrop" role="presentation" onClick={() => setImportSourceOpen(false)}>
+          <form className="rename-dialog import-source-dialog" ref={importSourceRef} onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); importYouTubeAudio() }} role="dialog" aria-modal="true" aria-labelledby="import-source-title">
             <h2 id="import-source-title">{t('importAudio')}</h2>
             <p>{t('importAudioDescription')}</p>
             <button type="button" className="source-option" onClick={importLocalFile}>{t('chooseLocalFile')}</button>
@@ -442,8 +486,8 @@ export default function App() {
         </div>
       )}
       {settingsOpen && (
-        <div className="dialog-backdrop" role="presentation">
-          <div className="rename-dialog confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <div className="dialog-backdrop" role="presentation" onClick={() => setSettingsOpen(false)}>
+          <div className="rename-dialog confirm-dialog" ref={settingsDialogRef} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="settings-title">
             <h2 id="settings-title">{t('settings')}</h2>
             <div className="settings-section" role="group" aria-label={t('theme')}>
               <span className="settings-section-label">{t('theme')}</span>
