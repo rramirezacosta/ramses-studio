@@ -556,7 +556,7 @@ export default function App() {
               <span>{LANGUAGES.find((item) => item.id === language)?.label}</span>
             </p>
             <div className="dialog-actions">
-              <button type="button" autoFocus onClick={() => setSettingsOpen(false)} className="primary-button">{t('close')}</button>
+              <button type="button" autoFocus onClick={() => setSettingsOpen(false)} className="primary-button settings-close">{t('close')}</button>
             </div>
           </div>
         </div>
