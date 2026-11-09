@@ -22,6 +22,13 @@ function safeSongDirectory(songName: string) {
   return directory
 }
 
+/** Leading articles are ignored when alphabetizing, so "The Beatles" files under B and "Los Fabulosos Cadillacs" under F. */
+const LEADING_ARTICLE = /^(the|los|las|les)-/i
+
+function songSortKey(name: string) {
+  return name.replace(LEADING_ARTICLE, '')
+}
+
 export function registerSongIpc() {
   ipcMain.handle('songs:list', async () => {
     await ensureSongsDirectory()
@@ -40,7 +47,9 @@ export function registerSongIpc() {
             .sort(),
         }
       }),
-    ).then((songs) => songs.filter((song) => song.stems.length > 0).sort((a, b) => a.name.localeCompare(b.name)))
+    ).then((songs) => songs
+      .filter((song) => song.stems.length > 0)
+      .sort((a, b) => songSortKey(a.name).localeCompare(songSortKey(b.name)) || a.name.localeCompare(b.name)))
   })
 
   ipcMain.handle('songs:load-buffer', async (_event, { songName, stemFile }: { songName: string; stemFile: string }) => {
