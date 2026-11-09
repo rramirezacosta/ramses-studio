@@ -26,12 +26,17 @@ const ytDlpPath = () => {
     : join(app.getAppPath(), 'vendor', 'ytdlp', process.platform, 'x64', process.platform === 'win32' ? executable : 'yt-dlp_linux')
 }
 
+const slugPart = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+
 function songNameFrom(filePath: string) {
-  const name = basename(filePath, extname(filePath))
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '')
-  return name || 'imported-song'
+  const base = basename(filePath, extname(filePath)).toLowerCase()
+  const boundary = base.indexOf(' - ')
+  if (boundary > 0) {
+    const parts = [slugPart(base.slice(0, boundary)), slugPart(base.slice(boundary + 3))]
+      .filter(Boolean)
+    if (parts.length) return parts.join('--')
+  }
+  return slugPart(base) || 'imported-song'
 }
 
 async function uniqueSongDirectory(name: string) {

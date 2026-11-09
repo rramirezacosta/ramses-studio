@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { FilePenLine, FilePlus2, Search, Trash2 } from 'lucide-react'
 import logo from '../../assets/logo.png'
 import { useTranslation } from '../../i18n'
-import { parseSongName } from '../../utils/songName'
+import { parseSongName, songDisplayName } from '../../utils/songName'
 import type { Song } from '../../types/audio'
 
 /** Stable hue derived from the song name so the gradient placeholder is consistent per song. */
@@ -34,7 +34,7 @@ const SongRow = memo(function SongRow({ song, active, onSelect, onMenu }: RowPro
       className={`song-row ${active ? 'active' : ''}`}
       onContextMenu={(event) => { event.preventDefault(); onMenu(song, event.clientX, event.clientY) }}
     >
-      <button className="song-item" onClick={() => onSelect(song)} title={song.name.replaceAll('-', ' ')}>
+      <button className="song-item" onClick={() => onSelect(song)} title={songDisplayName(song.name)}>
         {hasCover ? (
           <img className="song-cover" src={`ramses-cover://song/${encodeURIComponent(song.name)}`} alt="" loading="lazy" onError={() => setCoverFailed(true)} />
         ) : (
