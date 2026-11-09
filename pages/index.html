@@ -346,17 +346,6 @@
     <img class="shot" src="assets/screenshot.png" alt="Ramses Studio application" loading="lazy" />
   </div>
 
-  <section>
-    <div class="reveal">
-      <div class="stats">
-        <div class="stat"><b>6</b><span>stems per song</span></div>
-        <div class="stat"><b>0</b><span>bytes uploaded</span></div>
-        <div class="stat"><b>~250 MB</b><span>offline model</span></div>
-        <div class="stat"><b>44.1 kHz</b><span>studio sample rate</span></div>
-      </div>
-    </div>
-  </section>
-
   <section id="features" class="container">
     <h2 class="section-title">Everything you need to rehearse</h2>
     <p class="section-lede">From raw recording to loop-able practice stems, entirely on your machine.</p>
@@ -364,7 +353,7 @@
       <div class="card wide reveal">
         <div class="icon">🎛️</div>
         <h3>Six-stem separation</h3>
-        <p>Bundled HTDemucs model splits any track into drums, bass, other, vocals, guitar, and piano — running in a background worker so the interface never blocks.</p>
+        <p>Bundled AI model that splits any track into drums, bass, other, vocals, guitar, and piano — running locally on your machine, no cloud required.</p>
         <div class="waveform" aria-hidden="true">
           <i style="animation-delay:0s"></i><i style="animation-delay:.15s"></i><i style="animation-delay:.3s"></i><i style="animation-delay:.45s"></i><i style="animation-delay:.6s"></i><i style="animation-delay:.75s"></i><i style="animation-delay:.9s"></i><i style="animation-delay:.35s"></i><i style="animation-delay:.5s"></i><i style="animation-delay:.65s"></i><i style="animation-delay:.8s"></i><i style="animation-delay:.95s"></i><i style="animation-delay:.2s"></i><i style="animation-delay:.4s"></i>
         </div>
@@ -397,7 +386,7 @@
     <p class="section-lede">From import to hands-on-keys in under a minute.</p>
     <div class="steps">
       <div class="step reveal"><span class="num">1</span><p><b>Import audio</b> — choose a WAV, FLAC, or MP3 file, or paste a YouTube URL.</p></div>
-      <div class="step reveal"><span class="num">2</span><p><b>Separate</b> — the bundled HTDemucs model runs locally; watch live progress in the sidebar.</p></div>
+      <div class="step reveal"><span class="num">2</span><p><b>Separate</b> — the bundled AI model runs locally.</p></div>
       <div class="step reveal"><span class="num">3</span><p><b>Open the song</b> — all six stems load as tracks in the timeline.</p></div>
       <div class="step reveal"><span class="num">4</span><p><b>Rehearse</b> — mute and solo tracks, balance the mix, and loop the tricky sections.</p></div>
     </div>
@@ -406,7 +395,7 @@
   <footer>
     <div>
       <span class="foot-brand"><img src="assets/app_512.png" alt="" /> Ramses Studio</span><br />
-      Built with Electron · React · Vite · ONNX Runtime<br />
+      Built with Electron · React · Htdemucs · FFMPEG · yt-dlp ·  ONNX Runtime<br />
       Made by <a href="https://github.com/rramirezacosta">@rramirezacosta</a> — <a href="https://github.com/rramirezacosta/ramses-studio/releases">download</a> · <a href="https://github.com/rramirezacosta/ramses-studio">source</a>
     </div>
   </footer>
