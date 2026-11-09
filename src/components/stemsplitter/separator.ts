@@ -2,7 +2,7 @@ import * as ort from 'onnxruntime-node';
 import { STEM_NAMES, TRAINING_SAMPLES } from './constants.js';
 import { chunkCount, createHannWindow, iterateChunks, OverlapAccumulator } from './dsp/chunker.js';
 import { denormalizeStereo, normalizeStereo } from './dsp/normalize.js';
-import { istft, stft } from './dsp/stft.js';
+import { stft } from './dsp/stft.js';
 import { createSession, releaseSessions, type LoadedSession } from './model/session-pool.js';
 import type { ModelBag, SeparationResult, SeparatorOptions, StereoAudio, StemName } from './types.js';
 
@@ -96,17 +96,12 @@ export class Separator {
       mixTensor = new ort.Tensor('float32', normalized, [1, 2, TRAINING_SAMPLES]);
       specTensor = new ort.Tensor('float32', stft(normalized), [1, 4, 2048, 336]);
       outputs = await session.run({ [io.mixInput]: mixTensor, [io.specInput!]: specTensor });
-      const wave = outputs[io.waveformOutput].data as Float32Array;
-      const spec = outputs[io.spectrogramOutput!].data as Float32Array;
-      const stemCount = wave.length / (TRAINING_SAMPLES * 2);
-      const reconstructed = new Float32Array(wave.length);
-      for (let stem = 0; stem < stemCount; stem++) {
-        const frequency = istft(spec, stem);
-        const offset = stem * TRAINING_SAMPLES * 2;
-        for (let i = 0; i < frequency.length; i++) reconstructed[offset + i] = frequency[i] + wave[offset + i];
-      }
-      denormalizeStereo(reconstructed, normalization);
-      return reconstructed;
+      // Reference-faithful output: the waveform head IS the answer (demucs.apply() takes
+      // the model's wave output directly). Do NOT add istft(spectrogramOutput) on top —
+      // summing heads with mismatched conventions attenuates/distorts the stems.
+      const wave = new Float32Array(outputs[io.waveformOutput].data as Float32Array);
+      denormalizeStereo(wave, normalization);
+      return wave;
     } finally {
       mixTensor?.dispose();
       specTensor?.dispose();

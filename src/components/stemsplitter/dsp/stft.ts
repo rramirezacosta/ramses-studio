@@ -2,7 +2,10 @@ import { FFT_SIZE, HOP_SIZE, SPECTROGRAM_BINS, SPECTROGRAM_FRAMES, TRAINING_SAMP
 import { Radix2Fft } from './fft.js';
 
 const fft = new Radix2Fft(FFT_SIZE);
-const window = Float32Array.from({ length: FFT_SIZE }, (_, i) => (0.5 - 0.5 * Math.cos((2 * Math.PI * i) / FFT_SIZE)) / Math.sqrt(FFT_SIZE));
+// Plain Hann window: matches the torch.stft(normalized=False) convention the htdemucs
+// export expects for its spec input. Do NOT apply 1/sqrt(N) "unitary" scaling here —
+// it attenuates the spectrogram served to the model by sqrt(FFT_SIZE).
+const window = Float32Array.from({ length: FFT_SIZE }, (_, i) => 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / FFT_SIZE));
 
 export function stft(input: Float32Array): Float32Array {
   if (input.length !== TRAINING_SAMPLES * 2) throw new RangeError(`Expected ${TRAINING_SAMPLES} planar stereo samples.`);
