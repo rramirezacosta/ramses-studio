@@ -67,6 +67,14 @@ export default function App() {
   const [renameTitle, setRenameTitle] = useState('')
   const [confirmDialog, setConfirmDialog] = useState<ConfirmData>()
   const [draggedTrackId, setDraggedTrackId] = useState<string>()
+  const [duplicateSong, setDuplicateSong] = useState<{ name: string; display: string }>()
+  const duplicateDialogRef = useRef<HTMLDivElement>(null)
+  const duplicateResolveRef = useRef<((decision: 'replace' | 'keep' | undefined) => void) | null>(null)
+  const resolveDuplicate = useCallback((decision: 'replace' | 'keep' | undefined) => {
+    setDuplicateSong(undefined)
+    duplicateResolveRef.current?.(decision)
+    duplicateResolveRef.current = null
+  }, [])
   const [exportingMix, setExportingMix] = useState(false)
   const [notice, setNotice] = useState<string>()
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -75,6 +83,7 @@ export default function App() {
 
   useDialogFocusTrap(renameDialogRef, Boolean(renamingSong))
   useDialogFocusTrap(confirmDialogRef, Boolean(confirmDialog))
+  useDialogFocusTrap(duplicateDialogRef, Boolean(duplicateSong))
   useDialogFocusTrap(importSourceRef, importSourceOpen)
   useDialogFocusTrap(settingsDialogRef, settingsOpen)
 
@@ -212,6 +221,15 @@ export default function App() {
     try {
       const prepared = await prepareImport()
       if (!prepared || controller.signal.aborted) return
+      // Re-importing an existing song gets a prompt: replace the old copy or keep both,
+      // so a double import never silently creates surprise folders.
+      const duplicate = await window.api.checkSongDuplicate(prepared.sourceName)
+      if (duplicate.exists) {
+        setDuplicateSong({ name: duplicate.name, display: songDisplayName(duplicate.name) })
+        const decision = await new Promise<'replace' | 'keep' | undefined>((resolve) => { duplicateResolveRef.current = resolve })
+        if (!decision || controller.signal.aborted) return
+        if (decision === 'replace') await window.api.deleteSong(duplicate.name)
+      }
       setImportStage(t('decodingAudio'))
       const buffer = await window.api.readFileBuffer(prepared.sourceName)
       const audio = await decodeWithFfmpeg(buffer, undefined, controller.signal)
@@ -378,13 +396,14 @@ export default function App() {
   }, [draggedTrackId])
 
   useEffect(() => {
-    const dialogOpen = Boolean(renamingSong || confirmDialog || importSourceOpen || settingsOpen)
+    const dialogOpen = Boolean(renamingSong || confirmDialog || importSourceOpen || settingsOpen || duplicateSong)
     const handleKeyDown = (event: KeyboardEvent) => {
       const onControl = event.target instanceof HTMLElement && Boolean(event.target.closest('input, textarea, select, button, a, [contenteditable="true"]'))
 
       if (event.key === 'Escape') {
         if (renamingSong) setRenamingSong(undefined)
         else if (confirmDialog) setConfirmDialog(undefined)
+        else if (duplicateSong) resolveDuplicate(undefined)
         else if (importSourceOpen) setImportSourceOpen(false)
         else if (settingsOpen) setSettingsOpen(false)
         else if (draggedTrackId) setDraggedTrackId(undefined)
@@ -409,7 +428,7 @@ export default function App() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [renamingSong, confirmDialog, importSourceOpen, settingsOpen, draggedTrackId, importing, togglePlayback, seek, exportMix, engine])
+  }, [renamingSong, confirmDialog, importSourceOpen, settingsOpen, duplicateSong, draggedTrackId, importing, togglePlayback, seek, exportMix, engine, resolveDuplicate])
 
   return (
     <main className="app-shell">
@@ -474,6 +493,19 @@ export default function App() {
             <div className="dialog-actions">
               <button type="button" onClick={() => setConfirmDialog(undefined)}>{t('cancel')}</button>
               <button type="button" autoFocus className="primary-button danger" onClick={() => { const dialog = confirmDialog; setConfirmDialog(undefined); void dialog.action() }}>{t('delete')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {duplicateSong && (
+        <div className="dialog-backdrop" role="presentation" onClick={() => resolveDuplicate(undefined)}>
+          <div className="rename-dialog confirm-dialog" ref={duplicateDialogRef} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="duplicate-title">
+            <h2 id="duplicate-title">{t('duplicateSongTitle')}</h2>
+            <p id="duplicate-body">{t('duplicateSongBody', { name: duplicateSong.display })}</p>
+            <div className="dialog-actions">
+              <button type="button" onClick={() => resolveDuplicate(undefined)}>{t('cancel')}</button>
+              <button type="button" className="primary-button danger" onClick={() => resolveDuplicate('replace')}>{t('replaceSong')}</button>
+              <button type="button" autoFocus className="primary-button" onClick={() => resolveDuplicate('keep')}>{t('keepBoth')}</button>
             </div>
           </div>
         </div>

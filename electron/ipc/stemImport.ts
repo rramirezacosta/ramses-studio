@@ -41,8 +41,9 @@ function songNameFrom(filePath: string) {
 
 async function uniqueSongDirectory(name: string) {
   const root = songsDirectory()
-  for (let suffix = 1; ; suffix += 1) {
-    const candidate = join(root, suffix === 1 ? name : `${name}-${suffix}`)
+  // suffix 0 probes the base name; the first duplicate becomes name-1 (not name-2).
+  for (let suffix = 0; ; suffix += 1) {
+    const candidate = join(root, suffix === 0 ? name : `${name}-${suffix}`)
     try {
       await stat(candidate)
     } catch (error: unknown) {
@@ -265,6 +266,19 @@ export function registerStemImportIpc() {
   ipcMain.handle('songs:prepare-youtube-import', async (_event, url: unknown) => {
     if (typeof url !== 'string') throw new Error('Enter a YouTube URL.')
     return downloadYouTubeAudio(validateYouTubeUrl(url), (stage) => notifyImportStage(_event, stage))
+  })
+
+  // Lets the renderer ask before importing so the user can replace or keep both copies.
+  ipcMain.handle('songs:duplicate-check', async (_event, sourceName: unknown): Promise<{ exists: boolean; name: string }> => {
+    if (typeof sourceName !== 'string' || !sourceName.trim()) throw new Error('Invalid source name.')
+    const name = songNameFrom(sourceName)
+    try {
+      await stat(join(songsDirectory(), name))
+      return { exists: true, name }
+    } catch (error: unknown) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { exists: false, name }
+      throw error
+    }
   })
 
   ipcMain.handle('songs:separate-native', async (event, sourceName: unknown, audio: unknown): Promise<{ name: string; stems: string[] }> => {

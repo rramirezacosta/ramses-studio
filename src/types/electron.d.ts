@@ -14,6 +14,7 @@ declare global {
       prepareImport: () => Promise<{ sourceName: string } | null>
       cancelImport: () => Promise<boolean>
       prepareYouTubeImport: (url: string) => Promise<{ sourceName: string }>
+      checkSongDuplicate: (sourceName: string) => Promise<{ exists: boolean; name: string }>
       separateWithNative: (sourceName: string, audio: StereoAudio) => Promise<Song>
       exportMix: (songName: string, wav: Uint8Array) => Promise<string | null>
       readFileBuffer: (filePath: string) => Promise<ArrayBuffer>
