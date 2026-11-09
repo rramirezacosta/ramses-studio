@@ -10,7 +10,7 @@ import { useTranslation, LANGUAGES } from './i18n'
 import { useSettingsStore } from './store/useSettingsStore'
 import { useTransportStore } from './store/useTransportStore'
 import { useDialogFocusTrap } from './hooks/useDialogFocusTrap'
-import { parseSongName, songFolderName } from './utils/songName'
+import { parseSongName, songDisplayName, songFolderName } from './utils/songName'
 import type { Song, TrackState } from './types/audio'
 import type { StereoAudio } from './components/stemsplitter/types'
 
@@ -285,7 +285,7 @@ export default function App() {
   const deleteSong = useCallback((song: Song) => {
     setConfirmDialog({
       title: t('deleteSongTitle'),
-      body: t('deleteSongBody', { name: song.name.replaceAll('-', ' ') }),
+      body: t('deleteSongBody', { name: songDisplayName(song.name) }),
       action: async () => {
         try {
           await window.api.deleteSong(song.name)
@@ -312,7 +312,7 @@ export default function App() {
     const stemTitle = track.name.replace(/\.[^.]+$/, '')
     setConfirmDialog({
       title: t('deleteStemTitle'),
-      body: t('deleteStemBody', { stem: stemTitle, song: activeSong.replaceAll('-', ' ') }),
+      body: t('deleteStemBody', { stem: stemTitle, song: songDisplayName(activeSong) }),
       action: async () => {
         try {
           await window.api.deleteStem(activeSong, track.name)
@@ -417,7 +417,7 @@ export default function App() {
       <div className="app-content">
         <Sidebar songs={songs} activeSong={activeSong} loading={libraryLoading} importing={importing} cancelling={cancelling} importProgress={importProgress} importStage={importStage} onSelect={selectSong} onImport={openImportSource} onCancelImport={cancelImport} onRename={openRenameDialog} onDelete={deleteSong} />
         <div className="workspace">
-        <div className="timeline-header"><span>TRACK</span><span>{activeSong ? activeSong.replaceAll('-', ' ') : t('selectSongHint')}</span></div>
+        <div className="timeline-header"><span>TRACK</span><span>{activeSong ? songDisplayName(activeSong) : t('selectSongHint')}</span></div>
         {error && <div className="error-message" role="alert">{error}</div>}
         {notice && <div className="status-message" role="status">{notice}</div>}
         <div className="tracks">
@@ -532,7 +532,7 @@ export default function App() {
       {(libraryLoading || loadingSong) && (
         <div className="work-banner" role="status" aria-live="polite">
           <div className="work-spinner" />
-          <div><strong>{loadingSong ? t('loadingSongStems') : t('loadingLibrary')}</strong><span>{loadingSong ? loadingSong.replaceAll('-', ' ') : t('preparingWorkspace')}</span></div>
+          <div><strong>{loadingSong ? t('loadingSongStems') : t('loadingLibrary')}</strong><span>{loadingSong ? songDisplayName(loadingSong) : t('preparingWorkspace')}</span></div>
         </div>
       )}
     </main>
