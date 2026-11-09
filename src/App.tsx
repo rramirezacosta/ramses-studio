@@ -138,6 +138,9 @@ export default function App() {
         soloed: false,
       })))
       engine.load(loaded)
+      // The master GainNode defaults to 1.0; resync it with the transport value so the
+      // slider, playback and renderMix (export) all agree before the user ever drags it.
+      engine.setMasterVolume(useTransportStore.getState().masterVolume)
       engine.setLoopRange()
       setTracks(loaded)
       setActiveSong(song.name)
