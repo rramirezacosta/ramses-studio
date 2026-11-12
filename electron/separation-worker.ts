@@ -44,6 +44,7 @@ async function run(): Promise<void> {
     lowMemory: true,
     targetStems: [...SIX_STEM_NAMES],
     signal: cancelController.signal,
+    lazy: true,
     onProgress: throttle((info: ProgressInfo) => post({ type: 'progress', progress: info }), 250),
   })
   const stems = await separator.separate(request.audio) as Partial<SeparationResult<StemName>>

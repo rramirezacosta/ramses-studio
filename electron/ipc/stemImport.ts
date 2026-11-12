@@ -331,6 +331,7 @@ export function registerStemImportIpc() {
     } catch {
       throw new Error('The native StemSplitter model is missing from this application.')
     }
+    notifyImportStage(event, 'Loading model...')
     const wavs = await runSeparationWorker(event, model, audio)
     await ensureSongsDirectory()
     const thumbPath = typeof thumbnailPath === 'string' ? thumbnailPath : undefined

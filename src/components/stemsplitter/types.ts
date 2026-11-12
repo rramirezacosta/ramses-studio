@@ -26,6 +26,8 @@ export interface SeparatorOptions {
   targetStems?: StemName[];
   onProgress?: (info: ProgressInfo) => void;
   signal?: AbortSignal;
+  /** When true, defers model loading until the first call to separate(). */
+  lazy?: boolean;
 }
 
 export type ModelContract = 'in-graph-stft' | 'external-stft';

@@ -6,10 +6,22 @@ export interface Chunk {
   right: Float32Array;
 }
 
-export function createHannWindow(length: number): Float32Array {
+/**
+ * Creates a triangular window matching the Demucs reference implementation.
+ * Ramps linearly from 1 to the midpoint, then back down to 1.
+ */
+export function createTriangularWindow(length: number): Float32Array {
   const window = new Float32Array(length);
   if (length === 1) return window.fill(1);
-  for (let i = 0; i < length; i++) window[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (length - 1));
+  const half = Math.floor(length / 2);
+  for (let i = 0; i < length; i++) {
+    if (i < half) {
+      window[i] = i / half;
+    } else {
+      window[i] = (length - i) / (length - half);
+    }
+  }
+  // Normalize to [0, 1] range with peak at 1
   return window;
 }
 

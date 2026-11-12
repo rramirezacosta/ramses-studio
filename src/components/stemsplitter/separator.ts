@@ -1,7 +1,7 @@
 import * as ort from 'onnxruntime-node';
 import { STEM_NAMES, TRAINING_SAMPLES } from './constants.js';
-import { chunkCount, createHannWindow, iterateChunks, OverlapAccumulator } from './dsp/chunker.js';
-import { denormalizeStereo, normalizeStereo } from './dsp/normalize.js';
+import { chunkCount, createTriangularWindow, iterateChunks, OverlapAccumulator } from './dsp/chunker.js';
+import { denormalizeStereo, normalizeStereo, Normalization } from './dsp/normalize.js';
 import { stft } from './dsp/stft.js';
 import { createSession, releaseSessions, type LoadedSession } from './model/session-pool.js';
 import type { ModelBag, SeparationResult, SeparatorOptions, StereoAudio, StemName } from './types.js';
@@ -9,17 +9,24 @@ import type { ModelBag, SeparationResult, SeparatorOptions, StereoAudio, StemNam
 export class Separator {
   private readonly sessions = new Map<string, LoadedSession>();
   private disposed = false;
+  private initializing = false;
 
   private constructor(private readonly options: SeparatorOptions) {}
 
   public static async create(options: SeparatorOptions): Promise<Separator> {
     const separator = new Separator(options);
+    if (options.lazy) return separator;
     await separator.initialize();
     return separator;
   }
 
   public async separate(audio: StereoAudio): Promise<SeparationResult> {
     this.assertReady();
+    if (!this.sessions.size && !this.initializing) {
+      this.initializing = true;
+      await this.initialize();
+      this.initializing = false;
+    }
     if (audio.sampleRate !== 44_100) throw new RangeError('Input audio must be sampled at 44100 Hz. Resample before calling separate().');
     if (!audio.left.length) throw new RangeError('Input audio is empty.');
     const right = audio.right ?? audio.left;
@@ -28,7 +35,15 @@ export class Separator {
     const requested = this.requestedStems();
     const overlap = this.options.overlap ?? 0.25;
     const totalSegments = chunkCount(audio.left.length, overlap);
-    const accumulator = new OverlapAccumulator(audio.left.length, createHannWindow(TRAINING_SAMPLES));
+    const accumulator = new OverlapAccumulator(audio.left.length, createTriangularWindow(TRAINING_SAMPLES));
+
+    // Global normalization: compute mean and scale from the full input audio once,
+    // matching the reference Demucs behavior (api.py lines 267-290).
+    const planarInput = new Float32Array(audio.left.length * 2);
+    planarInput.set(audio.left);
+    planarInput.set(right, audio.left.length);
+    const globalNorm = normalizeStereo(planarInput);
+
     let currentSegment = 0;
     for (const chunk of iterateChunks(audio.left, right, overlap)) {
       this.throwIfAborted();
@@ -36,8 +51,10 @@ export class Separator {
       const planar = new Float32Array(TRAINING_SAMPLES * 2);
       planar.set(chunk.left);
       planar.set(chunk.right, TRAINING_SAMPLES);
+      // Normalize this chunk with the SAME global stats used for the full audio.
+      normalizeStereo(planar, planar, globalNorm);
       for (const [name, loaded] of this.sessions) {
-        const outputs = await this.runSegment(loaded, planar);
+        const outputs = await this.runSegment(loaded, planar, globalNorm);
         if (name === 'main') {
           for (const stem of requested) {
             const stemIndex = this.availableStems(loaded).indexOf(stem);
@@ -80,19 +97,25 @@ export class Separator {
     }
   }
 
-  private async runSegment(loaded: LoadedSession, input: Float32Array): Promise<Float32Array> {
+  private async runSegment(loaded: LoadedSession, input: Float32Array, globalNorm: Normalization): Promise<Float32Array> {
     const { io, session } = loaded;
     let mixTensor: ort.Tensor | undefined;
     let specTensor: ort.Tensor | undefined;
     let outputs: Record<string, ort.Tensor> | undefined;
     try {
       if (io.contract === 'in-graph-stft') {
+        // Input is already normalized with global stats in separate().
         mixTensor = new ort.Tensor('float32', input, [1, 2, TRAINING_SAMPLES]);
         outputs = await session.run({ [io.mixInput]: mixTensor });
-        return new Float32Array(outputs[io.waveformOutput].data as Float32Array);
+        const rawOutput = new Float32Array(outputs[io.waveformOutput].data as Float32Array);
+        denormalizeStereo(rawOutput, globalNorm);
+        return rawOutput;
       }
+      // Input is already normalized with global stats in separate().
+      // Re-normalize here for the STFT contract path to ensure the tensor
+      // matches the model's expected distribution using the same global stats.
       const normalized = new Float32Array(input.length);
-      const normalization = normalizeStereo(input, normalized);
+      normalizeStereo(input, normalized, globalNorm);
       mixTensor = new ort.Tensor('float32', normalized, [1, 2, TRAINING_SAMPLES]);
       specTensor = new ort.Tensor('float32', stft(normalized), [1, 4, 2048, 336]);
       outputs = await session.run({ [io.mixInput]: mixTensor, [io.specInput!]: specTensor });
@@ -100,7 +123,7 @@ export class Separator {
       // the model's wave output directly). Do NOT add istft(spectrogramOutput) on top —
       // summing heads with mismatched conventions attenuates/distorts the stems.
       const wave = new Float32Array(outputs[io.waveformOutput].data as Float32Array);
-      denormalizeStereo(wave, normalization);
+      denormalizeStereo(wave, globalNorm);
       return wave;
     } finally {
       mixTensor?.dispose();
@@ -126,6 +149,6 @@ export class Separator {
 
   private assertReady(): void {
     if (this.disposed) throw new Error('Separator has been disposed.');
-    if (!this.sessions.size) throw new Error('Separator has no loaded sessions.');
+    if (!this.sessions.size && !this.options.lazy) throw new Error('Separator has no loaded sessions.');
   }
 }
