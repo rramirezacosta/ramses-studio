@@ -11,8 +11,8 @@ contextBridge.exposeInMainWorld('api', {
   cancelImport: () => ipcRenderer.invoke('songs:cancel-import'),
   prepareYouTubeImport: (url: string) => ipcRenderer.invoke('songs:prepare-youtube-import', url),
   checkSongDuplicate: (sourceName: string) => ipcRenderer.invoke('songs:duplicate-check', sourceName),
-  separateWithNative: (sourceName: string, audio: { left: Float32Array; right: Float32Array; sampleRate: number }) =>
-    ipcRenderer.invoke('songs:separate-native', sourceName, audio),
+  separateWithNative: (sourceName: string, audio: { left: Float32Array; right: Float32Array; sampleRate: number }, thumbnailPath?: string) =>
+    ipcRenderer.invoke('songs:separate-native', sourceName, audio, thumbnailPath),
   exportMix: (songName: string, wav: Uint8Array) => ipcRenderer.invoke('mix:export', { songName, wav }),
   readFileBuffer: (filePath: string) => ipcRenderer.invoke('files:read-buffer', filePath),
   getWindowButtonLayout: () => ipcRenderer.invoke('window:button-layout'),

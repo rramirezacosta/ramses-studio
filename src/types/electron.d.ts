@@ -13,9 +13,9 @@ declare global {
       deleteStem: (songName: string, stemFile: string) => Promise<void>
       prepareImport: () => Promise<{ sourceName: string } | null>
       cancelImport: () => Promise<boolean>
-      prepareYouTubeImport: (url: string) => Promise<{ sourceName: string }>
+      prepareYouTubeImport: (url: string) => Promise<{ sourceName: string; thumbnailPath?: string }>
       checkSongDuplicate: (sourceName: string) => Promise<{ exists: boolean; name: string }>
-      separateWithNative: (sourceName: string, audio: StereoAudio) => Promise<Song>
+      separateWithNative: (sourceName: string, audio: StereoAudio, thumbnailPath?: string) => Promise<Song>
       exportMix: (songName: string, wav: Uint8Array) => Promise<string | null>
       readFileBuffer: (filePath: string) => Promise<ArrayBuffer>
       onImportProgress: (listener: (progress: { progress: number; currentSegment: number; totalSegments: number }) => void) => () => void

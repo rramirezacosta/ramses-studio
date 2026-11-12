@@ -21,6 +21,7 @@
     "onnxruntime-node": "^1.31.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "undici": "^7.12.0",
     "zustand": "^5.0.2"
   },
   "devDependencies": {
@@ -97,12 +98,6 @@
         "!node_modules/onnxruntime-node/bin/napi-v6/linux/arm64/**",
         "!node_modules/onnxruntime-node/bin/napi-v6/linux/x64/libonnxruntime_providers_cuda.so",
         "!node_modules/onnxruntime-node/bin/napi-v6/linux/x64/libonnxruntime_providers_tensorrt.so"
-      ],
-      "extraResources": [
-        {
-          "from": "vendor/ytdlp/linux/x64/yt-dlp_linux",
-          "to": "bin/yt-dlp"
-        }
       ]
     },
     "win": {
@@ -130,12 +125,6 @@
         "!node_modules/onnxruntime-node/bin/napi-v6/win32/arm64/**",
         "!node_modules/onnxruntime-node/bin/napi-v6/win32/x64/DirectML.dll",
         "!node_modules/onnxruntime-node/bin/napi-v6/win32/x64/dxcompiler.dll"
-      ],
-      "extraResources": [
-        {
-          "from": "vendor/ytdlp/win32/x64/yt-dlp.exe",
-          "to": "bin/yt-dlp.exe"
-        }
       ]
     },
     "flatpak": {

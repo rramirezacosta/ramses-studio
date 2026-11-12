@@ -31,19 +31,7 @@ npm install
 
 ```
 
-This project relies on YTDLP for importing youtube files, place binaries in vendor folder.
-
-
-```
-vendor/
-└── ytdlp
-    ├── linux
-    │   └── x64
-    │       └── yt-dlp_linux
-    └── win32
-        └── x64
-            └── yt-dlp.exe
-```
+YouTube audio is downloaded using a pure-JS YouTube extractor (no external binary required).
 
 The Linux ffmpeg is required because sandboxed packages (Flatpak) cannot call the system ffmpeg; a static build (for example the one shipped at `node_modules/@ffmpeg-installer/linux-x64/ffmpeg`) works.
 

@@ -1,7 +1,7 @@
 import { app, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron'
-import { execFile as execFileCallback, type ChildProcess } from 'node:child_process'
-import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { execFile as execFileCallback } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -9,6 +9,9 @@ import { promisify } from 'node:util'
 import { Worker } from 'node:worker_threads'
 
 import { SIX_STEM_NAMES } from '../../src/components/stemsplitter/constants'
+import { YoutubeIE } from '../../src/components/youtube/extractor/youtube.js'
+import { selectFormats, sortFormats } from '../../src/components/youtube/format.js'
+import { downloadFile } from '../../src/components/youtube/downloader.js'
 import { ensureSongsDirectory, songsDirectory } from '../paths'
 import type { SeparateWorkerData, SeparateWorkerMessage } from '../separation-worker'
 import type { StereoAudio, StemName } from '../../src/components/stemsplitter/types'
@@ -19,12 +22,6 @@ const nativeModelPath = () => app.isPackaged
   ? join(process.resourcesPath, 'models', 'htdemucs_6s.onnx')
   : join(app.getAppPath(), 'src', 'components', 'stemsplitter', 'htdemucs_6s.onnx')
 export const ffmpegPath = () => 'ffmpeg'
-const ytDlpPath = () => {
-  const executable = process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp'
-  return app.isPackaged
-    ? join(process.resourcesPath, 'bin', executable)
-    : join(app.getAppPath(), 'vendor', 'ytdlp', process.platform, 'x64', process.platform === 'win32' ? executable : 'yt-dlp_linux')
-}
 
 const slugPart = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
 
@@ -67,7 +64,6 @@ function transferableBuffers(audio: StereoAudio): ArrayBuffer[] {
 }
 
 let activeSeparationWorker: Worker | null = null
-let activeYouTubeProcess: ChildProcess | null = null
 
 function runSeparationWorker(event: IpcMainInvokeEvent, modelPath: string, audio: StereoAudio): Promise<Record<string, Uint8Array>> {
   const request: SeparateWorkerData = { modelPath, audio }
@@ -130,16 +126,12 @@ async function extractEmbeddedArt(sourcePath: string, temp: string): Promise<str
 }
 
 /** Produce a square 300x300 JPEG cover for the song, or null when no source image is available. */
-async function createCoverArt(sourcePath: string): Promise<Buffer | null> {
+async function createCoverArt(sourcePath: string, thumbnailPath?: string): Promise<Buffer | null> {
   const temp = await mkdtemp(join(tmpdir(), 'ramses-cover-'))
   try {
     let raw: string | null = null
-    // yt-dlp writes the video thumbnail next to the downloaded audio in its temp directory.
-    if (basename(dirname(sourcePath)).startsWith('ramses-ytdlp-')) {
-      const entries = await readdir(dirname(sourcePath))
-      const thumbnail = entries.find((entry) => IMAGE_PATTERN.test(entry))
-      if (thumbnail) raw = join(dirname(sourcePath), thumbnail)
-    }
+    // Use the downloaded YouTube thumbnail if available
+    if (thumbnailPath) raw = thumbnailPath
     if (!raw) raw = await extractEmbeddedArt(sourcePath, temp)
     if (!raw) return null
     const square = join(temp, 'cover.jpg')
@@ -152,7 +144,7 @@ async function createCoverArt(sourcePath: string): Promise<Buffer | null> {
   }
 }
 
-async function saveStems(inputPath: string, stems: Record<StemName, Uint8Array>, notifyStage: () => void) {
+async function saveStems(inputPath: string, stems: Record<StemName, Uint8Array>, notifyStage: () => void, thumbnailPath?: string) {
   const directory = await uniqueSongDirectory(songNameFrom(inputPath))
   await mkdir(directory, { recursive: true })
   const wavPaths = Object.fromEntries(SIX_STEM_NAMES.map((name) => [name, join(directory, `${name}.wav`)])) as Record<StemName, string>
@@ -162,7 +154,7 @@ async function saveStems(inputPath: string, stems: Record<StemName, Uint8Array>,
     await Promise.all(SIX_STEM_NAMES.map((name) => execFile(ffmpegPath(), ['-v', 'error', '-y', '-i', wavPaths[name], '-codec:a', 'libmp3lame', '-q:a', '2', join(directory, `${name}.mp3`)])))
     await Promise.all(SIX_STEM_NAMES.map((name) => rm(wavPaths[name])))
     try {
-      const cover = await createCoverArt(inputPath)
+      const cover = await createCoverArt(inputPath, thumbnailPath)
       if (cover) await writeFile(join(directory, 'cover.jpg'), cover)
     } catch {
       // Cover art is best-effort; a failed extraction must not discard the stems.
@@ -191,52 +183,101 @@ function validateYouTubeUrl(value: string): string {
   return url.toString()
 }
 
-async function downloadYouTubeAudio(url: string, notifyStage: (stage: string) => void): Promise<{ sourceName: string }> {
-  const executable = ytDlpPath()
+async function downloadYouTubeAudio(url: string, notifyStage: (stage: string) => void): Promise<{ sourceName: string; thumbnailPath?: string }> {
+  const directory = await mkdtemp(join(tmpdir(), 'ramses-youtube-'))
+
+  // Fetch video info using the pure-JS YouTube extractor
+  notifyStage('Fetching video info...')
+  const ie = new YoutubeIE()
+  let info: any
   try {
-    await stat(executable)
-  } catch {
-    throw new Error('The yt-dlp binary is missing from this application.')
+    info = await ie.realExtract(url)
+  } catch (error: any) {
+    throw new Error(`Could not fetch YouTube video info: ${error?.message || error}`)
   }
 
-  const directory = await mkdtemp(join(tmpdir(), 'ramses-ytdlp-'))
-  const args = ['--no-playlist', '--newline', '--write-thumbnail', '--extract-audio', '--audio-format', 'mp3', '--output', join(directory, '%(title)s.%(ext)s')]
-  if (process.platform === 'win32') args.push('--ffmpeg-location', dirname(ffmpegPath()))
-  args.push(url)
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const child = execFileCallback(executable, args, { maxBuffer: 10 * 1024 * 1024 }, (error) => {
-        if (error) reject(error)
-        else resolve()
-      })
-      child.stdout?.setEncoding('utf8')
-      child.stdout?.on('data', (chunk: string) => {
-        const match = chunk.match(/\[download\]\s+([\d.]+)%/)
-        if (match) notifyStage(`Downloading audio... ${Math.round(Number(match[1]))}%`)
-      })
-      activeYouTubeProcess = child
-    })
-    notifyStage('Downloading audio... 100%')
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    throw new Error(`Could not download YouTube audio: ${message}`)
+  const title = info.title || info.id || 'unknown'
+  const thumbnailUrl = info.thumbnail || ''
+
+  // Select the best audio-only format
+  const chosen = selectFormats(info, 'bestaudio')
+  if (!chosen.length) {
+    throw new Error('No suitable audio format found for this video')
   }
 
-  const files = await readdir(directory)
-  const sourceFile = files.find((file) => extname(file).toLowerCase() === '.mp3')
-  if (!sourceFile) throw new Error('yt-dlp did not produce an MP3 file.')
-  const sourceName = join(directory, sourceFile)
-  notifyStage('Preparing audio...')
-  return { sourceName }
+  // Download audio
+  let audioDownloaded = false
+  let lastError: string | null = null
+  for (const fmt of chosen) {
+    if (!fmt.url) continue
+    const ext = fmt.ext || 'm4a'
+    const outName = join(directory, `${title}.${ext}`)
+    const ok = await downloadFile({ url: fmt.url, filename: outName, quiet: false })
+    if (ok) {
+      audioDownloaded = true
+      // Download thumbnail alongside the audio
+      let thumbnailPath: string | undefined
+      if (thumbnailUrl) {
+        notifyStage('Downloading thumbnail...')
+        const thumbName = join(directory, 'thumbnail.jpg')
+        await downloadFile({ url: thumbnailUrl, filename: thumbName, quiet: true })
+        thumbnailPath = thumbName
+      }
+      // Convert audio to WAV (PCM 16-bit, 44100Hz, stereo)
+      notifyStage('Converting to WAV...')
+      const wavPath = join(directory, `${title}.wav`)
+      try {
+        await execFile(
+          ffmpegPath(),
+          ['-v', 'error', '-y', '-i', outName, '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', wavPath]
+        )
+      } catch (error: any) {
+        throw new Error(`Could not convert audio to WAV: ${error?.message || error}`)
+      }
+      return { sourceName: wavPath, thumbnailPath }
+    }
+    lastError = `Format ${fmt.format_id} download failed`
+  }
+
+  // If audio-only formats fail, fall back to best combined format
+  if (!audioDownloaded) {
+    const allFormats = sortFormats(info.formats || [])
+    const combinedFormats = allFormats.filter((f: any) => f.vcodec !== 'none' && f.acodec !== 'none').reverse()
+    for (const fmt of combinedFormats) {
+      if (!fmt.url) continue
+      const ext = fmt.ext || 'mp4'
+      const outName = join(directory, `${title}.${ext}`)
+      const ok = await downloadFile({ url: fmt.url, filename: outName, quiet: false })
+      if (ok) {
+        let thumbnailPath: string | undefined
+        if (thumbnailUrl) {
+          notifyStage('Downloading thumbnail...')
+          const thumbName = join(directory, 'thumbnail.jpg')
+          await downloadFile({ url: thumbnailUrl, filename: thumbName, quiet: true })
+          thumbnailPath = thumbName
+        }
+        notifyStage('Converting to WAV...')
+        const wavPath = join(directory, `${title}.wav`)
+        try {
+          await execFile(
+            ffmpegPath(),
+            ['-v', 'error', '-y', '-i', outName, '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', wavPath]
+          )
+        } catch (error: any) {
+          throw new Error(`Could not convert audio to WAV: ${error?.message || error}`)
+        }
+        return { sourceName: wavPath, thumbnailPath }
+      }
+      lastError = `Fallback format ${fmt.format_id} download failed`
+    }
+  }
+
+  throw new Error(`Failed to download YouTube audio: ${lastError || 'no formats available'}`)
 }
 
 export function cancelActiveImport() {
   if (activeSeparationWorker) {
     try { activeSeparationWorker.postMessage({ type: 'cancel' }) } catch { /* ignore */ }
-  }
-  if (activeYouTubeProcess) {
-    activeYouTubeProcess.kill()
-    activeYouTubeProcess = null
   }
 }
 
@@ -281,7 +322,7 @@ export function registerStemImportIpc() {
     }
   })
 
-  ipcMain.handle('songs:separate-native', async (event, sourceName: unknown, audio: unknown): Promise<{ name: string; stems: string[] }> => {
+  ipcMain.handle('songs:separate-native', async (event, sourceName: unknown, audio: unknown, thumbnailPath: unknown): Promise<{ name: string; stems: string[] }> => {
     if (typeof sourceName !== 'string') throw new Error('Invalid import source.')
     assertStereoAudio(audio)
     const model = nativeModelPath()
@@ -292,6 +333,7 @@ export function registerStemImportIpc() {
     }
     const wavs = await runSeparationWorker(event, model, audio)
     await ensureSongsDirectory()
-    return saveStems(sourceName, wavs, () => notifyImportStage(event, 'Encoding stems as MP3...'))
+    const thumbPath = typeof thumbnailPath === 'string' ? thumbnailPath : undefined
+    return saveStems(sourceName, wavs, () => notifyImportStage(event, 'Encoding stems as MP3...'), thumbPath)
   })
 }

@@ -211,7 +211,7 @@ export default function App() {
     setTransport({ masterVolume })
   }, [engine, setTransport])
 
-  const importSong = useCallback(async (prepareImport: () => Promise<{ sourceName: string } | null>) => {
+  const importSong = useCallback(async (prepareImport: () => Promise<{ sourceName: string; thumbnailPath?: string } | null>) => {
     const controller = new AbortController()
     importAbortRef.current = controller
     setImporting(true)
@@ -235,7 +235,7 @@ export default function App() {
       const audio = await decodeWithFfmpeg(buffer, undefined, controller.signal)
       if (controller.signal.aborted) return
       const source = { sourceName: prepared.sourceName, audio }
-      const song = await window.api.separateWithNative(source.sourceName, source.audio)
+      const song = await window.api.separateWithNative(source.sourceName, source.audio, prepared.thumbnailPath)
       if (controller.signal.aborted) return
       setSongs(await window.api.getSongs())
       await selectSong(song)
