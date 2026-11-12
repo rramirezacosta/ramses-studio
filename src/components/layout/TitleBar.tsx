@@ -1,4 +1,4 @@
-import { Copy, Minus, Settings, Square, X } from 'lucide-react'
+import { CircleHelp, Copy, Minus, Settings, Square, X } from 'lucide-react'
 import { memo, useEffect, useState } from 'react'
 import { useTranslation } from '../../i18n'
 
@@ -13,9 +13,10 @@ const defaultLayout: ButtonLayout = { left: [], right: ['minimize', 'maximize', 
 
 interface TitleBarProps {
   onOpenSettings?: () => void
+  onOpenAbout?: () => void
 }
 
-export const TitleBar = memo(function TitleBar({ onOpenSettings }: TitleBarProps) {
+export const TitleBar = memo(function TitleBar({ onOpenSettings, onOpenAbout }: TitleBarProps) {
   const t = useTranslation()
   const [layout, setLayout] = useState<ButtonLayout>(defaultLayout)
   const [maximized, setMaximized] = useState(false)
@@ -51,6 +52,19 @@ export const TitleBar = memo(function TitleBar({ onOpenSettings }: TitleBarProps
     </button>
   )
 
+  const aboutButton = (
+    <button
+      key="about"
+      className="titlebar-button titlebar-about"
+      type="button"
+      aria-label={t('about')}
+      title={t('about')}
+      onClick={onOpenAbout}
+    >
+      <CircleHelp size={15} />
+    </button>
+  )
+
   const leftControls = [...layout.left]
   const rightControls = [...layout.right]
 
@@ -61,14 +75,14 @@ export const TitleBar = memo(function TitleBar({ onOpenSettings }: TitleBarProps
   return (
     <header className="titlebar">
       <div className="titlebar-window-controls">
-        {hasLeftButtons ? leftControls.map(renderButton) : settingsButton}
+        {hasLeftButtons ? leftControls.map(renderButton) : [aboutButton, settingsButton]}
       </div>
       <div className="titlebar-drag-region" onDoubleClick={toggleMaximize}>
         <span className="titlebar-name">Ramses Studio</span>
         <span className="titlebar-version">v{__APP_VERSION__}</span>
       </div>
       <div className="titlebar-window-controls">
-        {hasLeftButtons ? settingsButton : rightControls.map(renderButton)}
+        {hasLeftButtons ? [aboutButton, settingsButton] : rightControls.map(renderButton)}
       </div>
     </header>
   )

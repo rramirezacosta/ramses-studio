@@ -45,6 +45,7 @@ export default function App() {
   const confirmDialogRef = useRef<HTMLDivElement>(null)
   const importSourceRef = useRef<HTMLFormElement>(null)
   const settingsDialogRef = useRef<HTMLDivElement>(null)
+  const aboutDialogRef = useRef<HTMLDivElement>(null)
   const language = useSettingsStore((store) => store.language)
   const setLanguage = useSettingsStore((store) => store.setLanguage)
   const [songs, setSongs] = useState<Song[]>([])
@@ -78,6 +79,7 @@ export default function App() {
   const [exportingMix, setExportingMix] = useState(false)
   const [notice, setNotice] = useState<string>()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [aboutOpen, setAboutOpen] = useState(false)
   const [theme, setTheme] = useState<ThemeId>(loadStoredTheme)
   const setTransport = useTransportStore((store) => store.setTransport)
 
@@ -86,6 +88,7 @@ export default function App() {
   useDialogFocusTrap(duplicateDialogRef, Boolean(duplicateSong))
   useDialogFocusTrap(importSourceRef, importSourceOpen)
   useDialogFocusTrap(settingsDialogRef, settingsOpen)
+  useDialogFocusTrap(aboutDialogRef, aboutOpen)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -282,6 +285,8 @@ export default function App() {
 
   const openSettings = useCallback(() => setSettingsOpen(true), [])
 
+  const openAbout = useCallback(() => setAboutOpen(true), [])
+
   const renameSong = useCallback(async () => {
     if (!renamingSong) return
     const newName = songFolderName(renameArtist, renameTitle)
@@ -396,7 +401,7 @@ export default function App() {
   }, [draggedTrackId])
 
   useEffect(() => {
-    const dialogOpen = Boolean(renamingSong || confirmDialog || importSourceOpen || settingsOpen || duplicateSong)
+    const dialogOpen = Boolean(renamingSong || confirmDialog || importSourceOpen || settingsOpen || aboutOpen || duplicateSong)
     const handleKeyDown = (event: KeyboardEvent) => {
       const onControl = event.target instanceof HTMLElement && Boolean(event.target.closest('input, textarea, select, button, a, [contenteditable="true"]'))
 
@@ -406,6 +411,7 @@ export default function App() {
         else if (duplicateSong) resolveDuplicate(undefined)
         else if (importSourceOpen) setImportSourceOpen(false)
         else if (settingsOpen) setSettingsOpen(false)
+        else if (aboutOpen) setAboutOpen(false)
         else if (draggedTrackId) setDraggedTrackId(undefined)
         return
       }
@@ -428,11 +434,11 @@ export default function App() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [renamingSong, confirmDialog, importSourceOpen, settingsOpen, duplicateSong, draggedTrackId, importing, togglePlayback, seek, exportMix, engine, resolveDuplicate])
+  }, [renamingSong, confirmDialog, importSourceOpen, settingsOpen, aboutOpen, duplicateSong, draggedTrackId, importing, togglePlayback, seek, exportMix, engine, resolveDuplicate])
 
   return (
     <main className="app-shell">
-      <TitleBar onOpenSettings={openSettings} />
+      <TitleBar onOpenSettings={openSettings} onOpenAbout={openAbout} />
       <div className="app-content">
         <Sidebar songs={songs} activeSong={activeSong} loading={libraryLoading} importing={importing} cancelling={cancelling} importProgress={importProgress} importStage={importStage} onSelect={selectSong} onImport={openImportSource} onCancelImport={cancelImport} onRename={openRenameDialog} onDelete={deleteSong} />
         <div className="workspace">
@@ -557,6 +563,26 @@ export default function App() {
             </p>
             <div className="dialog-actions">
               <button type="button" autoFocus onClick={() => setSettingsOpen(false)} className="primary-button settings-close">{t('close')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {aboutOpen && (
+        <div className="dialog-backdrop" role="presentation" onClick={() => setAboutOpen(false)}>
+          <div className="rename-dialog about-dialog" ref={aboutDialogRef} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="about-title">
+            <div className="about-header">
+              <img src="ramses-cover:icon/app_512.png" alt="" className="about-icon" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+              <h2 id="about-title">Ramses Studio</h2>
+              <p className="about-version">{t('version')} {__APP_VERSION__}</p>
+            </div>
+            <p className="about-description">{t('aboutDescription')}</p>
+            <p className="about-model">{t('aboutModel')}</p>
+            <p className="about-license">{t('aboutLicense')}</p>
+            <div className="about-links">
+              <a href="https://github.com/rramirezacosta/ramses-studio" target="_blank" rel="noopener noreferrer">{t('aboutSource')}</a>
+            </div>
+            <div className="dialog-actions">
+              <button type="button" autoFocus onClick={() => setAboutOpen(false)} className="primary-button settings-close">{t('close')}</button>
             </div>
           </div>
         </div>

@@ -282,3 +282,14 @@ code { color: #b9b1ff; }
 .work-banner span { overflow: hidden; color: #bdc5d9; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; text-transform: capitalize; }
 .work-spinner { width: 30px; height: 30px; border: 3px solid color-mix(in srgb, var(--accent) 18%, transparent); border-top-color: var(--accent-bright); border-radius: 50%; box-shadow: 0 0 20px color-mix(in srgb, var(--accent) 30%, transparent); animation: work-spin .8s linear infinite; }
 @keyframes work-spin { to { transform: rotate(360deg); } }
+.about-dialog { width: min(440px, 100%); }
+.about-header { display: grid; align-items: center; justify-items: center; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid rgba(206, 211, 255, .12); text-align: center; }
+.about-icon { width: 64px; height: 64px; object-fit: contain; }
+.about-header h2 { margin: 0; font-size: 20px; }
+.about-version { margin: 0; color: #9aa2bd; font-size: 13px; }
+.about-description { margin: 0; color: #bdc4d9; font-size: 13px; line-height: 1.55; text-align: center; }
+.about-model { margin: 0; color: #9aa2bd; font-size: 12px; line-height: 1.5; text-align: center; }
+.about-license { margin: 0; color: #7a82a0; font-size: 11px; text-align: center; }
+.about-links { display: flex; justify-content: center; gap: 16px; padding: 4px 0; }
+.about-links a { color: var(--accent-bright); font-size: 12.5px; font-weight: 700; text-decoration: none; }
+.about-links a:hover { text-decoration: underline; }
