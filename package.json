@@ -2,6 +2,7 @@
   "name": "ramses-studio",
   "version": "1.2.0",
   "private": true,
+  "author": "Rodolfo Ramirez Acosta <rodolfo@itepo.mx>",
   "type": "module",
   "main": "dist-electron/main.js",
   "desktopName": "ramses-studio",
@@ -10,6 +11,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "package:linux": "npm run build && electron-builder --linux AppImage",
+    "package:rpm": "npm run build && electron-builder --linux rpm",
     "package:flatpak": "npm run build && electron-builder --linux flatpak",
     "package:windows": "npm run build && electron-builder --win portable"
   },
@@ -74,7 +76,8 @@
     ],
     "linux": {
       "target": [
-        "AppImage"
+        "AppImage",
+        "rpm"
       ],
       "category": "AudioVideo",
       "syncDesktopName": true,
