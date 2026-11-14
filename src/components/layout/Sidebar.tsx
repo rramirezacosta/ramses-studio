@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { CloudDownload, CloudOff, CloudUpload, FilePenLine, FilePlus2, HardDriveDownload, Search, Trash2 } from 'lucide-react'
+import { CloudDownload, CloudOff, CloudUpload, FilePenLine, FilePlus2, HardDrive, HardDriveDownload, Search, Trash2 } from 'lucide-react'
 import logo from '../../assets/logo.png'
 import { useTranslation } from '../../i18n'
 import { parseSongName, songDisplayName } from '../../utils/songName'
@@ -62,13 +62,13 @@ const SongRow = memo(function SongRow({ song, active, synced, downloading, onSel
           <span className="song-download" style={{ width: `${Math.round(downloading * 100)}%` }} />
         ) : song.remoteOnly ? (
           <span className="drive-badge-chip" title={t('driveRemoteSong')}>
-            <CloudDownload size={9} />
-          </span>
-        ) : synced ? (
-          <span className="drive-badge-chip" title={t('driveSynced')}>
             <DriveBadge />
           </span>
-        ) : null}
+        ) : synced ? null : (
+          <span className="drive-badge-chip" title={t('localOnlySong')}>
+            <HardDrive size={9} />
+          </span>
+        )}
         <span className="song-meta">
           <strong>{title}</strong>
           <small>{artist ?? t('stemsCount', { count: song.stems.length })}</small>
