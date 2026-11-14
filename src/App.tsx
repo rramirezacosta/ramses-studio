@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AudioEngine } from './audio/AudioEngine'
 import { TrackLane } from './components/daw/TrackLane'
 import { Sidebar } from './components/layout/Sidebar'
+import { LibraryManager } from './components/library/LibraryManager'
 import { DriveLogo } from './components/drive/DriveLogo'
 import { TitleBar } from './components/layout/TitleBar'
 import { TransportBar } from './components/layout/TransportBar'
@@ -63,6 +64,7 @@ export default function App() {
   const importDroppedFileRef = useRef<(file: File) => void>(() => {})
   const settingsDialogRef = useRef<HTMLDivElement>(null)
   const aboutDialogRef = useRef<HTMLDivElement>(null)
+  const libraryManageRef = useRef<HTMLDivElement>(null)
   const language = useSettingsStore((store) => store.language)
   const setLanguage = useSettingsStore((store) => store.setLanguage)
   const library = useLibraryStore()
@@ -102,6 +104,7 @@ export default function App() {
   const [notice, setNotice] = useState<string>()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
+  const [libraryManageOpen, setLibraryManageOpen] = useState(false)
   const [theme, setTheme] = useState<ThemeId>(loadStoredTheme)
   const setTransport = useTransportStore((store) => store.setTransport)
   const sync = useSyncStore()
@@ -116,6 +119,7 @@ export default function App() {
   useDialogFocusTrap(importSourceRef, importSourceOpen)
   useDialogFocusTrap(settingsDialogRef, settingsOpen)
   useDialogFocusTrap(aboutDialogRef, aboutOpen)
+  useDialogFocusTrap(libraryManageRef, libraryManageOpen)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -654,7 +658,7 @@ export default function App() {
   }, [draggedTrackId])
 
   useEffect(() => {
-    const dialogOpen = Boolean(renamingSong || confirmDialog || importSourceOpen || settingsOpen || aboutOpen || duplicateSong)
+    const dialogOpen = Boolean(renamingSong || confirmDialog || importSourceOpen || settingsOpen || aboutOpen || duplicateSong || libraryManageOpen)
     const handleKeyDown = (event: KeyboardEvent) => {
       const onControl = event.target instanceof HTMLElement && Boolean(event.target.closest('input, textarea, select, button, a, [contenteditable="true"]'))
 
@@ -665,6 +669,7 @@ export default function App() {
         else if (importSourceOpen) setImportSourceOpen(false)
         else if (settingsOpen) setSettingsOpen(false)
         else if (aboutOpen) setAboutOpen(false)
+        else if (libraryManageOpen) setLibraryManageOpen(false)
         else if (draggedTrackId) setDraggedTrackId(undefined)
         return
       }
@@ -691,7 +696,7 @@ export default function App() {
 
   return (
     <main className="app-shell">
-      <TitleBar onOpenSettings={openSettings} onOpenAbout={openAbout} drive={{ connected: sync.connected, syncing: sync.syncing, error: sync.error, pendingChanges: sync.pendingChanges }} onOpenDrive={openSettings} />
+      <TitleBar onOpenSettings={openSettings} onOpenAbout={openAbout} drive={{ connected: sync.connected, syncing: sync.syncing, error: sync.error, pendingChanges: sync.pendingChanges }} onOpenDrive={() => setLibraryManageOpen(true)} />
       <div className="app-content">
         <Sidebar songs={library.songs} activeSong={activeSong} loading={library.loading} importing={importing} cancelling={cancelling} importProgress={importProgress} importStage={importStage} syncedNames={sync.syncedNames} driveConnected={sync.connected} downloading={downloading} remoteCount={library.songs.filter((song) => song.remoteOnly).length} onDriveRemove={(song) => { void sync.removeBackup(song.name) }} onDriveSync={(song) => { void sync.backupSong(song.name) }} onEvict={(song) => { void sync.freeUpSpace(song.name) }} onDriveDownload={(song) => { void selectSong(song) }} onDownloadAll={downloadAllRemote} onSelect={selectSong} onImport={openImportSource} onCancelImport={cancelImport} onRename={openRenameDialog} onDelete={deleteSong} onBulkDelete={bulkDeleteSongs} onBulkSync={bulkSyncSongs} onBulkDownload={bulkDownloadSongs} onBulkEvict={bulkEvictSongs} />
         <div className="workspace">
@@ -937,6 +942,35 @@ export default function App() {
           </div>
         </div>
       )}
+      <LibraryManager
+        open={libraryManageOpen}
+        onClose={() => setLibraryManageOpen(false)}
+        songs={library.songs}
+        activeSong={activeSong}
+        loading={library.loading}
+        importing={importing}
+        cancelling={cancelling}
+        importProgress={importProgress}
+        importStage={importStage}
+        syncedNames={sync.syncedNames}
+        driveConnected={sync.connected}
+        downloading={downloading}
+        remoteCount={library.songs.filter((song) => song.remoteOnly).length}
+        onDriveRemove={(song) => { void sync.removeBackup(song.name) }}
+        onDriveSync={(song) => { void sync.backupSong(song.name) }}
+        onEvict={(song) => { void sync.freeUpSpace(song.name) }}
+        onDriveDownload={(song) => { void selectSong(song) }}
+        onDownloadAll={downloadAllRemote}
+        onSelect={selectSong}
+        onImport={openImportSource}
+        onCancelImport={cancelImport}
+        onRename={openRenameDialog}
+        onDelete={deleteSong}
+        onBulkDelete={bulkDeleteSongs}
+        onBulkSync={bulkSyncSongs}
+        onBulkDownload={bulkDownloadSongs}
+        onBulkEvict={bulkEvictSongs}
+      />
       {(library.loading || loadingSong) && (
         <div className="work-banner" role="status" aria-live="polite">
           <div className="work-spinner" />

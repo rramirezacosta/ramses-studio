@@ -14,6 +14,7 @@ const en = {
   maximize: 'Maximize',
   restore: 'Restore',
   songLibrary: 'SONG LIBRARY',
+  libraryManagement: 'Library management',
   importSong: 'Import Song',
   cancelling: 'Cancelling...',
   splittingPercent: 'Splitting {percent}%',
