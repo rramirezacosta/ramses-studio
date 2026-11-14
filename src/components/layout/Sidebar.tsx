@@ -36,7 +36,7 @@ const SongRow = memo(function SongRow({ song, active, onSelect, onMenu }: RowPro
     >
       <button className="song-item" onClick={() => onSelect(song)} title={songDisplayName(song.name)}>
         {hasCover ? (
-          <img className="song-cover" src={`ramses-cover://song/${encodeURIComponent(song.name)}`} alt="" loading="lazy" onError={() => setCoverFailed(true)} />
+          <img className="song-cover" src={song.cover} alt="" loading="lazy" onError={() => setCoverFailed(true)} />
         ) : (
           <span className="song-cover song-cover-fallback" style={{ '--art-hue': artHue(song.name) } as React.CSSProperties}>{initialsFor(artist, title)}</span>
         )}

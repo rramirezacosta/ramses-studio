@@ -1,21 +1,21 @@
-import type { Song } from './audio'
 import type { StereoAudio } from '../components/stemsplitter/types'
+import type { StemName } from '../components/stemsplitter/types'
 
 type WindowButton = 'minimize' | 'maximize' | 'close'
+
+/** Result of a separation run: encoded stems plus best-effort cover art bytes. */
+export interface SeparationResult {
+  stems: Record<StemName, Uint8Array>
+  cover: Uint8Array | null
+}
 
 declare global {
   interface Window {
     api: {
-      getSongs: () => Promise<Song[]>
-      loadStemBuffer: (songName: string, stemFile: string) => Promise<ArrayBuffer>
-      renameSong: (songName: string, newName: string) => Promise<void>
-      deleteSong: (songName: string) => Promise<void>
-      deleteStem: (songName: string, stemFile: string) => Promise<void>
       prepareImport: () => Promise<{ sourceName: string } | null>
       cancelImport: () => Promise<boolean>
       prepareYouTubeImport: (url: string) => Promise<{ sourceName: string; thumbnailPath?: string }>
-      checkSongDuplicate: (sourceName: string) => Promise<{ exists: boolean; name: string }>
-      separateWithNative: (sourceName: string, audio: StereoAudio, thumbnailPath?: string) => Promise<Song>
+      separateStems: (sourceName: string, audio: StereoAudio, thumbnailPath?: string) => Promise<SeparationResult>
       exportMix: (songName: string, wav: Uint8Array) => Promise<string | null>
       readFileBuffer: (filePath: string) => Promise<ArrayBuffer>
       onImportProgress: (listener: (progress: { progress: number; currentSegment: number; totalSegments: number }) => void) => () => void

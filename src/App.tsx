@@ -9,8 +9,10 @@ import { decodeWithFfmpeg } from './components/stemsplitter/audio/ffmpeg'
 import { useTranslation, LANGUAGES } from './i18n'
 import { useSettingsStore } from './store/useSettingsStore'
 import { useTransportStore } from './store/useTransportStore'
+import { useLibraryStore, LibraryQuotaError } from './store/useLibraryStore'
 import { useDialogFocusTrap } from './hooks/useDialogFocusTrap'
-import { parseSongName, songDisplayName, songFolderName } from './utils/songName'
+import appIcon from './assets/app_512.png'
+import { parseSongName, songDisplayName, songFolderName, songNameFromSource } from './utils/songName'
 import type { Song, TrackState } from './types/audio'
 import type { StereoAudio } from './components/stemsplitter/types'
 
@@ -48,10 +50,9 @@ export default function App() {
   const aboutDialogRef = useRef<HTMLDivElement>(null)
   const language = useSettingsStore((store) => store.language)
   const setLanguage = useSettingsStore((store) => store.setLanguage)
-  const [songs, setSongs] = useState<Song[]>([])
+  const library = useLibraryStore()
   const [activeSong, setActiveSong] = useState<string>()
   const [tracks, setTracks] = useState<TrackState[]>([])
-  const [libraryLoading, setLibraryLoading] = useState(true)
   const [loadingSong, setLoadingSong] = useState<string>()
   const [error, setError] = useState<string>()
   const [loopRange, setLoopRange] = useState<[number, number]>()
@@ -96,9 +97,13 @@ export default function App() {
   }, [theme])
 
   useEffect(() => {
+    // The library lives in IndexedDB and hydrates regardless of the Electron
+    // bridge; only import/separation features depend on the bridge.
+    void library.hydrate()
+    // Ask Chromium to make storage durable so eviction pressure never drops songs.
+    void navigator.storage?.persist?.()
     if (!window.api) {
       setError(t('electronBridgeError'))
-      setLibraryLoading(false)
       return
     }
     const unsubscribe = window.api.onImportProgress(({ progress }) => {
@@ -106,17 +111,12 @@ export default function App() {
       setImportStage(undefined)
     })
     const unsubscribeImportStage = window.api.onImportStage(setImportStage)
-    void window.api.getSongs().then(setSongs).catch((reason) => {
-      const message = reason instanceof Error ? reason.message : t('unknownLibraryError')
-      setError(t('readingLibraryFailed', { message }))
-    }).finally(() => setLibraryLoading(false))
     return () => {
       unsubscribe()
       unsubscribeImportStage()
       engine.destroy()
     }
   }, [engine])
-
   useEffect(() => {
     let frame = 0
     let lastTime = -1
@@ -140,10 +140,10 @@ export default function App() {
     setError(undefined)
     setNotice(undefined)
     try {
-      const loaded = await Promise.all(song.stems.map(async (name) => ({
-        id: name,
-        name,
-        buffer: await engine.decode(await window.api.loadStemBuffer(song.name, name)),
+      const loaded = await Promise.all(song.stems.map(async (stemName) => ({
+        id: stemName,
+        name: stemName,
+        buffer: await engine.decode(await library.getStemBuffer(song.name, stemName)),
         volume: 0.85,
         pan: 0,
         muted: false,
@@ -159,13 +159,14 @@ export default function App() {
       setLoopRange(undefined)
       setLooping(false)
       setTransport({ currentTime: 0, duration: engine.duration, isPlaying: false })
+      await library.touchSong(song.name, { duration: engine.duration })
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : t('unknownAudioLoadingError')
       setError(t('loadSongFailed', { name: song.name, message }))
     } finally {
       setLoadingSong(undefined)
     }
-  }, [engine, setTransport])
+  }, [engine, library, setTransport])
 
   const seek = useCallback((time: number) => {
     engine.seek(time)
@@ -225,25 +226,30 @@ export default function App() {
       const prepared = await prepareImport()
       if (!prepared || controller.signal.aborted) return
       // Re-importing an existing song gets a prompt: replace the old copy or keep both,
-      // so a double import never silently creates surprise folders.
-      const duplicate = await window.api.checkSongDuplicate(prepared.sourceName)
-      if (duplicate.exists) {
-        setDuplicateSong({ name: duplicate.name, display: songDisplayName(duplicate.name) })
+      // so a double import never silently creates surprise duplicates.
+      let name = songNameFromSource(prepared.sourceName)
+      if (library.hasName(name)) {
+        setDuplicateSong({ name, display: songDisplayName(name) })
         const decision = await new Promise<'replace' | 'keep' | undefined>((resolve) => { duplicateResolveRef.current = resolve })
         if (!decision || controller.signal.aborted) return
-        if (decision === 'replace') await window.api.deleteSong(duplicate.name)
+        if (decision === 'replace') await library.deleteSong(name)
+        else name = library.uniqueName(name)
       }
       setImportStage(t('decodingAudio'))
       const buffer = await window.api.readFileBuffer(prepared.sourceName)
       const audio = await decodeWithFfmpeg(buffer, undefined, controller.signal)
       if (controller.signal.aborted) return
       const source = { sourceName: prepared.sourceName, audio }
-      const song = await window.api.separateWithNative(source.sourceName, source.audio, prepared.thumbnailPath)
+      const separated = await window.api.separateStems(source.sourceName, source.audio, prepared.thumbnailPath)
       if (controller.signal.aborted) return
-      setSongs(await window.api.getSongs())
+      const song = await library.persistSeparation(name, separated.stems, separated.cover)
       await selectSong(song)
     } catch (reason) {
       if (controller.signal.aborted || (reason instanceof Error && reason.name === 'AbortError')) return
+      if (reason instanceof LibraryQuotaError) {
+        setError(t('storageFull'))
+        return
+      }
       const message = reason instanceof Error ? reason.message : t('unknownImportError')
       setError(t('importFailed', { message }))
     } finally {
@@ -253,7 +259,7 @@ export default function App() {
       setImportStage(undefined)
       setCancelling(false)
     }
-  }, [selectSong, t])
+  }, [library, selectSong, t])
 
   const cancelImport = useCallback(() => {
     if (cancelling) return
@@ -295,15 +301,15 @@ export default function App() {
       return
     }
     try {
-      await window.api.renameSong(renamingSong.name, newName)
-      setSongs(await window.api.getSongs())
+      if (library.hasName(newName)) throw new Error('A song with that name already exists')
+      await library.renameSongName(renamingSong.name, newName)
       if (activeSong === renamingSong.name) setActiveSong(newName)
       setRenamingSong(undefined)
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : t('unknownRenameError')
       setError(t('renameFailed', { name: renamingSong.name, message }))
     }
-  }, [activeSong, renameArtist, renameTitle, renamingSong, t])
+  }, [activeSong, library, renameArtist, renameTitle, renamingSong, t])
 
   const deleteSong = useCallback((song: Song) => {
     setConfirmDialog({
@@ -311,8 +317,7 @@ export default function App() {
       body: t('deleteSongBody', { name: songDisplayName(song.name) }),
       action: async () => {
         try {
-          await window.api.deleteSong(song.name)
-          setSongs(await window.api.getSongs())
+          await library.deleteSong(song.name)
           if (activeSong === song.name) {
             engine.stop()
             engine.setLoopRange()
@@ -328,7 +333,7 @@ export default function App() {
         }
       },
     })
-  }, [activeSong, engine, setTransport, t])
+  }, [activeSong, engine, library, setTransport, t])
 
   const deleteStem = useCallback((track: TrackState) => {
     if (!track || !activeSong) return
@@ -338,11 +343,10 @@ export default function App() {
       body: t('deleteStemBody', { stem: stemTitle, song: songDisplayName(activeSong) }),
       action: async () => {
         try {
-          await window.api.deleteStem(activeSong, track.name)
+          await library.deleteStem(activeSong, track.name)
           const remainingTracks = tracks.filter((item) => item.id !== track.id)
           engine.removeTrack(track.id)
           setTracks(remainingTracks)
-          setSongs(await window.api.getSongs())
           if (!remainingTracks.length) {
             engine.setLoopRange()
             setActiveSong(undefined)
@@ -356,7 +360,7 @@ export default function App() {
         }
       },
     })
-  }, [activeSong, engine, tracks, setTransport, t])
+  }, [activeSong, engine, library, tracks, setTransport, t])
 
   const exportMix = useCallback(async () => {
     if (!activeSong || !tracks.length || exportingMix) return
@@ -440,10 +444,10 @@ export default function App() {
     <main className="app-shell">
       <TitleBar onOpenSettings={openSettings} onOpenAbout={openAbout} />
       <div className="app-content">
-        <Sidebar songs={songs} activeSong={activeSong} loading={libraryLoading} importing={importing} cancelling={cancelling} importProgress={importProgress} importStage={importStage} onSelect={selectSong} onImport={openImportSource} onCancelImport={cancelImport} onRename={openRenameDialog} onDelete={deleteSong} />
+        <Sidebar songs={library.songs} activeSong={activeSong} loading={library.loading} importing={importing} cancelling={cancelling} importProgress={importProgress} importStage={importStage} onSelect={selectSong} onImport={openImportSource} onCancelImport={cancelImport} onRename={openRenameDialog} onDelete={deleteSong} />
         <div className="workspace">
         <div className="timeline-header"><span>TRACK</span><span>{activeSong ? songDisplayName(activeSong) : t('selectSongHint')}</span></div>
-        {error && <div className="error-message" role="alert">{error}</div>}
+        {(error || library.unavailable) && <div className="error-message" role="alert">{error ?? t('readingLibraryFailed', { message: library.unavailable ?? '' })}</div>}
         {notice && <div className="status-message" role="status">{notice}</div>}
         <div className="tracks">
           {tracks.map((track, index) => (
@@ -461,7 +465,7 @@ export default function App() {
               onUpdate={updateTrack}
             />
           ))}
-          {!libraryLoading && !tracks.length && <div className="welcome"><h1>{t('welcomeTitle')}</h1><p>{t('welcomeBody')}</p></div>}
+          {!library.loading && !tracks.length && <div className="welcome"><h1>{t('welcomeTitle')}</h1><p>{t('welcomeBody')}</p></div>}
         </div>
         <TransportBar
           onPlayPause={togglePlayback}
@@ -571,7 +575,7 @@ export default function App() {
         <div className="dialog-backdrop" role="presentation" onClick={() => setAboutOpen(false)}>
           <div className="rename-dialog about-dialog" ref={aboutDialogRef} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="about-title">
             <div className="about-header">
-              <img src="ramses-cover:icon/app_512.png" alt="" className="about-icon" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+              <img src={appIcon} alt="" className="about-icon" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
               <h2 id="about-title">Ramses Studio</h2>
               <p className="about-version">{t('version')} {__APP_VERSION__}</p>
             </div>
@@ -587,7 +591,7 @@ export default function App() {
           </div>
         </div>
       )}
-      {(libraryLoading || loadingSong) && (
+      {(library.loading || loadingSong) && (
         <div className="work-banner" role="status" aria-live="polite">
           <div className="work-spinner" />
           <div><strong>{loadingSong ? t('loadingSongStems') : t('loadingLibrary')}</strong><span>{loadingSong ? songDisplayName(loadingSong) : t('preparingWorkspace')}</span></div>

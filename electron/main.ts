@@ -1,20 +1,12 @@
 import { execFile as execFileCallback } from 'node:child_process'
 import { promisify } from 'node:util'
-import { app, BrowserWindow, ipcMain, Menu, net, protocol } from 'electron'
-import { readdir, stat } from 'node:fs/promises'
-import { basename, dirname, join, resolve, sep } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
-import { registerSongIpc } from './ipc/fileScanner'
+import { app, BrowserWindow, ipcMain, Menu } from 'electron'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { registerStemImportIpc } from './ipc/stemImport'
 import { registerMixIpc } from './ipc/mixExport'
-import { songsDirectory } from './paths'
 
 if (process.platform === 'linux') app.commandLine.appendSwitch('enable-features', 'Vulkan')
-
-// Registered before 'ready' so the renderer can lazy-load song covers via <img>.
-protocol.registerSchemesAsPrivileged([
-  { scheme: 'ramses-cover', privileges: { standard: true, secure: true, supportFetchAPI: true } },
-])
 
 let mainWindow: BrowserWindow | undefined
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -90,30 +82,8 @@ function createWindow() {
   }
 }
 
-const COVER_PATTERN = /^cover\.(jpe?g|png|webp)$/i
-
-function registerCoverProtocol() {
-  protocol.handle('ramses-cover', async (request) => {
-    const notFound = () => new Response('Not found', { status: 404 })
-    try {
-      const songName = decodeURIComponent(new URL(request.url).pathname.replace(/^\//, ''))
-      const root = resolve(songsDirectory())
-      if (!songName || songName !== basename(songName) || songName.includes('\0')) return notFound()
-      const directory = resolve(root, songName)
-      if (!directory.startsWith(`${root}${sep}`)) return notFound()
-      const cover = (await readdir(directory)).find((file) => COVER_PATTERN.test(file))
-      if (!cover) return notFound()
-      return net.fetch(pathToFileURL(join(directory, cover)).toString())
-    } catch {
-      return notFound()
-    }
-  })
-}
-
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null)
-  registerCoverProtocol()
-  registerSongIpc()
   registerStemImportIpc()
   registerMixIpc()
   registerWindowIpc()

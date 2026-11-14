@@ -47,3 +47,20 @@ export function songDisplayName(name: string): string {
     .filter(Boolean)
     .join(' – ') || name.replaceAll('-', ' ').trim()
 }
+
+/**
+ * Derive the library slug from an import source path, matching the import
+ * pipeline: "Artist - Title.ext" becomes "artist--title" (double-dash
+ * boundary), anything else becomes a plain slug of the file name.
+ */
+export function songNameFromSource(filePath: string): string {
+  const base = filePath.split(/[\\/]/).pop()?.replace(/\.[^.]+$/, '').toLowerCase() ?? ''
+  const boundary = base.indexOf(' - ')
+  if (boundary > 0) {
+    const parts = [slugOf(base.slice(0, boundary)), slugOf(base.slice(boundary + 3))].filter(Boolean)
+    if (parts.length) return parts.join('--')
+  }
+  return slugOf(base) || 'imported-song'
+}
+
+const slugOf = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
