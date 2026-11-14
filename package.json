@@ -3,6 +3,7 @@
   "version": "1.2.0",
   "private": true,
   "author": "Rodolfo Ramirez Acosta <rodolfo@itepo.mx>",
+  "license": "GPL-3.0",
   "type": "module",
   "main": "dist-electron/main.js",
   "desktopName": "ramses-studio",

@@ -112,7 +112,7 @@ const en = {
   aboutDescription: 'Practice tool for musicians. Import a song, separate the stems, practice your instrument.',
   aboutModel: 'The stem separation is done by local AI models.',
   aboutSource: 'Source code',
-  aboutLicense: 'Licensed under the MIT License.'
+  aboutLicense: 'Licensed under the GNU General Public License v3.'
 }
 
 const es: Record<keyof typeof en, string> = {
@@ -224,7 +224,7 @@ const es: Record<keyof typeof en, string> = {
   aboutDescription: 'Herramienta de práctica para músicos. Importa una canción, separa los stems y practica tu instrumento.',
   aboutModel: 'La separación de stems se realiza con modelos de IA locales.',
   aboutSource: 'Código fuente',
-  aboutLicense: 'Licenciado bajo la Licencia MIT.'
+  aboutLicense: 'Licenciado bajo la Licencia Pública General de GNU v3.'
 }
 
 const pt: Record<keyof typeof en, string> = {
@@ -336,7 +336,7 @@ const pt: Record<keyof typeof en, string> = {
   aboutDescription: 'Ferramenta de prática para músicos. Importe uma música, separe os stems e pratique seu instrumento.',
   aboutModel: 'A separação de stems é feita por modelos de IA locais.',
   aboutSource: 'Código-fonte',
-  aboutLicense: 'Licenciado sob a Licença MIT.'
+  aboutLicense: 'Licenciado sob a Licença Pública Geral GNU v3.'
 }
 
 const ru: Record<keyof typeof en, string> = {
@@ -448,7 +448,7 @@ const ru: Record<keyof typeof en, string> = {
   aboutDescription: 'Инструмент для практики музыкантов. Импортируйте песню, разделите её на stems и практикуйтесь на своём инструменте.',
   aboutModel: 'Разделение на stems выполняется локальными ИИ-моделями.',
   aboutSource: 'Исходный код',
-  aboutLicense: 'Лицензия MIT.'
+  aboutLicense: 'Лицензия GNU GPL v3.'
 }
 
 const ja: Record<keyof typeof en, string> = {
@@ -560,7 +560,7 @@ const ja: Record<keyof typeof en, string> = {
   aboutDescription: 'ミュージシャンのための練習ツール。曲をインポートし、ステムを分離して、自分の楽器で練習できます。',
   aboutModel: 'ステム分離はローカルのAIモデルで行われます。',
   aboutSource: 'ソースコード',
-  aboutLicense: 'MITライセンスに基づいてライセンスされています。'
+  aboutLicense: 'GNU General Public License v3 の下でライセンスされています。'
 }
 
 const ko: Record<keyof typeof en, string> = {
@@ -672,7 +672,7 @@ const ko: Record<keyof typeof en, string> = {
   aboutDescription: '음악가를 위한 연습 도구. 노래를 가져와 스템으로 분리하고 악기로 연습하세요.',
   aboutModel: '스템 분리는 로컬 AI 모델로 수행됩니다.',
   aboutSource: '소스 코드',
-  aboutLicense: 'MIT 라이선스에 따라 라이선스가 부여됩니다.'
+  aboutLicense: 'GNU General Public License v3에 따라 라이선스가 부여됩니다.'
 }
 
 const fr: Record<keyof typeof en, string> = {
@@ -784,7 +784,7 @@ const fr: Record<keyof typeof en, string> = {
   aboutDescription: 'Outil de pratique pour musiciens. Importez une chanson, séparez les stems et pratiquez votre instrument.',
   aboutModel: 'La séparation des stems est réalisée par des modèles d\'IA locaux.',
   aboutSource: 'Code source',
-  aboutLicense: 'Sous licence MIT.'
+  aboutLicense: 'Sous licence GNU General Public License v3.'
 }
 
 const zh: Record<keyof typeof en, string> = {
@@ -896,7 +896,7 @@ const zh: Record<keyof typeof en, string> = {
   aboutDescription: '音乐练习工具。导入歌曲，分离 stem，练习你的乐器。',
   aboutModel: 'stem 分离由本地 AI 模型完成。',
   aboutSource: '源代码',
-  aboutLicense: '根据 MIT 许可证授权。'
+  aboutLicense: '根据 GNU General Public License v3 授权。'
 }
 
 const de: Record<keyof typeof en, string> = {
@@ -1008,7 +1008,7 @@ const de: Record<keyof typeof en, string> = {
   aboutDescription: 'Übungswerkzeug für Musiker. Importiere einen Song, trenne die Stems und übe dein Instrument.',
   aboutModel: 'Die Stem-Trennung läuft mit lokalen KI-Modellen.',
   aboutSource: 'Quellcode',
-  aboutLicense: 'Lizenziert unter der MIT-Lizenz.'
+  aboutLicense: 'Lizenziert unter der GNU General Public License v3.'
 }
 
 const eo: Record<keyof typeof en, string> = {
@@ -1120,7 +1120,7 @@ const eo: Record<keyof typeof en, string> = {
   aboutDescription: 'Praktika ilo por muzikistoj. Importu kanton, disigu la stems kaj praktiku vian instrumenton.',
   aboutModel: 'La stem-disigo fariĝas per lokaj AI-modeloj.',
   aboutSource: 'Fontkodo',
-  aboutLicense: 'Licencita sub la MIT-licenco.'
+  aboutLicense: 'Licencita sub la GNU General Public License v3.'
 }
 
 const dictionaries: Record<Language, typeof en> = { en, es, pt, ru, ja, ko, fr, zh, de, eo }
