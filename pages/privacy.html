@@ -1,370 +1,903 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ramses Studio — Split any song. Practice every note.</title>
-  <meta name="description" content="Ramses Studio imports WAV, FLAC, or MP3 recordings and uses local AI model to split them into drums, bass, other, vocals, guitar, and piano stems in a DAW-style practice timeline." />
-  <meta property="og:title" content="Ramses Studio" />
-  <meta property="og:description" content="Six-stem separation, completely offline, in a DAW-style practice timeline." />
-  <meta property="og:image" content="assets/screenshot.png" />
-  <link rel="icon" type="image/png" href="assets/app_512.png" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
-  <style>
-    :root {
-      --bg: #08090d;
-      --panel: rgba(255, 255, 255, 0.035);
-      --panel-border: rgba(255, 255, 255, 0.08);
-      --text: #eceef6;
-      --muted: #8b91a8;
-      --violet: #7c5cff;
-      --blue: #4f8cff;
-      --cyan: #2fd9fb;
-      --pink: #f472b6;
-      --glow: rgba(124, 92, 255, 0.35);
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; }
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      line-height: 1.6;
-      overflow-x: hidden;
-    }
-    ::selection { background: rgba(124, 92, 255, 0.45); }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ramses Studio — Split any song. Practice every note.</title>
+    <meta
+      name="description"
+      content="Ramses Studio imports WAV, FLAC, or MP3 recordings and uses local AI model to split them into drums, bass, other, vocals, guitar, and piano stems in a DAW-style practice timeline."
+    />
+    <meta property="og:title" content="Ramses Studio" />
+    <meta
+      property="og:description"
+      content="Six-stem separation, completely offline, in a DAW-style practice timeline."
+    />
+    <meta property="og:image" content="assets/screenshot.png" />
+    <link rel="icon" type="image/png" href="assets/app_512.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #08090d;
+        --panel: rgba(255, 255, 255, 0.035);
+        --panel-border: rgba(255, 255, 255, 0.08);
+        --text: #eceef6;
+        --muted: #8b91a8;
+        --violet: #7c5cff;
+        --blue: #4f8cff;
+        --cyan: #2fd9fb;
+        --pink: #f472b6;
+        --glow: rgba(124, 92, 255, 0.35);
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          "Inter",
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        line-height: 1.6;
+        overflow-x: hidden;
+      }
+      ::selection {
+        background: rgba(124, 92, 255, 0.45);
+      }
 
-    /* ---- aurora background ---- */
-    .aurora { position: fixed; inset: 0; z-index: -2; overflow: hidden; }
-    .aurora::before {
-      content: "";
-      position: absolute;
-      inset: -20%;
-      background:
-        radial-gradient(38rem 38rem at 18% 8%, rgba(124, 92, 255, 0.16), transparent 60%),
-        radial-gradient(42rem 42rem at 85% 20%, rgba(47, 217, 251, 0.12), transparent 60%),
-        radial-gradient(36rem 36rem at 55% 85%, rgba(244, 114, 182, 0.10), transparent 60%);
-      animation: drift 26s ease-in-out infinite alternate;
-    }
-    .aurora::after {
-      content: "";
-      position: absolute; inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
-    }
-    @keyframes drift {
-      from { transform: translate3d(-3%, -2%, 0) scale(1); }
-      to { transform: translate3d(3%, 4%, 0) scale(1.08); }
-    }
+      /* ---- aurora background ---- */
+      .aurora {
+        position: fixed;
+        inset: 0;
+        z-index: -2;
+        overflow: hidden;
+      }
+      .aurora::before {
+        content: "";
+        position: absolute;
+        inset: -20%;
+        background:
+          radial-gradient(
+            38rem 38rem at 18% 8%,
+            rgba(124, 92, 255, 0.16),
+            transparent 60%
+          ),
+          radial-gradient(
+            42rem 42rem at 85% 20%,
+            rgba(47, 217, 251, 0.12),
+            transparent 60%
+          ),
+          radial-gradient(
+            36rem 36rem at 55% 85%,
+            rgba(244, 114, 182, 0.1),
+            transparent 60%
+          );
+        animation: drift 26s ease-in-out infinite alternate;
+      }
+      .aurora::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+      }
+      @keyframes drift {
+        from {
+          transform: translate3d(-3%, -2%, 0) scale(1);
+        }
+        to {
+          transform: translate3d(3%, 4%, 0) scale(1.08);
+        }
+      }
 
-    /* ---- nav ---- */
-    nav {
-      position: sticky; top: 0; z-index: 50;
-      display: flex; align-items: center; justify-content: space-between;
-      max-width: 1080px; margin: 0 auto; padding: 0.9rem 1.5rem;
-      backdrop-filter: blur(14px);
-      background: rgba(8, 9, 13, 0.65);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    }
-    .brand { display: flex; align-items: center; gap: 0.6rem; font-weight: 700; letter-spacing: 0.01em; text-decoration: none; color: var(--text); }
-    .brand img { width: 30px; height: 30px; border-radius: 8px; }
-    .brand em { font-style: normal; background: linear-gradient(90deg, var(--violet), var(--cyan)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-    .nav-links { display: flex; align-items: center; gap: 1.4rem; }
-    .nav-links a { color: var(--muted); text-decoration: none; font-size: 0.92rem; font-weight: 500; transition: color 0.15s; }
-    .nav-links a:hover { color: var(--text); }
-    .gh-btn {
-      display: inline-flex; align-items: center; gap: 0.45rem;
-      padding: 0.45rem 0.95rem; border-radius: 10px;
-      border: 1px solid var(--panel-border);
-      background: var(--panel);
-      color: var(--text) !important; font-size: 0.92rem; font-weight: 600;
-      transition: border-color 0.15s, box-shadow 0.15s;
-    }
-    .gh-btn:hover { border-color: var(--violet); box-shadow: 0 0 18px var(--glow); }
-    @media (max-width: 640px) { .nav-links a:not(.gh-btn) { display: none; } }
+      /* ---- nav ---- */
+      nav {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 0.9rem 1.5rem;
+        backdrop-filter: blur(14px);
+        background: rgba(8, 9, 13, 0.65);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        text-decoration: none;
+        color: var(--text);
+      }
+      .brand img {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+      }
+      .brand em {
+        font-style: normal;
+        background: linear-gradient(90deg, var(--violet), var(--cyan));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 1.4rem;
+      }
+      .nav-links a {
+        color: var(--muted);
+        text-decoration: none;
+        font-size: 0.92rem;
+        font-weight: 500;
+        transition: color 0.15s;
+      }
+      .nav-links a:hover {
+        color: var(--text);
+      }
+      .gh-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.45rem 0.95rem;
+        border-radius: 10px;
+        border: 1px solid var(--panel-border);
+        background: var(--panel);
+        color: var(--text) !important;
+        font-size: 0.92rem;
+        font-weight: 600;
+        transition:
+          border-color 0.15s,
+          box-shadow 0.15s;
+      }
+      .gh-btn:hover {
+        border-color: var(--violet);
+        box-shadow: 0 0 18px var(--glow);
+      }
+      @media (max-width: 640px) {
+        .nav-links a:not(.gh-btn) {
+          display: none;
+        }
+      }
 
-    /* ---- layout ---- */
-    .container { max-width: 1080px; margin: 0 auto; padding: 0 1.5rem; }
-    section { padding: 4.5rem 0 5.5rem; scroll-margin-top: 4rem; }
+      /* ---- layout ---- */
+      .container {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 0 1.5rem;
+      }
+      section {
+        padding: 4.5rem 0 5.5rem;
+        scroll-margin-top: 4rem;
+      }
 
-    /* ---- hero ---- */
-    .hero { padding: 6rem 0 2rem; text-align: center; }
-    .badge {
-      display: inline-flex; align-items: center; gap: 0.5rem;
-      padding: 0.35rem 0.9rem; border-radius: 999px;
-      border: 1px solid rgba(124, 92, 255, 0.35);
-      background: rgba(124, 92, 255, 0.08);
-      color: #c9bcff; font-size: 0.82rem; font-weight: 600;
-      margin-bottom: 1.5rem;
-    }
-    .badge::before {
-      content: ""; width: 7px; height: 7px; border-radius: 50%;
-      background: var(--cyan); box-shadow: 0 0 10px var(--cyan);
-      animation: pulse 2.2s infinite;
-    }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
-    .hero h1 {
-      font-size: clamp(2.6rem, 7vw, 4.4rem);
-      font-weight: 800; letter-spacing: -0.03em; line-height: 1.06;
-      max-width: 54rem; margin: 0 auto 1.25rem;
-    }
-    .hero h1 span {
-      background: linear-gradient(92deg, var(--violet) 0%, var(--blue) 45%, var(--cyan) 100%);
-      background-size: 180% 100%;
-      -webkit-background-clip: text; background-clip: text; color: transparent;
-      animation: shimmer 7s ease-in-out infinite alternate;
-    }
-    @keyframes shimmer { from { background-position: 0% 0; } to { background-position: 100% 0; } }
-    .hero p.lede {
-      color: var(--muted); font-size: 1.12rem;
-      max-width: 40rem; margin: 0 auto 2.25rem;
-      text-wrap: balance;
-    }
-    .cta-row { display: flex; gap: 0.9rem; justify-content: center; flex-wrap: wrap; }
-    .cta {
-      display: inline-flex; align-items: center; gap: 0.55rem;
-      padding: 0.85rem 1.75rem; border-radius: 12px;
-      font-weight: 600; font-size: 1rem; text-decoration: none;
-      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s;
-    }
-    .cta.primary {
-      color: white;
-      background: linear-gradient(94deg, var(--violet), var(--blue) 70%, var(--cyan));
-      background-size: 160% 100%;
-      box-shadow: 0 8px 32px var(--glow), inset 0 1px 0 rgba(255, 255, 255, 0.25);
-    }
-    .cta.primary:hover { transform: translateY(-2px); box-shadow: 0 12px 44px var(--glow); }
-    .cta.ghost { color: var(--text); border: 1px solid var(--panel-border); background: var(--panel); }
-    .cta.ghost:hover { border-color: var(--violet); transform: translateY(-2px); }
-    .platforms {
-      display: flex; gap: 0.6rem; justify-content: center; flex-wrap: wrap;
-      margin-top: 2.1rem; color: var(--muted); font-size: 0.85rem;
-    }
-    .chip {
-      display: inline-flex; align-items: center; gap: 0.4rem;
-      padding: 0.4rem 0.85rem; border-radius: 999px;
-      border: 1px solid var(--panel-border); background: var(--panel);
-      font-weight: 500;
-    }
-    .chip b { color: var(--text); font-weight: 600; }
-    .cta .os-icon { display: inline-flex; align-items: center; color: currentColor; }
-    .cta .os-icon svg { display: block; }
-    .download-hint {
-      margin-top: 1rem; color: var(--muted); font-size: 0.85rem;
-    }
-    .download-hint a { color: var(--cyan); text-decoration: none; }
-    .download-hint a:hover { text-decoration: underline; }
+      /* ---- hero ---- */
+      .hero {
+        padding: 6rem 0 2rem;
+        text-align: center;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.35rem 0.9rem;
+        border-radius: 999px;
+        border: 1px solid rgba(124, 92, 255, 0.35);
+        background: rgba(124, 92, 255, 0.08);
+        color: #c9bcff;
+        font-size: 0.82rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+      }
+      .badge::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--cyan);
+        box-shadow: 0 0 10px var(--cyan);
+        animation: pulse 2.2s infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.35;
+        }
+      }
+      .hero h1 {
+        font-size: clamp(2.6rem, 7vw, 4.4rem);
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        line-height: 1.06;
+        max-width: 54rem;
+        margin: 0 auto 1.25rem;
+      }
+      .hero h1 span {
+        background: linear-gradient(
+          92deg,
+          var(--violet) 0%,
+          var(--blue) 45%,
+          var(--cyan) 100%
+        );
+        background-size: 180% 100%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        animation: shimmer 7s ease-in-out infinite alternate;
+      }
+      @keyframes shimmer {
+        from {
+          background-position: 0% 0;
+        }
+        to {
+          background-position: 100% 0;
+        }
+      }
+      .hero p.lede {
+        color: var(--muted);
+        font-size: 1.12rem;
+        max-width: 40rem;
+        margin: 0 auto 2.25rem;
+        text-wrap: balance;
+      }
+      .cta-row {
+        display: flex;
+        gap: 0.9rem;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .cta {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        padding: 0.85rem 1.75rem;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 1rem;
+        text-decoration: none;
+        transition:
+          transform 0.15s ease,
+          box-shadow 0.15s ease,
+          border-color 0.15s;
+      }
+      .cta.primary {
+        color: white;
+        background: linear-gradient(
+          94deg,
+          var(--violet),
+          var(--blue) 70%,
+          var(--cyan)
+        );
+        background-size: 160% 100%;
+        box-shadow:
+          0 8px 32px var(--glow),
+          inset 0 1px 0 rgba(255, 255, 255, 0.25);
+      }
+      .cta.primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 44px var(--glow);
+      }
+      .cta.ghost {
+        color: var(--text);
+        border: 1px solid var(--panel-border);
+        background: var(--panel);
+      }
+      .cta.ghost:hover {
+        border-color: var(--violet);
+        transform: translateY(-2px);
+      }
+      .platforms {
+        display: flex;
+        gap: 0.6rem;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-top: 2.1rem;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.4rem 0.85rem;
+        border-radius: 999px;
+        border: 1px solid var(--panel-border);
+        background: var(--panel);
+        font-weight: 500;
+      }
+      .chip b {
+        color: var(--text);
+        font-weight: 600;
+      }
+      .cta .os-icon {
+        display: inline-flex;
+        align-items: center;
+        color: currentColor;
+      }
+      .cta .os-icon svg {
+        display: block;
+      }
+      .download-hint {
+        margin-top: 1rem;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+      .download-hint a {
+        color: var(--cyan);
+        text-decoration: none;
+      }
+      .download-hint a:hover {
+        text-decoration: underline;
+      }
 
-    /* ---- screenshot ---- */
-    .shot-wrap { position: relative; margin: 2.5rem auto 0; max-width: 1040px; padding: 0 1.5rem; }
-    .shot-wrap::before {
-      content: ""; position: absolute; inset: 6% 8%;
-      background: linear-gradient(115deg, var(--glow), rgba(47, 217, 251, 0.22));
-      filter: blur(70px); border-radius: 50%; z-index: -1;
-    }
-    .shot {
-      width: 100%; display: block;
-      border-radius: 16px;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    }
+      /* ---- screenshot ---- */
+      .shot-wrap {
+        position: relative;
+        margin: 2.5rem auto 0;
+        max-width: 1040px;
+        padding: 0 1.5rem;
+      }
+      .shot-wrap::before {
+        content: "";
+        position: absolute;
+        inset: 6% 8%;
+        background: linear-gradient(
+          115deg,
+          var(--glow),
+          rgba(47, 217, 251, 0.22)
+        );
+        filter: blur(70px);
+        border-radius: 50%;
+        z-index: -1;
+      }
+      .shot {
+        width: 100%;
+        display: block;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow:
+          0 30px 80px rgba(0, 0, 0, 0.55),
+          inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      }
 
-    /* ---- stats ---- */
-    .stats {
-      display: grid; grid-template-columns: repeat(4, 1fr);
-      gap: 1px; background: var(--panel-border);
-      border: 1px solid var(--panel-border);
-      border-radius: 14px; overflow: hidden;
-      max-width: 880px; margin: 0 auto;
-    }
-    .stat { background: rgba(10, 11, 16, 0.8); padding: 1.4rem 1rem; text-align: center; }
-    .stat b {
-      display: block; font-size: 1.7rem; font-weight: 800; letter-spacing: -0.02em;
-      background: linear-gradient(90deg, var(--text), #b7a9ff);
-      -webkit-background-clip: text; background-clip: text; color: transparent;
-    }
-    .stat span { color: var(--muted); font-size: 0.82rem; }
-    @media (max-width: 720px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+      /* ---- stats ---- */
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1px;
+        background: var(--panel-border);
+        border: 1px solid var(--panel-border);
+        border-radius: 14px;
+        overflow: hidden;
+        max-width: 880px;
+        margin: 0 auto;
+      }
+      .stat {
+        background: rgba(10, 11, 16, 0.8);
+        padding: 1.4rem 1rem;
+        text-align: center;
+      }
+      .stat b {
+        display: block;
+        font-size: 1.7rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        background: linear-gradient(90deg, var(--text), #b7a9ff);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      .stat span {
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+      @media (max-width: 720px) {
+        .stats {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
 
-    h2.section-title { text-align: center; font-size: clamp(1.7rem, 4vw, 2.3rem); font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
-    p.section-lede { text-align: center; color: var(--muted); max-width: 38rem; margin: 0 auto 2.75rem; }
+      h2.section-title {
+        text-align: center;
+        font-size: clamp(1.7rem, 4vw, 2.3rem);
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin-bottom: 0.5rem;
+      }
+      p.section-lede {
+        text-align: center;
+        color: var(--muted);
+        max-width: 38rem;
+        margin: 0 auto 2.75rem;
+      }
 
-    /* ---- bento features ---- */
-    .bento { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
-    .bento .card {
-      position: relative; overflow: hidden;
-      background: var(--panel);
-      border: 1px solid var(--panel-border);
-      border-radius: 18px; padding: 1.5rem 1.6rem;
-      transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-    }
-    .bento .card:hover { transform: translateY(-4px); border-color: rgba(124, 92, 255, 0.4); box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45), 0 0 24px var(--glow); }
-    .bento .card.wide { grid-column: span 2; }
-    .card::before {
-      content: ""; position: absolute; inset: 0 0 auto 0; height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
-    }
-    .card .icon {
-      display: grid; place-items: center; width: 42px; height: 42px;
-      border-radius: 12px; margin-bottom: 1rem; font-size: 1.2rem;
-      background: linear-gradient(135deg, rgba(124, 92, 255, 0.18), rgba(47, 217, 251, 0.18));
-      border: 1px solid rgba(124, 92, 255, 0.3);
-    }
-    .card h3 { font-size: 1.05rem; margin-bottom: 0.4rem; font-weight: 700; }
-    .card p { color: var(--muted); font-size: 0.93rem; }
-    .card.waveform { display: flex; gap: 0.3rem; align-items: flex-end; height: 46px; margin-top: 1.1rem; }
-    .card.waveform i {
-      flex: 1; border-radius: 3px 3px 0 0;
-      background: linear-gradient(180deg, var(--violet), var(--cyan));
-      opacity: 0.75; animation: eq 1.9s ease-in-out infinite alternate;
-    }
-    @keyframes eq {
-      from { transform: scaleY(0.35); transform-origin: bottom; }
-      to { transform: scaleY(1); transform-origin: bottom; }
-    }
-    @media (max-width: 820px) { .bento { grid-template-columns: 1fr 1fr; } .bento .card.wide { grid-column: span 2; } }
-    @media (max-width: 540px) { .bento { grid-template-columns: 1fr; } .bento .card.wide { grid-column: auto; } }
+      /* ---- bento features ---- */
+      .bento {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+      }
+      .bento .card {
+        position: relative;
+        overflow: hidden;
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 18px;
+        padding: 1.5rem 1.6rem;
+        transition:
+          transform 0.2s ease,
+          border-color 0.2s ease,
+          box-shadow 0.2s ease;
+      }
+      .bento .card:hover {
+        transform: translateY(-4px);
+        border-color: rgba(124, 92, 255, 0.4);
+        box-shadow:
+          0 16px 48px rgba(0, 0, 0, 0.45),
+          0 0 24px var(--glow);
+      }
+      .bento .card.wide {
+        grid-column: span 2;
+      }
+      .card::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(255, 255, 255, 0.25),
+          transparent
+        );
+      }
+      .card .icon {
+        display: grid;
+        place-items: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        margin-bottom: 1rem;
+        font-size: 1.2rem;
+        background: linear-gradient(
+          135deg,
+          rgba(124, 92, 255, 0.18),
+          rgba(47, 217, 251, 0.18)
+        );
+        border: 1px solid rgba(124, 92, 255, 0.3);
+      }
+      .card h3 {
+        font-size: 1.05rem;
+        margin-bottom: 0.4rem;
+        font-weight: 700;
+      }
+      .card p {
+        color: var(--muted);
+        font-size: 0.93rem;
+      }
+      .card.waveform {
+        display: flex;
+        gap: 0.3rem;
+        align-items: flex-end;
+        height: 46px;
+        margin-top: 1.1rem;
+      }
+      .card.waveform i {
+        flex: 1;
+        border-radius: 3px 3px 0 0;
+        background: linear-gradient(180deg, var(--violet), var(--cyan));
+        opacity: 0.75;
+        animation: eq 1.9s ease-in-out infinite alternate;
+      }
+      @keyframes eq {
+        from {
+          transform: scaleY(0.35);
+          transform-origin: bottom;
+        }
+        to {
+          transform: scaleY(1);
+          transform-origin: bottom;
+        }
+      }
+      @media (max-width: 820px) {
+        .bento {
+          grid-template-columns: 1fr 1fr;
+        }
+        .bento .card.wide {
+          grid-column: span 2;
+        }
+      }
+      @media (max-width: 540px) {
+        .bento {
+          grid-template-columns: 1fr;
+        }
+        .bento .card.wide {
+          grid-column: auto;
+        }
+      }
 
-    /* ---- terminal ---- */
-    .terminal {
-      max-width: 760px; margin: 0 auto;
-      border-radius: 14px; overflow: hidden;
-      border: 1px solid var(--panel-border);
-      background: #0b0d12;
-      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5), 0 0 40px rgba(124, 92, 255, 0.12);
-    }
-    .terminal-bar {
-      display: flex; align-items: center; gap: 0.5rem;
-      padding: 0.75rem 1.1rem;
-      background: rgba(255, 255, 255, 0.04);
-      border-bottom: 1px solid var(--panel-border);
-    }
-    .terminal-bar i { width: 11px; height: 11px; border-radius: 50%; }
-    .terminal-bar i:nth-child(1) { background: #ff5f57; }
-    .terminal-bar i:nth-child(2) { background: #febc2e; }
-    .terminal-bar i:nth-child(3) { background: #28c840; }
-    .terminal-bar span { margin-left: 0.6rem; color: var(--muted); font-size: 0.8rem; font-family: "JetBrains Mono", ui-monospace, monospace; }
-    .terminal pre {
-      padding: 1.25rem 1.4rem; overflow-x: auto;
-      font-family: "JetBrains Mono", ui-monospace, monospace;
-      font-size: 0.92rem; line-height: 1.8; color: #d7dcf0;
-    }
-    .terminal pre b { color: var(--cyan); font-weight: 600; }
-    .terminal pre i { color: var(--muted); font-style: normal; }
+      /* ---- terminal ---- */
+      .terminal {
+        max-width: 760px;
+        margin: 0 auto;
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid var(--panel-border);
+        background: #0b0d12;
+        box-shadow:
+          0 24px 64px rgba(0, 0, 0, 0.5),
+          0 0 40px rgba(124, 92, 255, 0.12);
+      }
+      .terminal-bar {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.1rem;
+        background: rgba(255, 255, 255, 0.04);
+        border-bottom: 1px solid var(--panel-border);
+      }
+      .terminal-bar i {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+      }
+      .terminal-bar i:nth-child(1) {
+        background: #ff5f57;
+      }
+      .terminal-bar i:nth-child(2) {
+        background: #febc2e;
+      }
+      .terminal-bar i:nth-child(3) {
+        background: #28c840;
+      }
+      .terminal-bar span {
+        margin-left: 0.6rem;
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+      }
+      .terminal pre {
+        padding: 1.25rem 1.4rem;
+        overflow-x: auto;
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 0.92rem;
+        line-height: 1.8;
+        color: #d7dcf0;
+      }
+      .terminal pre b {
+        color: var(--cyan);
+        font-weight: 600;
+      }
+      .terminal pre i {
+        color: var(--muted);
+        font-style: normal;
+      }
 
-    /* ---- build cards ---- */
-    .builds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; max-width: 880px; margin: 0 auto; }
-    .build-card {
-      display: flex; flex-direction: column; gap: 0.35rem;
-      padding: 1.35rem 1.5rem; border-radius: 16px;
-      background: var(--panel); border: 1px solid var(--panel-border);
-      transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
-    }
-    .build-card:hover { transform: translateY(-4px); border-color: rgba(47, 217, 251, 0.4); box-shadow: 0 14px 40px rgba(0, 0, 0, 0.4); }
-    .build-card code {
-      font-family: "JetBrains Mono", ui-monospace, monospace;
-      font-size: 1rem; color: var(--cyan); background: none; border: none; padding: 0;
-    }
-    .build-card:first-child code, .build-card:nth-child(3) code { color: #b7a9ff; }
-    .build-card span { color: var(--muted); font-size: 0.88rem; }
-    @media (max-width: 720px) { .builds { grid-template-columns: 1fr; } }
+      /* ---- build cards ---- */
+      .builds {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        max-width: 880px;
+        margin: 0 auto;
+      }
+      .build-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        padding: 1.35rem 1.5rem;
+        border-radius: 16px;
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        transition:
+          transform 0.2s,
+          border-color 0.2s,
+          box-shadow 0.2s;
+      }
+      .build-card:hover {
+        transform: translateY(-4px);
+        border-color: rgba(47, 217, 251, 0.4);
+        box-shadow: 0 14px 40px rgba(0, 0, 0, 0.4);
+      }
+      .build-card code {
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 1rem;
+        color: var(--cyan);
+        background: none;
+        border: none;
+        padding: 0;
+      }
+      .build-card:first-child code,
+      .build-card:nth-child(3) code {
+        color: #b7a9ff;
+      }
+      .build-card span {
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+      @media (max-width: 720px) {
+        .builds {
+          grid-template-columns: 1fr;
+        }
+      }
 
-    /* ---- usage steps ---- */
-    .steps { max-width: 640px; margin: 0 auto; position: relative; }
-    .steps::before {
-      content: ""; position: absolute; left: 19px; top: 14px; bottom: 14px; width: 2px;
-      background: linear-gradient(180deg, var(--violet), var(--cyan));
-      opacity: 0.4;
-    }
-    .step { position: relative; display: flex; gap: 1.2rem; padding: 0.9rem 0; }
-    .step .num {
-      flex: 0 0 auto; z-index: 1;
-      display: grid; place-items: center; width: 40px; height: 40px;
-      border-radius: 12px; font-weight: 700; font-size: 0.95rem;
-      background: #10121b; border: 1px solid rgba(124, 92, 255, 0.45);
-      color: #c9bcff;
-      box-shadow: 0 0 16px rgba(124, 92, 255, 0.2);
-    }
-    .step p { color: var(--muted); padding-top: 0.4rem; }
-    .step p b { color: var(--text); }
+      /* ---- usage steps ---- */
+      .steps {
+        max-width: 640px;
+        margin: 0 auto;
+        position: relative;
+      }
+      .steps::before {
+        content: "";
+        position: absolute;
+        left: 19px;
+        top: 14px;
+        bottom: 14px;
+        width: 2px;
+        background: linear-gradient(180deg, var(--violet), var(--cyan));
+        opacity: 0.4;
+      }
+      .step {
+        position: relative;
+        display: flex;
+        gap: 1.2rem;
+        padding: 0.9rem 0;
+      }
+      .step .num {
+        flex: 0 0 auto;
+        z-index: 1;
+        display: grid;
+        place-items: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 0.95rem;
+        background: #10121b;
+        border: 1px solid rgba(124, 92, 255, 0.45);
+        color: #c9bcff;
+        box-shadow: 0 0 16px rgba(124, 92, 255, 0.2);
+      }
+      .step p {
+        color: var(--muted);
+        padding-top: 0.4rem;
+      }
+      .step p b {
+        color: var(--text);
+      }
 
-    /* ---- footer ---- */
-    footer {
-      border-top: 1px solid var(--panel-border);
-      padding: 2.5rem 0 3rem; text-align: center;
-      color: var(--muted); font-size: 0.92rem;
-    }
-    footer .foot-brand { display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 0.6rem; font-weight: 700; color: var(--text); }
-    footer .foot-brand img { width: 22px; height: 22px; border-radius: 6px; }
-    footer a { color: var(--cyan); text-decoration: none; }
-    footer a:hover { text-decoration: underline; }
+      /* ---- footer ---- */
+      footer {
+        border-top: 1px solid var(--panel-border);
+        padding: 2.5rem 0 3rem;
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+      footer .foot-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.6rem;
+        font-weight: 700;
+        color: var(--text);
+      }
+      footer .foot-brand img {
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+      }
+      footer a {
+        color: var(--cyan);
+        text-decoration: none;
+      }
+      footer a:hover {
+        text-decoration: underline;
+      }
 
-    /* ---- scroll reveal ---- */
-    .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.7s ease, transform 0.7s ease; }
-    .reveal.visible { opacity: 1; transform: none; }
-    @media (prefers-reduced-motion: reduce) {
-      .reveal { opacity: 1; transform: none; transition: none; }
-      .aurora::before, .card.waveform i, .badge::before, .hero h1 span { animation: none; }
-    }
-  </style>
-</head>
-<body>
-  <div class="aurora" aria-hidden="true"></div>
-  <nav>
-    <a class="brand" href="#">
-      <img src="assets/app_512.png" alt="" />
-      Ramses&thinsp;<em>Studio</em>
-    </a>
-    <div class="nav-links">
-      <a href="privacy.html">Privacy</a>
-      <a href="terms.html">Terms</a>
-      <a class="gh-btn" href="https://github.com/rramirezacosta/ramses-studio">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
-        GitHub
+      /* ---- scroll reveal ---- */
+      .reveal {
+        opacity: 0;
+        transform: translateY(24px);
+        transition:
+          opacity 0.7s ease,
+          transform 0.7s ease;
+      }
+      .reveal.visible {
+        opacity: 1;
+        transform: none;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .reveal {
+          opacity: 1;
+          transform: none;
+          transition: none;
+        }
+        .aurora::before,
+        .card.waveform i,
+        .badge::before,
+        .hero h1 span {
+          animation: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="aurora" aria-hidden="true"></div>
+    <nav>
+      <a class="brand" href="#">
+        <img src="assets/app_512.png" alt="" href="/" />
+        Ramses&thinsp;<em>Studio</em>
       </a>
-    </div>
-  </nav>
-  
-  <section class="container" style="padding-top: 6rem; max-width: 760px;">
-    <h1 style="font-size: clamp(2rem, 5vw, 3rem); font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.5rem;">Privacy Policy</h1>
-    <p style="color: var(--muted); margin-bottom: 2.5rem;">Last updated: November 14, 2026</p>
+      <div class="nav-links">
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+        <a
+          class="gh-btn"
+          href="https://github.com/rramirezacosta/ramses-studio"
+        >
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 16 16"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"
+            />
+          </svg>
+          GitHub
+        </a>
+      </div>
+    </nav>
 
-    <div style="color: var(--text); font-size: 1.02rem;">
-      <p>Ramses Studio is a desktop application for practicing music. It runs entirely on your own computer: stem separation, audio decoding, and the song library all happen locally. This policy explains what data the app and this website handle.</p>
+    <section class="container" style="padding-top: 6rem; max-width: 760px">
+      <h1
+        style="
+          font-size: clamp(2rem, 5vw, 3rem);
+          font-weight: 800;
+          letter-spacing: -0.02em;
+          margin-bottom: 0.5rem;
+        "
+      >
+        Privacy Policy
+      </h1>
+      <p style="color: var(--muted); margin-bottom: 2.5rem">
+        Last updated: November 14, 2026
+      </p>
 
-      <h2 style="margin-top: 2rem; margin-bottom: 0.5rem; font-size: 1.25rem;">1. What the app stores on your device</h2>
-      <p>The app keeps your imported songs, separated stems, and cover art in a local IndexedDB database inside your user profile. It also stores your preferences (theme, language, window state) locally. Nothing is uploaded anywhere unless you explicitly connect Google Drive.</p>
+      <div style="color: var(--text); font-size: 1.02rem">
+        <p>
+          Ramses Studio is a desktop application for practicing music. It runs
+          entirely on your own computer: stem separation, audio decoding, and
+          the song library all happen locally. This policy explains what data
+          the app and this website handle.
+        </p>
 
-      <h2 style="margin-top: 2rem; margin-bottom: 0.5rem; font-size: 1.25rem;">2. Google Drive sync (optional)</h2>
-      <p>If you connect a Google account, the app backs up your library to the hidden <em>app-data folder</em> of your own Google Drive (scope <code>drive.appdata</code>). Only you can access that space. OAuth sign-in runs in the app's main process; tokens are stored encrypted by your operating system (Electron safeStorage) and are never shown to the renderer or sent to any Ramses server. You can disconnect or delete the app data at any time from Google Drive's "Manage apps" page.</p>
+        <h2 style="margin-top: 2rem; margin-bottom: 0.5rem; font-size: 1.25rem">
+          1. What the app stores on your device
+        </h2>
+        <p>
+          The app keeps your imported songs, separated stems, and cover art in a
+          local IndexedDB database inside your user profile. It also stores your
+          preferences (theme, language, window state) locally. Nothing is
+          uploaded anywhere unless you explicitly connect Google Drive.
+        </p>
 
-      <h2 style="margin-top: 2rem; margin-bottom: 0.5rem; font-size: 1.25rem;">3. Network requests the app makes</h2>
-      <ul style="margin-left: 1.25rem; color: var(--muted);">
-        <li><b style="color: var(--text);">YouTube imports</b> — when you import from a YouTube URL, the app downloads the audio from YouTube using yt-dlp. This is a direct request from your machine to YouTube.</li>
-        <li><b style="color: var(--text);">Google Drive</b> — only if you connect an account, and only to your own Drive.</li>
-        <li><b style="color: var(--text);">Update checks</b> — none are performed automatically.</li>
-      </ul>
-      <p style="margin-top: 0.75rem;">There is no telemetry, analytics, crash reporting, or usage tracking of any kind. The app has no backend of its own.</p>
+        <h2 style="margin-top: 2rem; margin-bottom: 0.5rem; font-size: 1.25rem">
+          2. Google Drive sync (optional)
+        </h2>
+        <p>
+          If you connect a Google account, the app backs up your library to the
+          hidden <em>app-data folder</em> of your own Google Drive (scope
+          <code>drive.appdata</code>). Only you can access that space. OAuth
+          sign-in runs in the app's main process; tokens are stored encrypted by
+          your operating system (Electron safeStorage) and are never shown to
+          the renderer or sent to any Ramses server. You can disconnect or
+          delete the app data at any time from Google Drive's "Manage apps"
+          page.
+        </p>
 
-      <h2 style="margin-top: 2rem; margin-bottom: 0.5rem; font-size: 1.25rem;">4. This website</h2>
-      <p>This site is hosted on GitHub Pages. GitHub may collect standard server logs (IP address, browser, referrer) as part of operating the service. See <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" style="color: var(--cyan);">GitHub's privacy statement</a>.</p>
+        <h2 style="margin-top: 2rem; margin-bottom: 0.5rem; font-size: 1.25rem">
+          3. Network requests the app makes
+        </h2>
+        <ul style="margin-left: 1.25rem; color: var(--muted)">
+          <li>
+            <b style="color: var(--text)">YouTube imports</b> — when you import
+            from a YouTube URL, the app downloads the audio from YouTube using
+            yt-dlp. This is a direct request from your machine to YouTube.
+          </li>
+          <li>
+            <b style="color: var(--text)">Google Drive</b> — only if you connect
+            an account, and only to your own Drive.
+          </li>
+          <li>
+            <b style="color: var(--text)">Update checks</b> — none are performed
+            automatically.
+          </li>
+        </ul>
+        <p style="margin-top: 0.75rem">
+          There is no telemetry, analytics, crash reporting, or usage tracking
+          of any kind. The app has no backend of its own.
+        </p>
 
-      <h2 style="margin-top: 2rem; margin-bottom: 0.5rem; font-size: 1.25rem;">5. Your rights</h2>
-      <p>Because all data lives on your device (and, optionally, your own Google Drive), you control it completely: delete the app, clear its storage, or revoke its Drive access and everything is gone. There is no Ramses account to delete.</p>
+        <h2 style="margin-top: 2rem; margin-bottom: 0.5rem; font-size: 1.25rem">
+          4. This website
+        </h2>
+        <p>
+          This site is hosted on GitHub Pages. GitHub may collect standard
+          server logs (IP address, browser, referrer) as part of operating the
+          service. See
+          <a
+            href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement"
+            style="color: var(--cyan)"
+            >GitHub's privacy statement</a
+          >.
+        </p>
 
-      <h2 style="margin-top: 2rem; margin-bottom: 0.5rem; font-size: 1.25rem;">6. Contact</h2>
-      <p>Questions about this policy? Open an issue at <a href="https://github.com/rramirezacosta/ramses-studio/issues" style="color: var(--cyan);">github.com/rramirezacosta/ramses-studio/issues</a>.</p>
-    </div>
-  </section>
+        <h2 style="margin-top: 2rem; margin-bottom: 0.5rem; font-size: 1.25rem">
+          5. Your rights
+        </h2>
+        <p>
+          Because all data lives on your device (and, optionally, your own
+          Google Drive), you control it completely: delete the app, clear its
+          storage, or revoke its Drive access and everything is gone. There is
+          no Ramses account to delete.
+        </p>
 
-  <footer>
-    <div>
-      <span class="foot-brand"><img src="assets/app_512.png" alt="" /> Ramses Studio</span><br />
-      Built with Electron · React · Htdemucs · FFMPEG · yt-dlp ·  ONNX Runtime<br />
-      Made by <a href="https://github.com/rramirezacosta">@rramirezacosta</a> — <a href="https://github.com/rramirezacosta/ramses-studio/releases">download</a> · <a href="https://github.com/rramirezacosta/ramses-studio">source</a> · <a href="privacy.html">privacy</a> · <a href="terms.html">terms</a>
-    </div>
-  </footer>
-  <script></script>
-</body>
+        <h2 style="margin-top: 2rem; margin-bottom: 0.5rem; font-size: 1.25rem">
+          6. Contact
+        </h2>
+        <p>
+          Questions about this policy? Open an issue at
+          <a
+            href="https://github.com/rramirezacosta/ramses-studio/issues"
+            style="color: var(--cyan)"
+            >github.com/rramirezacosta/ramses-studio/issues</a
+          >.
+        </p>
+      </div>
+    </section>
+
+    <footer>
+      <div>
+        <span class="foot-brand"
+          ><img src="assets/app_512.png" alt="" /> Ramses Studio</span
+        ><br />
+        Built with Electron · React · Htdemucs · FFMPEG · yt-dlp · ONNX
+        Runtime<br />
+        Made by
+        <a href="https://github.com/rramirezacosta">@rramirezacosta</a> —
+        <a href="https://github.com/rramirezacosta/ramses-studio/releases"
+          >download</a
+        >
+        · <a href="https://github.com/rramirezacosta/ramses-studio">source</a> ·
+        <a href="privacy.html">privacy</a> · <a href="terms.html">terms</a>
+      </div>
+    </footer>
+    <script></script>
+  </body>
 </html>
