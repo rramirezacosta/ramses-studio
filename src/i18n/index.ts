@@ -102,8 +102,8 @@ const en = {
   version: 'Version',
   about: 'About',
   aboutTitle: 'About Ramses Studio',
-  aboutDescription: 'A desktop practice tool for musicians. Import a song and separate it into individual stems to mute, solo, and loop sections while practicing.',
-  aboutModel: 'Stem separation powered by the HTDemucs six-stem ONNX model.',
+  aboutDescription: 'Practice tool for musicians. Import a song, separate the stems, practice your instrument.',
+  aboutModel: 'The stem separation is done by local AI models.',
   aboutSource: 'Source code',
   aboutLicense: 'Licensed under the MIT License.'
 }
@@ -207,8 +207,8 @@ const es: Record<keyof typeof en, string> = {
   version: 'Versión',
   about: 'Acerca de',
   aboutTitle: 'Acerca de Ramses Studio',
-  aboutDescription: 'Una herramienta de práctica para músicos. Importa una canción y sepárala en stems individuales para silenciar, aislar y repetir secciones mientras practicas.',
-  aboutModel: 'Separación de stems impulsada por el modelo ONNX HTDemucs de seis stems.',
+  aboutDescription: 'Herramienta de práctica para músicos. Importa una canción, separa los stems y practica tu instrumento.',
+  aboutModel: 'La separación de stems se realiza con modelos de IA locales.',
   aboutSource: 'Código fuente',
   aboutLicense: 'Licenciado bajo la Licencia MIT.'
 }
@@ -312,8 +312,8 @@ const pt: Record<keyof typeof en, string> = {
   version: 'Versão',
   about: 'Sobre',
   aboutTitle: 'Sobre o Ramses Studio',
-  aboutDescription: 'Uma ferramenta de prática para músicos. Importe uma música e separe-a em stems individuais para silenciar, isolar e repetir seções enquanto pratica.',
-  aboutModel: 'Separação de stems impulsionada pelo modelo ONNX HTDemucs de seis stems.',
+  aboutDescription: 'Ferramenta de prática para músicos. Importe uma música, separe os stems e pratique seu instrumento.',
+  aboutModel: 'A separação de stems é feita por modelos de IA locais.',
   aboutSource: 'Código-fonte',
   aboutLicense: 'Licenciado sob a Licença MIT.'
 }
@@ -417,8 +417,8 @@ const ru: Record<keyof typeof en, string> = {
   version: 'Версия',
   about: 'О программе',
   aboutTitle: 'О Ramses Studio',
-  aboutDescription: 'Настольная программа для практики музыкантов. Импортируйте песню и разделите её на отдельные stems, чтобы глушить, изолировать и повторять фрагменты во время практики.',
-  aboutModel: 'Разделение stems на основе шестиканальной ONNX-модели HTDemucs.',
+  aboutDescription: 'Инструмент для практики музыкантов. Импортируйте песню, разделите её на stems и практикуйтесь на своём инструменте.',
+  aboutModel: 'Разделение на stems выполняется локальными ИИ-моделями.',
   aboutSource: 'Исходный код',
   aboutLicense: 'Лицензия MIT.'
 }
@@ -522,8 +522,8 @@ const ja: Record<keyof typeof en, string> = {
   version: 'バージョン',
   about: 'について',
   aboutTitle: 'Ramses Studioについて',
-  aboutDescription: 'ミュージシャンのためのデスクトップ練習ツール。曲をインポートして個別のステムに分離し、練習中にミュート、ソロ、ループできます。',
-  aboutModel: '6ステムONNXモデルHTDemucsによるステム分離。',
+  aboutDescription: 'ミュージシャンのための練習ツール。曲をインポートし、ステムを分離して、自分の楽器で練習できます。',
+  aboutModel: 'ステム分離はローカルのAIモデルで行われます。',
   aboutSource: 'ソースコード',
   aboutLicense: 'MITライセンスに基づいてライセンスされています。'
 }
@@ -627,8 +627,8 @@ const ko: Record<keyof typeof en, string> = {
   version: '버전',
   about: '정보',
   aboutTitle: 'Ramses Studio 정보',
-  aboutDescription: '음악가를 위한 데스크톱 연습 도구. 노래를 가져와 개별 스템으로 분리하고, 연습 중에 음소거, 솔로, 반복할 수 있습니다.',
-  aboutModel: '6스템 ONNX 모델 HTDemucs 기반 스템 분리.',
+  aboutDescription: '음악가를 위한 연습 도구. 노래를 가져와 스템으로 분리하고 악기로 연습하세요.',
+  aboutModel: '스템 분리는 로컬 AI 모델로 수행됩니다.',
   aboutSource: '소스 코드',
   aboutLicense: 'MIT 라이선스에 따라 라이선스가 부여됩니다.'
 }
@@ -732,8 +732,8 @@ const fr: Record<keyof typeof en, string> = {
   version: 'Version',
   about: 'À propos',
   aboutTitle: 'À propos de Ramses Studio',
-  aboutDescription: 'Un outil de pratique pour musiciens. Importez une chanson et séparez-la en stems individuels pour muter, isoler et boucler des sections pendant la pratique.',
-  aboutModel: 'Séparation de stems propulsée par le modèle ONNX HTDemucs à six stems.',
+  aboutDescription: 'Outil de pratique pour musiciens. Importez une chanson, séparez les stems et pratiquez votre instrument.',
+  aboutModel: 'La séparation des stems est réalisée par des modèles d\'IA locaux.',
   aboutSource: 'Code source',
   aboutLicense: 'Sous licence MIT.'
 }
@@ -837,8 +837,8 @@ const zh: Record<keyof typeof en, string> = {
   version: '版本',
   about: '关于',
   aboutTitle: '关于 Ramses Studio',
-  aboutDescription: '音乐家的桌面练习工具。导入歌曲并分离为独立的 stem，在练习时可以静音、独奏和循环段落。',
-  aboutModel: '基于六 stem ONNX 模型 HTDemucs 的 stem 分离。',
+  aboutDescription: '音乐练习工具。导入歌曲，分离 stem，练习你的乐器。',
+  aboutModel: 'stem 分离由本地 AI 模型完成。',
   aboutSource: '源代码',
   aboutLicense: '根据 MIT 许可证授权。'
 }
@@ -942,8 +942,8 @@ const de: Record<keyof typeof en, string> = {
   version: 'Version',
   about: 'Über',
   aboutTitle: 'Über Ramses Studio',
-  aboutDescription: 'Ein Desktop-Praktikwerkzeug für Musiker. Importiere einen Song und trenne ihn in einzelne Stems, um Abschnitte zu stummschalten, isolieren und zu loopen.',
-  aboutModel: 'Stem-Trennung angetrieben vom sechskanaligen ONNX-Modell HTDemucs.',
+  aboutDescription: 'Übungswerkzeug für Musiker. Importiere einen Song, trenne die Stems und übe dein Instrument.',
+  aboutModel: 'Die Stem-Trennung läuft mit lokalen KI-Modellen.',
   aboutSource: 'Quellcode',
   aboutLicense: 'Lizenziert unter der MIT-Lizenz.'
 }
@@ -1047,8 +1047,8 @@ const eo: Record<keyof typeof en, string> = {
   version: 'Versio',
   about: 'Pri',
   aboutTitle: 'Pri Ramses Studio',
-  aboutDescription: 'Labortabula praktika ilo por muzikistoj. Importu kanton kaj disigu ĝin en individuajn stems por silentigi, soligi kaj ripeti sekciojn dum praktiko.',
-  aboutModel: 'Stem-disigo movata de la ses-stema ONNX-modelo HTDemucs.',
+  aboutDescription: 'Praktika ilo por muzikistoj. Importu kanton, disigu la stems kaj praktiku vian instrumenton.',
+  aboutModel: 'La stem-disigo fariĝas per lokaj AI-modeloj.',
   aboutSource: 'Fontkodo',
   aboutLicense: 'Licencita sub la MIT-licenco.'
 }
