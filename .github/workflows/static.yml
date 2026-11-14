@@ -36,6 +36,8 @@ jobs:
         run: |
           mkdir -v -p site/assets
           cp -v pages/index.html site/
+          cp -v pages/privacy.html site/
+          cp -v pages/terms.html site/
           cp -v build/icons/app_512.png site/assets/
           cp -v build/screenshots/screenshot.png site/assets/
 
