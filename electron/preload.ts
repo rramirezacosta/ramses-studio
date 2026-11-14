@@ -1,20 +1,22 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
 contextBridge.exposeInMainWorld('api', {
-  getSongs: () => ipcRenderer.invoke('songs:list'),
-  loadStemBuffer: (songName: string, stemFile: string) =>
-    ipcRenderer.invoke('songs:load-buffer', { songName, stemFile }),
-  renameSong: (songName: string, newName: string) => ipcRenderer.invoke('songs:rename', { songName, newName }),
-  deleteSong: (songName: string) => ipcRenderer.invoke('songs:delete', songName),
-  deleteStem: (songName: string, stemFile: string) => ipcRenderer.invoke('songs:delete-stem', { songName, stemFile }),
   prepareImport: () => ipcRenderer.invoke('songs:prepare-import'),
   cancelImport: () => ipcRenderer.invoke('songs:cancel-import'),
   prepareYouTubeImport: (url: string) => ipcRenderer.invoke('songs:prepare-youtube-import', url),
-  checkSongDuplicate: (sourceName: string) => ipcRenderer.invoke('songs:duplicate-check', sourceName),
-  separateWithNative: (sourceName: string, audio: { left: Float32Array; right: Float32Array; sampleRate: number }, thumbnailPath?: string) =>
+  separateStems: (sourceName: string, audio: { left: Float32Array; right: Float32Array; sampleRate: number }, thumbnailPath?: string) =>
     ipcRenderer.invoke('songs:separate-native', sourceName, audio, thumbnailPath),
   exportMix: (songName: string, wav: Uint8Array) => ipcRenderer.invoke('mix:export', { songName, wav }),
   readFileBuffer: (filePath: string) => ipcRenderer.invoke('files:read-buffer', filePath),
+  stageFileBuffer: (fileName: string, bytes: Uint8Array) => ipcRenderer.invoke('files:stage-buffer', fileName, bytes),
+  driveStatus: () => ipcRenderer.invoke('drive:status'),
+  driveConnect: () => ipcRenderer.invoke('drive:connect'),
+  driveDisconnect: () => ipcRenderer.invoke('drive:disconnect'),
+  driveList: () => ipcRenderer.invoke('drive:list'),
+  driveUpload: (request: { name: string; mimeType: string; bytes: Uint8Array; fileId?: string }) =>
+    ipcRenderer.invoke('drive:upload', request),
+  driveDownload: (fileId: string) => ipcRenderer.invoke('drive:download', fileId),
+  driveDelete: (fileId: string) => ipcRenderer.invoke('drive:delete', fileId),
   getWindowButtonLayout: () => ipcRenderer.invoke('window:button-layout'),
   minimizeWindow: () => ipcRenderer.invoke('window:minimize'),
   toggleWindowMaximize: () => ipcRenderer.invoke('window:toggle-maximize'),

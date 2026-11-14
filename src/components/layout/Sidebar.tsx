@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { FilePenLine, FilePlus2, Search, Trash2 } from 'lucide-react'
+import { CloudDownload, CloudOff, CloudUpload, FilePenLine, FilePlus2, HardDrive, HardDriveDownload, Search, Trash2 } from 'lucide-react'
+import { DriveLogo } from '../drive/DriveLogo'
 import logo from '../../assets/logo.png'
 import { useTranslation } from '../../i18n'
 import { parseSongName, songDisplayName } from '../../utils/songName'
@@ -19,12 +20,16 @@ function initialsFor(artist: string | undefined, title: string): string {
 interface RowProps {
   song: Song
   active: boolean
+  /** True when the song is backed up on Google Drive. */
+  synced: boolean
+  /** Ongoing on-demand download for this song (0..1), if any. */
+  downloading?: number
   onSelect: (song: Song) => void
   /** Open the per-song context menu; screenX/screenY in CSS pixels. */
   onMenu: (song: Song, x: number, y: number) => void
 }
 
-const SongRow = memo(function SongRow({ song, active, onSelect, onMenu }: RowProps) {
+const SongRow = memo(function SongRow({ song, active, synced, downloading, onSelect, onMenu }: RowProps) {
   const t = useTranslation()
   const [coverFailed, setCoverFailed] = useState(false)
   const { artist, title } = parseSongName(song.name)
@@ -36,9 +41,20 @@ const SongRow = memo(function SongRow({ song, active, onSelect, onMenu }: RowPro
     >
       <button className="song-item" onClick={() => onSelect(song)} title={songDisplayName(song.name)}>
         {hasCover ? (
-          <img className="song-cover" src={`ramses-cover://song/${encodeURIComponent(song.name)}`} alt="" loading="lazy" onError={() => setCoverFailed(true)} />
+          <img className="song-cover" src={song.cover} alt="" loading="lazy" onError={() => setCoverFailed(true)} />
         ) : (
           <span className="song-cover song-cover-fallback" style={{ '--art-hue': artHue(song.name) } as React.CSSProperties}>{initialsFor(artist, title)}</span>
+        )}
+        {downloading !== undefined ? (
+          <span className="song-download" style={{ width: `${Math.round(downloading * 100)}%` }} />
+        ) : song.remoteOnly ? (
+          <span className="drive-badge-chip" title={t('driveRemoteSong')}>
+            <DriveLogo className="drive-badge" />
+          </span>
+        ) : synced ? null : (
+          <span className="drive-badge-chip" title={t('localOnlySong')}>
+            <HardDrive size={9} />
+          </span>
         )}
         <span className="song-meta">
           <strong>{title}</strong>
@@ -57,6 +73,24 @@ interface Props {
   cancelling?: boolean
   importProgress?: number
   importStage?: string
+  /** Songs backed up on Google Drive (Drive badge on their cover). */
+  syncedNames: Set<string>
+  /** Whether Google Drive is connected (Drive menu items appear only then). */
+  driveConnected: boolean
+  /** On-demand download in progress, if any. */
+  downloading?: { name: string; percent: number }
+  /** Number of songs that live only on Drive (for the bulk download action). */
+  remoteCount: number
+  /** Remove one song's Drive backup, keeping the local copy. */
+  onDriveRemove: (song: Song) => void
+  /** Upload/reconcile one song on Drive right now. */
+  onDriveSync: (song: Song) => void
+  /** Delete the local stems of a backed-up song (it re-downloads on open). */
+  onEvict: (song: Song) => void
+  /** Download a remote-only song right now. */
+  onDriveDownload: (song: Song) => void
+  /** Download every remote-only song. */
+  onDownloadAll: () => void
   onSelect: (song: Song) => void
   onImport: () => void
   onCancelImport?: () => void
@@ -64,7 +98,7 @@ interface Props {
   onDelete: (song: Song) => void
 }
 
-export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, importing, cancelling, importProgress, importStage, onSelect, onImport, onCancelImport, onRename, onDelete }: Props) {
+export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, importing, cancelling, importProgress, importStage, syncedNames, driveConnected, downloading, remoteCount, onDriveRemove, onDriveSync, onEvict, onDriveDownload, onDownloadAll, onSelect, onImport, onCancelImport, onRename, onDelete }: Props) {
   const t = useTranslation()
   const [query, setQuery] = useState('')
   const [importHovered, setImportHovered] = useState(false)
@@ -126,13 +160,36 @@ export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, impor
       {!loading && songs.length === 0 && <p className="empty-state">{t('noSongs')}</p>}
       <nav className="song-list">
         {visibleSongs.map((song) => (
-          <SongRow key={song.name} song={song} active={song.name === activeSong} onSelect={onSelect} onMenu={openSongMenu} />
+          <SongRow key={song.name} song={song} active={song.name === activeSong} synced={syncedNames.has(song.name)} downloading={downloading?.name === song.name ? downloading.percent : undefined} onSelect={onSelect} onMenu={openSongMenu} />
         ))}
       </nav>
       {menu ? createPortal(
         // Portal to <body>: the sidebar's backdrop-filter makes it the containing block
         // for position:fixed children, which would offset the menu away from the cursor.
         <div className="song-menu" ref={menuRef} style={{ left: menu.x, top: menu.y }} role="menu" tabIndex={-1} aria-label={t('songLibrary')}>
+          {syncedNames.has(menu.song.name) && !menu.song.remoteOnly && (
+            <button role="menuitem" onClick={() => { setMenu(undefined); onEvict(menu.song) }}>
+              <HardDriveDownload size={14} /> {t('driveFreeSpace')}
+            </button>
+          )}
+          {driveConnected && (menu.song.remoteOnly ? (
+            <button role="menuitem" onClick={() => { setMenu(undefined); onDriveDownload(menu.song) }}>
+              <CloudDownload size={14} /> {t('driveDownloadSong')}
+            </button>
+          ) : syncedNames.has(menu.song.name) ? (
+            <button role="menuitem" onClick={() => { setMenu(undefined); onDriveRemove(menu.song) }}>
+              <CloudOff size={14} /> {t('driveSongRemove')}
+            </button>
+          ) : (
+            <button role="menuitem" onClick={() => { setMenu(undefined); onDriveSync(menu.song) }}>
+              <CloudUpload size={14} /> {t('driveSongSync')}
+            </button>
+          ))}
+          {menu.song.remoteOnly && remoteCount > 1 && (
+            <button role="menuitem" onClick={() => { setMenu(undefined); onDownloadAll() }}>
+              <CloudDownload size={14} /> {t('downloadAll', { count: remoteCount })}
+            </button>
+          )}
           <button role="menuitem" onClick={() => { setMenu(undefined); onRename(menu.song) }}>
             <FilePenLine size={14} /> {t('rename')}
           </button>

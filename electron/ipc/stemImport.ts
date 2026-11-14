@@ -1,8 +1,8 @@
 import { app, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { execFile as execFileCallback } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
-import { basename, dirname, extname, join } from 'node:path'
+import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
@@ -12,7 +12,6 @@ import { SIX_STEM_NAMES } from '../../src/components/stemsplitter/constants'
 import { YoutubeIE } from '../../src/components/youtube/extractor/youtube.js'
 import { selectFormats, sortFormats } from '../../src/components/youtube/format.js'
 import { downloadFile } from '../../src/components/youtube/downloader.js'
-import { ensureSongsDirectory, songsDirectory } from '../paths'
 import type { SeparateWorkerData, SeparateWorkerMessage } from '../separation-worker'
 import type { StereoAudio, StemName } from '../../src/components/stemsplitter/types'
 
@@ -22,33 +21,6 @@ const nativeModelPath = () => app.isPackaged
   ? join(process.resourcesPath, 'models', 'htdemucs_6s.onnx')
   : join(app.getAppPath(), 'src', 'components', 'stemsplitter', 'htdemucs_6s.onnx')
 export const ffmpegPath = () => 'ffmpeg'
-
-const slugPart = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
-
-function songNameFrom(filePath: string) {
-  const base = basename(filePath, extname(filePath)).toLowerCase()
-  const boundary = base.indexOf(' - ')
-  if (boundary > 0) {
-    const parts = [slugPart(base.slice(0, boundary)), slugPart(base.slice(boundary + 3))]
-      .filter(Boolean)
-    if (parts.length) return parts.join('--')
-  }
-  return slugPart(base) || 'imported-song'
-}
-
-async function uniqueSongDirectory(name: string) {
-  const root = songsDirectory()
-  // suffix 0 probes the base name; the first duplicate becomes name-1 (not name-2).
-  for (let suffix = 0; ; suffix += 1) {
-    const candidate = join(root, suffix === 0 ? name : `${name}-${suffix}`)
-    try {
-      await stat(candidate)
-    } catch (error: unknown) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return candidate
-      throw error
-    }
-  }
-}
 
 function assertStereoAudio(value: unknown): asserts value is StereoAudio {
   const audio = value as StereoAudio
@@ -144,28 +116,25 @@ async function createCoverArt(sourcePath: string, thumbnailPath?: string): Promi
   }
 }
 
-async function saveStems(inputPath: string, stems: Record<StemName, Uint8Array>, notifyStage: () => void, thumbnailPath?: string) {
-  const directory = await uniqueSongDirectory(songNameFrom(inputPath))
-  await mkdir(directory, { recursive: true })
-  const wavPaths = Object.fromEntries(SIX_STEM_NAMES.map((name) => [name, join(directory, `${name}.wav`)])) as Record<StemName, string>
+/**
+ * Encode separation results as MP3 bytes inside a temp directory. Nothing
+ * touches a songs library on disk: the renderer owns persistence (IndexedDB).
+ */
+async function encodeStems(stems: Record<StemName, Uint8Array>, notifyStage: () => void): Promise<Record<StemName, Uint8Array>> {
+  const directory = await mkdtemp(join(tmpdir(), 'ramses-stems-'))
   try {
+    const wavPaths = Object.fromEntries(SIX_STEM_NAMES.map((name) => [name, join(directory, `${name}.wav`)])) as Record<StemName, string>
+    const mp3Paths = Object.fromEntries(SIX_STEM_NAMES.map((name) => [name, join(directory, `${name}.mp3`)])) as Record<StemName, string>
     await Promise.all(SIX_STEM_NAMES.map((name) => writeFile(wavPaths[name], stems[name])))
     notifyStage()
-    await Promise.all(SIX_STEM_NAMES.map((name) => execFile(ffmpegPath(), ['-v', 'error', '-y', '-i', wavPaths[name], '-codec:a', 'libmp3lame', '-q:a', '2', join(directory, `${name}.mp3`)])))
-    await Promise.all(SIX_STEM_NAMES.map((name) => rm(wavPaths[name])))
-    try {
-      const cover = await createCoverArt(inputPath, thumbnailPath)
-      if (cover) await writeFile(join(directory, 'cover.jpg'), cover)
-    } catch {
-      // Cover art is best-effort; a failed extraction must not discard the stems.
-    }
-    return {
-      name: basename(directory),
-      stems: SIX_STEM_NAMES.map((name) => `${name}.mp3`).sort(),
-    }
-  } catch (error) {
-    await rm(directory, { recursive: true, force: true })
-    throw error
+    await Promise.all(SIX_STEM_NAMES.map((name) => execFile(ffmpegPath(), ['-v', 'error', '-y', '-i', wavPaths[name], '-codec:a', 'libmp3lame', '-q:a', '2', mp3Paths[name]])))
+    const encoded = await Promise.all(SIX_STEM_NAMES.map(async (name) => {
+      const bytes = await readFile(mp3Paths[name])
+      return [name, new Uint8Array(bytes)] as const
+    }))
+    return Object.fromEntries(encoded) as Record<StemName, Uint8Array>
+  } finally {
+    await rm(directory, { recursive: true, force: true }).catch(() => undefined)
   }
 }
 
@@ -291,6 +260,18 @@ export function registerStemImportIpc() {
     return readFile(filePath)
   })
 
+  // Dropped files arrive as raw bytes; stage them in a temp dir so the normal
+  // import pipeline (which works with paths) can pick them up.
+  ipcMain.handle('files:stage-buffer', async (_event, fileName: unknown, bytes: unknown) => {
+    if (typeof fileName !== 'string' || !fileName.trim()) throw new Error('Invalid file name.')
+    if (!(bytes instanceof Uint8Array)) throw new Error('Invalid file data.')
+    const safeName = fileName.split(/[\\/]/).pop() || 'audio'
+    const directory = await mkdtemp(join(tmpdir(), 'ramses-studio-'))
+    const path = join(directory, safeName)
+    await writeFile(path, bytes)
+    return path
+  })
+
   ipcMain.handle('songs:prepare-import', async (event) => {
     const selection = await dialog.showOpenDialog({
       title: 'Import audio for stem separation',
@@ -310,19 +291,7 @@ export function registerStemImportIpc() {
   })
 
   // Lets the renderer ask before importing so the user can replace or keep both copies.
-  ipcMain.handle('songs:duplicate-check', async (_event, sourceName: unknown): Promise<{ exists: boolean; name: string }> => {
-    if (typeof sourceName !== 'string' || !sourceName.trim()) throw new Error('Invalid source name.')
-    const name = songNameFrom(sourceName)
-    try {
-      await stat(join(songsDirectory(), name))
-      return { exists: true, name }
-    } catch (error: unknown) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { exists: false, name }
-      throw error
-    }
-  })
-
-  ipcMain.handle('songs:separate-native', async (event, sourceName: unknown, audio: unknown, thumbnailPath: unknown): Promise<{ name: string; stems: string[] }> => {
+  ipcMain.handle('songs:separate-native', async (event, sourceName: unknown, audio: unknown, thumbnailPath: unknown): Promise<{ stems: Record<StemName, Uint8Array>; cover: Uint8Array | null }> => {
     if (typeof sourceName !== 'string') throw new Error('Invalid import source.')
     assertStereoAudio(audio)
     const model = nativeModelPath()
@@ -333,8 +302,16 @@ export function registerStemImportIpc() {
     }
     notifyImportStage(event, 'Loading model...')
     const wavs = await runSeparationWorker(event, model, audio)
-    await ensureSongsDirectory()
     const thumbPath = typeof thumbnailPath === 'string' ? thumbnailPath : undefined
-    return saveStems(sourceName, wavs, () => notifyImportStage(event, 'Encoding stems as MP3...'), thumbPath)
+    const stems = await encodeStems(wavs, () => notifyImportStage(event, 'Encoding stems as MP3...'))
+    let cover: Uint8Array | null = null
+    try {
+      // Cover art is best-effort; a failed extraction must not discard the stems.
+      const art = await createCoverArt(sourceName, thumbPath)
+      if (art) cover = new Uint8Array(art)
+    } catch {
+      cover = null
+    }
+    return { stems, cover }
   })
 }

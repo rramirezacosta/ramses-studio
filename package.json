@@ -2,6 +2,7 @@
   "name": "ramses-studio",
   "version": "1.2.0",
   "private": true,
+  "author": "Rodolfo Ramirez Acosta <rodolfo@itepo.mx>",
   "type": "module",
   "main": "dist-electron/main.js",
   "desktopName": "ramses-studio",
@@ -10,13 +11,16 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "package:linux": "npm run build && electron-builder --linux AppImage",
+    "package:rpm": "npm run build && electron-builder --linux rpm",
     "package:flatpak": "npm run build && electron-builder --linux flatpak",
-    "package:windows": "npm run build && electron-builder --win portable"
+    "package:windows": "npm run build && electron-builder --win portable",
+    "package:win-installer": "npm run build && electron-builder --win nsis"
   },
   "dependencies": {
     "@ffmpeg/core": "^0.12.10",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
+    "idb": "^8.0.4",
     "lucide-react": "^1.70.0",
     "onnxruntime-node": "^1.31.1",
     "react": "^18.3.1",
@@ -73,7 +77,8 @@
     ],
     "linux": {
       "target": [
-        "AppImage"
+        "AppImage",
+        "rpm"
       ],
       "category": "AudioVideo",
       "syncDesktopName": true,
@@ -102,7 +107,8 @@
     },
     "win": {
       "target": [
-        "portable"
+        "portable",
+        "nsis"
       ],
       "artifactName": "${productName}-${version}-windows-${arch}.${ext}",
       "files": [
@@ -130,6 +136,11 @@
     "flatpak": {
       "runtimeVersion": "23.08",
       "baseVersion": "23.08"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "${productName}-${version}-windows-setup-${arch}.${ext}"
     }
   }
 }

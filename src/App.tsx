@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AudioEngine } from './audio/AudioEngine'
 import { TrackLane } from './components/daw/TrackLane'
 import { Sidebar } from './components/layout/Sidebar'
+import { DriveLogo } from './components/drive/DriveLogo'
 import { TitleBar } from './components/layout/TitleBar'
 import { TransportBar } from './components/layout/TransportBar'
 import { encodeWav } from './components/stemsplitter/audio/wav'
@@ -9,8 +10,12 @@ import { decodeWithFfmpeg } from './components/stemsplitter/audio/ffmpeg'
 import { useTranslation, LANGUAGES } from './i18n'
 import { useSettingsStore } from './store/useSettingsStore'
 import { useTransportStore } from './store/useTransportStore'
+import { loadPracticeState, savePracticeState, deletePracticeState, renamePracticeState } from './store/practice'
+import { useLibraryStore, LibraryQuotaError } from './store/useLibraryStore'
+import { useSyncStore } from './store/useSyncStore'
 import { useDialogFocusTrap } from './hooks/useDialogFocusTrap'
-import { parseSongName, songDisplayName, songFolderName } from './utils/songName'
+import appIcon from './assets/app_512.png'
+import { parseSongName, songDisplayName, songFolderName, songNameFromSource } from './utils/songName'
 import type { Song, TrackState } from './types/audio'
 import type { StereoAudio } from './components/stemsplitter/types'
 
@@ -33,6 +38,17 @@ type ThemeId = (typeof THEMES)[number]['id']
 
 const THEME_STORAGE_KEY = 'ramses-studio-theme'
 
+const formatBytes = (bytes: number): string => {
+  if (!Number.isFinite(bytes) || bytes < 1024) return `${bytes} B`
+  const units = ['KB', 'MB', 'GB', 'TB']
+  let value = bytes / 1024
+  let unit = 0
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024
+    unit += 1
+  }
+  return `${value.toFixed(value < 10 ? 1 : 0)} ${units[unit]}`
+}
 const loadStoredTheme = (): ThemeId => {
   const stored = localStorage.getItem(THEME_STORAGE_KEY)
   return THEMES.some((theme) => theme.id === stored) ? (stored as ThemeId) : 'midnight'
@@ -44,15 +60,19 @@ export default function App() {
   const renameDialogRef = useRef<HTMLFormElement>(null)
   const confirmDialogRef = useRef<HTMLDivElement>(null)
   const importSourceRef = useRef<HTMLFormElement>(null)
+  const importDroppedFileRef = useRef<(file: File) => void>(() => {})
   const settingsDialogRef = useRef<HTMLDivElement>(null)
   const aboutDialogRef = useRef<HTMLDivElement>(null)
   const language = useSettingsStore((store) => store.language)
   const setLanguage = useSettingsStore((store) => store.setLanguage)
-  const [songs, setSongs] = useState<Song[]>([])
+  const library = useLibraryStore()
   const [activeSong, setActiveSong] = useState<string>()
   const [tracks, setTracks] = useState<TrackState[]>([])
-  const [libraryLoading, setLibraryLoading] = useState(true)
   const [loadingSong, setLoadingSong] = useState<string>()
+  /** On-demand Drive download in progress ({ name, percent }), if any. */
+  const [downloading, setDownloading] = useState<{ name: string; percent: number }>()
+  const [dragOver, setDragOver] = useState(false)
+  const [storage, setStorage] = useState<{ usage: number; quota: number }>()
   const [error, setError] = useState<string>()
   const [loopRange, setLoopRange] = useState<[number, number]>()
   const [looping, setLooping] = useState(false)
@@ -82,6 +102,11 @@ export default function App() {
   const [aboutOpen, setAboutOpen] = useState(false)
   const [theme, setTheme] = useState<ThemeId>(loadStoredTheme)
   const setTransport = useTransportStore((store) => store.setTransport)
+  const sync = useSyncStore()
+  const connectDrive = useCallback(() => {
+    setSettingsOpen(true)
+    void sync.connect()
+  }, [sync])
 
   useDialogFocusTrap(renameDialogRef, Boolean(renamingSong))
   useDialogFocusTrap(confirmDialogRef, Boolean(confirmDialog))
@@ -96,9 +121,13 @@ export default function App() {
   }, [theme])
 
   useEffect(() => {
+    // The library lives in IndexedDB and hydrates regardless of the Electron
+    // bridge; only import/separation features depend on the bridge.
+    void library.hydrate().then(() => useSyncStore.getState().init())
+    // Ask Chromium to make storage durable so eviction pressure never drops songs.
+    void navigator.storage?.persist?.()
     if (!window.api) {
       setError(t('electronBridgeError'))
-      setLibraryLoading(false)
       return
     }
     const unsubscribe = window.api.onImportProgress(({ progress }) => {
@@ -106,17 +135,12 @@ export default function App() {
       setImportStage(undefined)
     })
     const unsubscribeImportStage = window.api.onImportStage(setImportStage)
-    void window.api.getSongs().then(setSongs).catch((reason) => {
-      const message = reason instanceof Error ? reason.message : t('unknownLibraryError')
-      setError(t('readingLibraryFailed', { message }))
-    }).finally(() => setLibraryLoading(false))
     return () => {
       unsubscribe()
       unsubscribeImportStage()
       engine.destroy()
     }
   }, [engine])
-
   useEffect(() => {
     let frame = 0
     let lastTime = -1
@@ -134,38 +158,132 @@ export default function App() {
     frame = requestAnimationFrame(update)
     return () => cancelAnimationFrame(frame)
   }, [engine, setTransport])
+  // Persist mixer/loop state per song so practicing survives restarts.
+  useEffect(() => {
+    if (!activeSong || !tracks.length) return
+    const timer = window.setTimeout(() => {
+      void savePracticeState(activeSong, {
+        tracks: Object.fromEntries(tracks.map((track) => [track.name, { volume: track.volume, pan: track.pan, muted: track.muted, soloed: track.soloed }])),
+        ...(loopRange ? { loopRange } : {}),
+        looping,
+      })
+    }, 400)
+    return () => window.clearTimeout(timer)
+  }, [activeSong, tracks, loopRange, looping])
+
+  // Drag & drop audio files onto the window to import them.
+  useEffect(() => {
+    let dragCounter = 0
+    const onDragEnter = (event: DragEvent) => {
+      if (event.dataTransfer?.types?.includes('Files')) {
+        dragCounter += 1
+        setDragOver(true)
+      }
+    }
+    const onDragLeave = (event: DragEvent) => {
+      if (event.dataTransfer?.types?.includes('Files')) {
+        dragCounter = Math.max(0, dragCounter - 1)
+        if (dragCounter === 0) setDragOver(false)
+      }
+    }
+    const onDragOver = (event: DragEvent) => {
+      if (event.dataTransfer?.types?.includes('Files')) {
+        event.preventDefault()
+        if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
+      }
+    }
+    const onDrop = (event: DragEvent) => {
+      if (!event.dataTransfer?.files?.length) return
+      event.preventDefault()
+      dragCounter = 0
+      setDragOver(false)
+      const file = event.dataTransfer.files[0]
+      if (file) importDroppedFileRef.current(file)
+    }
+    window.addEventListener('dragenter', onDragEnter)
+    window.addEventListener('dragleave', onDragLeave)
+    window.addEventListener('dragover', onDragOver)
+    window.addEventListener('drop', onDrop)
+    return () => {
+      window.removeEventListener('dragenter', onDragEnter)
+      window.removeEventListener('dragleave', onDragLeave)
+      window.removeEventListener('dragover', onDragOver)
+      window.removeEventListener('drop', onDrop)
+    }
+  }, [])
+
+  // Paste a YouTube URL to open the import dialog pre-filled.
+  useEffect(() => {
+    const onPaste = (event: ClipboardEvent) => {
+      if (importing) return
+      const text = event.clipboardData?.getData('text')?.trim()
+      if (text && /youtu\.?be/i.test(text)) {
+        setYouTubeUrl(text)
+        setImportSourceOpen(true)
+      }
+    }
+    window.addEventListener('paste', onPaste)
+    return () => window.removeEventListener('paste', onPaste)
+  }, [importing])
+
+  // Refresh the storage estimate while Settings is open.
+  useEffect(() => {
+    if (!settingsOpen) return
+    void navigator.storage?.estimate?.().then((estimate) => {
+      if (estimate?.quota) setStorage({ usage: estimate.usage ?? 0, quota: estimate.quota })
+    })
+  }, [settingsOpen])
+
+
 
   const selectSong = useCallback(async (song: Song) => {
     setLoadingSong(song.name)
     setError(undefined)
     setNotice(undefined)
     try {
-      const loaded = await Promise.all(song.stems.map(async (name) => ({
-        id: name,
-        name,
-        buffer: await engine.decode(await window.api.loadStemBuffer(song.name, name)),
+      let target = song
+      if (song.remoteOnly) {
+        // On-demand download: the song only exists on Drive until now.
+        if (!useSyncStore.getState().connected) throw new Error(t('driveSongOffline'))
+        setDownloading({ name: song.name, percent: 0 })
+        await useSyncStore.getState().downloadSong(song.name, (percent) => setDownloading({ name: song.name, percent }))
+        target = useLibraryStore.getState().songs.find((item) => item.name === song.name) ?? song
+      }
+      let loaded = await Promise.all(target.stems.map(async (stemName) => ({
+        id: stemName,
+        name: stemName,
+        buffer: await engine.decode(await library.getStemBuffer(target.name, stemName)),
         volume: 0.85,
         pan: 0,
         muted: false,
         soloed: false,
       })))
+      // Restore the mixer/loop state the user left this song with.
+      const savedPractice = await loadPracticeState(target.name)
+      if (savedPractice) {
+        loaded = loaded.map((track) => ({ ...track, ...(savedPractice.tracks[track.name] ?? {}) }))
+      }
       engine.load(loaded)
       // The master GainNode defaults to 1.0; resync it with the transport value so the
       // slider, playback and renderMix (export) all agree before the user ever drags it.
       engine.setMasterVolume(useTransportStore.getState().masterVolume)
       engine.setLoopRange()
       setTracks(loaded)
-      setActiveSong(song.name)
-      setLoopRange(undefined)
-      setLooping(false)
+      setActiveSong(target.name)
+      const restoredLoop = savedPractice?.loopRange
+      setLoopRange(restoredLoop)
+      setLooping(Boolean(savedPractice?.looping))
+      if (restoredLoop) engine.setLoopRange({ start: restoredLoop[0], end: restoredLoop[1] })
       setTransport({ currentTime: 0, duration: engine.duration, isPlaying: false })
+      await library.touchSong(target.name, { duration: engine.duration })
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : t('unknownAudioLoadingError')
       setError(t('loadSongFailed', { name: song.name, message }))
     } finally {
       setLoadingSong(undefined)
+      setDownloading(undefined)
     }
-  }, [engine, setTransport])
+  }, [engine, library, setTransport, t])
 
   const seek = useCallback((time: number) => {
     engine.seek(time)
@@ -225,25 +343,32 @@ export default function App() {
       const prepared = await prepareImport()
       if (!prepared || controller.signal.aborted) return
       // Re-importing an existing song gets a prompt: replace the old copy or keep both,
-      // so a double import never silently creates surprise folders.
-      const duplicate = await window.api.checkSongDuplicate(prepared.sourceName)
-      if (duplicate.exists) {
-        setDuplicateSong({ name: duplicate.name, display: songDisplayName(duplicate.name) })
+      // so a double import never silently creates surprise duplicates.
+      let name = songNameFromSource(prepared.sourceName)
+      if (library.hasName(name)) {
+        setDuplicateSong({ name, display: songDisplayName(name) })
         const decision = await new Promise<'replace' | 'keep' | undefined>((resolve) => { duplicateResolveRef.current = resolve })
         if (!decision || controller.signal.aborted) return
-        if (decision === 'replace') await window.api.deleteSong(duplicate.name)
+        if (decision === 'replace') await library.deleteSong(name)
+        else name = library.uniqueName(name)
       }
       setImportStage(t('decodingAudio'))
       const buffer = await window.api.readFileBuffer(prepared.sourceName)
       const audio = await decodeWithFfmpeg(buffer, undefined, controller.signal)
       if (controller.signal.aborted) return
       const source = { sourceName: prepared.sourceName, audio }
-      const song = await window.api.separateWithNative(source.sourceName, source.audio, prepared.thumbnailPath)
+      const separated = await window.api.separateStems(source.sourceName, source.audio, prepared.thumbnailPath)
       if (controller.signal.aborted) return
-      setSongs(await window.api.getSongs())
+      const song = await library.persistSeparation(name, separated.stems, separated.cover)
       await selectSong(song)
+      // Push the new song to Drive in the background once connected.
+      useSyncStore.getState().scheduleSync()
     } catch (reason) {
       if (controller.signal.aborted || (reason instanceof Error && reason.name === 'AbortError')) return
+      if (reason instanceof LibraryQuotaError) {
+        setError(t('storageFull'))
+        return
+      }
       const message = reason instanceof Error ? reason.message : t('unknownImportError')
       setError(t('importFailed', { message }))
     } finally {
@@ -253,7 +378,7 @@ export default function App() {
       setImportStage(undefined)
       setCancelling(false)
     }
-  }, [selectSong, t])
+  }, [library, selectSong, t])
 
   const cancelImport = useCallback(() => {
     if (cancelling) return
@@ -273,6 +398,35 @@ export default function App() {
     setImportSourceOpen(false)
     void importSong(() => window.api.prepareYouTubeImport(url))
   }
+
+  const downloadAllRemote = useCallback(() => {
+    if (!sync.connected) {
+      setError(t('driveSongOffline'))
+      return
+    }
+    setDownloading({ name: '', percent: 0 })
+    void sync.downloadAllSongs((name, percent) => setDownloading({ name, percent }))
+      .then(() => setDownloading(undefined))
+      .catch((reason) => {
+        const message = reason instanceof Error ? reason.message : String(reason)
+        setError(t('loadSongFailed', { name: 'Google Drive', message }))
+        setDownloading(undefined)
+      })
+  }, [sync, t])
+
+  const importDroppedFile = useCallback(async (file: File) => {
+    try {
+      const staged = await window.api.stageFileBuffer(file.name, new Uint8Array(await file.arrayBuffer()))
+      await importSong(async () => ({ sourceName: staged }))
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : t('unknownImportError')
+      setError(t('importFailed', { message }))
+    }
+  }, [importSong, t])
+
+  useEffect(() => {
+    importDroppedFileRef.current = importDroppedFile
+  }, [importDroppedFile])
 
   const openRenameDialog = useCallback((song: Song) => {
     const parts = parseSongName(song.name)
@@ -295,15 +449,22 @@ export default function App() {
       return
     }
     try {
-      await window.api.renameSong(renamingSong.name, newName)
-      setSongs(await window.api.getSongs())
+      if (library.hasName(newName)) throw new Error('A song with that name already exists')
+      if (renamingSong.remoteOnly) {
+        // The remote backup must move with it; that needs a live connection.
+        if (!sync.connected) throw new Error(t('renameNeedsDrive'))
+        await sync.renameRemoteSong(renamingSong.name, newName)
+      } else {
+        await library.renameSongName(renamingSong.name, newName)
+      }
+      await renamePracticeState(renamingSong.name, newName)
       if (activeSong === renamingSong.name) setActiveSong(newName)
       setRenamingSong(undefined)
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : t('unknownRenameError')
       setError(t('renameFailed', { name: renamingSong.name, message }))
     }
-  }, [activeSong, renameArtist, renameTitle, renamingSong, t])
+  }, [activeSong, library, renameArtist, renameTitle, renamingSong, sync, t])
 
   const deleteSong = useCallback((song: Song) => {
     setConfirmDialog({
@@ -311,8 +472,8 @@ export default function App() {
       body: t('deleteSongBody', { name: songDisplayName(song.name) }),
       action: async () => {
         try {
-          await window.api.deleteSong(song.name)
-          setSongs(await window.api.getSongs())
+          await library.deleteSong(song.name)
+          void deletePracticeState(song.name)
           if (activeSong === song.name) {
             engine.stop()
             engine.setLoopRange()
@@ -328,7 +489,7 @@ export default function App() {
         }
       },
     })
-  }, [activeSong, engine, setTransport, t])
+  }, [activeSong, engine, library, setTransport, t])
 
   const deleteStem = useCallback((track: TrackState) => {
     if (!track || !activeSong) return
@@ -338,11 +499,10 @@ export default function App() {
       body: t('deleteStemBody', { stem: stemTitle, song: songDisplayName(activeSong) }),
       action: async () => {
         try {
-          await window.api.deleteStem(activeSong, track.name)
+          await library.deleteStem(activeSong, track.name)
           const remainingTracks = tracks.filter((item) => item.id !== track.id)
           engine.removeTrack(track.id)
           setTracks(remainingTracks)
-          setSongs(await window.api.getSongs())
           if (!remainingTracks.length) {
             engine.setLoopRange()
             setActiveSong(undefined)
@@ -356,7 +516,7 @@ export default function App() {
         }
       },
     })
-  }, [activeSong, engine, tracks, setTransport, t])
+  }, [activeSong, engine, library, tracks, setTransport, t])
 
   const exportMix = useCallback(async () => {
     if (!activeSong || !tracks.length || exportingMix) return
@@ -438,12 +598,12 @@ export default function App() {
 
   return (
     <main className="app-shell">
-      <TitleBar onOpenSettings={openSettings} onOpenAbout={openAbout} />
+      <TitleBar onOpenSettings={openSettings} onOpenAbout={openAbout} drive={{ connected: sync.connected, syncing: sync.syncing, error: sync.error }} onOpenDrive={openSettings} />
       <div className="app-content">
-        <Sidebar songs={songs} activeSong={activeSong} loading={libraryLoading} importing={importing} cancelling={cancelling} importProgress={importProgress} importStage={importStage} onSelect={selectSong} onImport={openImportSource} onCancelImport={cancelImport} onRename={openRenameDialog} onDelete={deleteSong} />
+        <Sidebar songs={library.songs} activeSong={activeSong} loading={library.loading} importing={importing} cancelling={cancelling} importProgress={importProgress} importStage={importStage} syncedNames={sync.syncedNames} driveConnected={sync.connected} downloading={downloading} remoteCount={library.songs.filter((song) => song.remoteOnly).length} onDriveRemove={(song) => { void sync.removeBackup(song.name) }} onDriveSync={(song) => { void sync.backupSong(song.name) }} onEvict={(song) => { void sync.freeUpSpace(song.name) }} onDriveDownload={(song) => { void selectSong(song) }} onDownloadAll={downloadAllRemote} onSelect={selectSong} onImport={openImportSource} onCancelImport={cancelImport} onRename={openRenameDialog} onDelete={deleteSong} />
         <div className="workspace">
         <div className="timeline-header"><span>TRACK</span><span>{activeSong ? songDisplayName(activeSong) : t('selectSongHint')}</span></div>
-        {error && <div className="error-message" role="alert">{error}</div>}
+        {(error || library.unavailable) && <div className="error-message" role="alert">{error ?? t('readingLibraryFailed', { message: library.unavailable ?? '' })}</div>}
         {notice && <div className="status-message" role="status">{notice}</div>}
         <div className="tracks">
           {tracks.map((track, index) => (
@@ -461,7 +621,7 @@ export default function App() {
               onUpdate={updateTrack}
             />
           ))}
-          {!libraryLoading && !tracks.length && <div className="welcome"><h1>{t('welcomeTitle')}</h1><p>{t('welcomeBody')}</p></div>}
+          {!library.loading && !tracks.length && <div className="welcome"><h1>{t('welcomeTitle')}</h1><p>{t('welcomeBody')}</p></div>}
         </div>
         <TransportBar
           onPlayPause={togglePlayback}
@@ -476,6 +636,11 @@ export default function App() {
         />
         </div>
       </div>
+      {dragOver && (
+        <div className="drop-overlay" role="presentation">
+          <div className="drop-overlay-card">{t('dropToImport')}</div>
+        </div>
+      )}
       {renamingSong && (
         <div className="dialog-backdrop" role="presentation" onClick={() => setRenamingSong(undefined)}>
           <form className="rename-dialog" ref={renameDialogRef} onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); void renameSong() }} role="dialog" aria-modal="true" aria-labelledby="rename-title">
@@ -534,7 +699,7 @@ export default function App() {
       )}
       {settingsOpen && (
         <div className="dialog-backdrop" role="presentation" onClick={() => setSettingsOpen(false)}>
-          <div className="rename-dialog confirm-dialog" ref={settingsDialogRef} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="settings-title">
+          <div className="rename-dialog confirm-dialog settings-dialog" ref={settingsDialogRef} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="settings-title">
             <h2 id="settings-title">{t('settings')}</h2>
             <div className="settings-section" role="group" aria-label={t('theme')}>
               <span className="settings-section-label">{t('theme')}</span>
@@ -557,6 +722,68 @@ export default function App() {
                 ))}
               </div>
             </div>
+            <div className="settings-section" role="group" aria-label={t('driveSync')}>
+              <span className="settings-section-label">{t('driveSync')}</span>
+              {sync.connected ? (
+                <div className="drive-card connected">
+                  <div className="drive-head">
+                    <DriveLogo className="drive-logo" />
+                    <span className="drive-status-dot" aria-hidden="true" />
+                    <div className="drive-who">
+                      <strong>{sync.account}</strong>
+                      <small>
+                        {sync.syncing
+                          ? t('driveSyncing')
+                          : sync.lastSyncedAt
+                            ? t('driveLastSynced', { time: new Date(sync.lastSyncedAt).toLocaleString() })
+                            : t('driveNeverSynced')}
+                      </small>
+                    </div>
+                  </div>
+                  <div className="drive-actions">
+                    <button type="button" className="primary-button" disabled={sync.syncing} onClick={() => { void sync.syncNow() }}>
+                      {sync.syncing ? (<><span className="drive-spinner" aria-hidden="true" /> {t('driveSyncing')}</>) : t('driveSyncNow')}
+                    </button>
+                    <button type="button" onClick={() => { void sync.disconnect() }}>{t('driveDisconnect')}</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="drive-card">
+                  <div className="drive-head">
+                    <DriveLogo className="drive-logo muted" />
+                    <div className="drive-who">
+                      <strong>{t('driveSync')}</strong>
+                      <small>{t('driveNotConnected')}</small>
+                    </div>
+                  </div>
+                  <div className="drive-actions">
+                    <button type="button" className="primary-button" onClick={connectDrive}>{t('driveConnect')}</button>
+                  </div>
+                </div>
+              )}
+              {sync.error && <small className="drive-error" role="alert">{t('driveSyncFailed', { message: sync.error })}</small>}
+            </div>
+            <div className="settings-section" role="group" aria-label={t('storage')}>
+              <span className="settings-section-label">{t('storage')}</span>
+              {storage ? (
+                <>
+                  <div className="storage-bar">
+                    <div className="storage-bar-fill" style={{ width: `${Math.min(100, (storage.usage / storage.quota) * 100)}%` }} />
+                  </div>
+                  <small className="storage-usage">{t('storageUsage', { used: formatBytes(storage.usage), total: formatBytes(storage.quota) })}</small>
+                </>
+              ) : (
+                <small className="storage-usage">{t('storageUsage', { used: '—', total: '—' })}</small>
+              )}
+              <div className="drive-actions">
+                <button type="button" onClick={() => {
+                  void sync.freeUpOldest(5).then((freed) => {
+                    if (freed > 0) setNotice(t('storageFreed', { size: formatBytes(freed) }))
+                    void navigator.storage?.estimate?.().then((e) => { if (e?.quota) setStorage({ usage: e.usage ?? 0, quota: e.quota }) })
+                  })
+                }}>{t('storageFreeOldest')}</button>
+              </div>
+            </div>
             <p className="settings-footer">
               <span>{t('version')} {__APP_VERSION__}</span>
               <span>{LANGUAGES.find((item) => item.id === language)?.label}</span>
@@ -571,7 +798,7 @@ export default function App() {
         <div className="dialog-backdrop" role="presentation" onClick={() => setAboutOpen(false)}>
           <div className="rename-dialog about-dialog" ref={aboutDialogRef} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="about-title">
             <div className="about-header">
-              <img src="ramses-cover:icon/app_512.png" alt="" className="about-icon" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+              <img src={appIcon} alt="" className="about-icon" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
               <h2 id="about-title">Ramses Studio</h2>
               <p className="about-version">{t('version')} {__APP_VERSION__}</p>
             </div>
@@ -587,7 +814,7 @@ export default function App() {
           </div>
         </div>
       )}
-      {(libraryLoading || loadingSong) && (
+      {(library.loading || loadingSong) && (
         <div className="work-banner" role="status" aria-live="polite">
           <div className="work-spinner" />
           <div><strong>{loadingSong ? t('loadingSongStems') : t('loadingLibrary')}</strong><span>{loadingSong ? songDisplayName(loadingSong) : t('preparingWorkspace')}</span></div>
