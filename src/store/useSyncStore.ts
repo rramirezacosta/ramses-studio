@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { syncLibrary, lastSyncedAt } from '../sync/sync'
+import { syncLibrary, lastSyncedAt, syncedSongNames } from '../sync/sync'
 
 /**
  * Google Drive sync state: connection, last sync time, and scheduling.
@@ -12,6 +12,8 @@ interface SyncStore {
   account?: string
   syncing: boolean
   lastSyncedAt?: number
+  /** Songs backed up on Drive per the last synced manifest (badge in the sidebar). */
+  syncedNames: Set<string>
   error?: string
   /** Load connection state + last sync time; called once at startup after the library hydrates. */
   init: () => Promise<void>
@@ -31,6 +33,7 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
   account: undefined,
   syncing: false,
   lastSyncedAt: undefined,
+  syncedNames: new Set(),
   error: undefined,
 
   init: async () => {
@@ -39,6 +42,8 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
     if (!status?.connected) return
     set({ connected: true, ...(status.account ? { account: status.account } : {}) })
     set({ lastSyncedAt: await lastSyncedAt().catch(() => undefined) })
+    // Songs backed up before this session still show their Drive badge.
+    set({ syncedNames: await syncedSongNames().catch(() => new Set<string>()) })
     get().scheduleSync()
   },
 
@@ -67,8 +72,8 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
     if (get().syncing || !get().connected) return
     set({ syncing: true, error: undefined })
     try {
-      await syncLibrary()
-      set({ lastSyncedAt: Date.now() })
+      const synced = await syncLibrary()
+      set({ lastSyncedAt: Date.now(), syncedNames: synced })
     } catch (reason) {
       set({ error: reason instanceof Error ? reason.message : String(reason) })
     } finally {

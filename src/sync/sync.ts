@@ -252,8 +252,14 @@ function pruneRemoved(entry: ManifestSong, removedRemote: string[]): ManifestSon
   }
 }
 
-/** Run one full two-way sync. Throws on any failure; the caller owns state. */
-export async function syncLibrary(): Promise<void> {
+/** Song slugs present in the last synced manifest (the "backed up" set). */
+export const syncedSongNames = async (): Promise<Set<string>> => {
+  const snapshot = await getKv<Manifest>(MANIFEST_SNAPSHOT_KEY)
+  return new Set(Object.keys(snapshot?.songs ?? {}))
+}
+
+/** Run one full two-way sync. Throws on any failure; the caller owns state. Returns the synced song slugs. */
+export async function syncLibrary(): Promise<Set<string>> {
   const status = await window.api.driveStatus()
   if (!status.connected) throw new Error('Google Drive is not connected.')
 
@@ -319,6 +325,7 @@ export async function syncLibrary(): Promise<void> {
   await setKv(MANIFEST_SNAPSHOT_KEY, finalManifest)
   await clearAllTombstones()
   await setKv(LAST_SYNCED_KEY, Date.now())
+  return new Set(Object.keys(songs))
 }
 
 /** Last successful sync time (epoch ms), if any. */
