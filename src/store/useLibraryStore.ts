@@ -68,6 +68,9 @@ const toUiSong = (record: SongRecord, covers: Map<string, string>): Song => ({
   stems: Object.keys(record.stems).sort(),
   ...(record.remoteOnly ? { remoteOnly: true } : {}),
   ...(covers.has(record.name) ? { cover: covers.get(record.name) } : {}),
+  lastOpened: record.lastOpened,
+  duration: record.duration,
+  size: record.size,
 })
 
 const buildUiSongs = (records: Map<string, SongRecord>, covers: Map<string, string>): Song[] =>
@@ -104,6 +107,20 @@ interface PendingFile {
  * Write every file then the song record; rolls back already-written blobs if
  * anything fails, so a crash or quota error never leaves a half-imported song.
  */
+async function computeRecordSize(record: SongRecord): Promise<number> {
+  let total = 0
+  for (const fileId of Object.values(record.stems)) {
+    if (!fileId) continue
+    const file = await getFile(fileId)
+    if (file) total += file.size
+  }
+  if (record.coverFileId) {
+    const file = await getFile(record.coverFileId)
+    if (file) total += file.size
+  }
+  return total
+}
+
 async function writeSongWithFiles(record: SongRecord, files: PendingFile[]): Promise<Song> {
   const written: RecordId[] = []
   try {
@@ -127,6 +144,7 @@ async function writeSongWithFiles(record: SongRecord, files: PendingFile[]): Pro
       stems: { ...record.stems, ...stemFileIds },
       ...(coverFileId ? { coverFileId } : {}),
       ...(Object.keys(stemFileIds).length ? { remoteOnly: false } : { remoteOnly: true }),
+      size: files.reduce((sum, file) => sum + file.bytes.length, 0),
     }
     await putSong(full)
     const { records, covers } = useLibraryStore.getState()
@@ -166,9 +184,18 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
     try {
       const covers = get().covers
       const stored = await listSongs()
-      const records = new Map(stored.map((record) => [record.name, record]))
+      const records = new Map<string, SongRecord>()
+      for (const record of stored) {
+        let next = record
+        if (record.size === undefined) {
+          const size = await computeRecordSize(record)
+          next = { ...record, size }
+          await putSong(next)
+        }
+        records.set(next.name, next)
+      }
       // Recreate cover object URLs for the session; blobs stay in IndexedDB.
-      await Promise.all(stored.map(async (record) => {
+      await Promise.all([...records.values()].map(async (record) => {
         if (!record.coverFileId || covers.has(record.name)) return
         const file = await getFile(record.coverFileId)
         if (file) covers.set(record.name, URL.createObjectURL(file.blob))
@@ -304,7 +331,8 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
         if (previous) URL.revokeObjectURL(previous)
         covers.set(name, URL.createObjectURL(new Blob([cover as Uint8Array<ArrayBuffer>], { type: 'image/jpeg' })))
       }
-      const next: SongRecord = { ...record, stems, ...(coverFileId ? { coverFileId } : {}), remoteOnly: false }
+      let next: SongRecord = { ...record, stems, ...(coverFileId ? { coverFileId } : {}), remoteOnly: false }
+      next.size = await computeRecordSize(next)
       await putSong(next)
       get().records.set(name, next)
       set({ songs: buildUiSongs(get().records, get().covers) })
@@ -327,6 +355,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
       stems: Object.fromEntries(Object.keys(record.stems).map((stemName) => [stemName, null])),
       remoteOnly: true,
     }
+    next.size = await computeRecordSize(next)
     await putSong(next)
     get().records.set(name, next)
     set({ songs: buildUiSongs(get().records, get().covers) })
@@ -352,8 +381,10 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
     }
     const stems = { ...record.stems }
     delete stems[stemName]
-    await updateSong(name, { stems })
-    get().records.set(name, { ...record, stems })
+    const nextRecord = { ...record, stems }
+    nextRecord.size = await computeRecordSize(nextRecord)
+    await updateSong(name, { stems, size: nextRecord.size })
+    get().records.set(name, nextRecord)
     set({ songs: buildUiSongs(get().records, get().covers) })
   },
 }))

@@ -14,7 +14,7 @@ const defaultLayout: ButtonLayout = { left: [], right: ['minimize', 'maximize', 
 interface TitleBarProps {
   onOpenSettings?: () => void
   onOpenAbout?: () => void
-  drive?: { connected: boolean; syncing: boolean; error?: string }
+  drive?: { connected: boolean; syncing: boolean; error?: string; pendingChanges?: number }
   onOpenDrive?: () => void
 }
 
@@ -77,6 +77,7 @@ export const TitleBar = memo(function TitleBar({ onOpenSettings, onOpenAbout, dr
       onClick={onOpenDrive}
     >
       {drive.error ? <CloudOff size={15} /> : <Cloud size={15} />}
+      {drive.pendingChanges ? <span className="pending-badge">{drive.pendingChanges}</span> : null}
     </button>
   ) : null
 

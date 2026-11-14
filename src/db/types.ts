@@ -36,6 +36,8 @@ export interface SongRecord {
   coverFileId?: RecordId
   /** True when every stem was evicted; the song re-downloads from Drive on open. */
   remoteOnly?: boolean
+  /** Total on-disk size in bytes (stems + cover). */
+  size?: number
 }
 
 /** Small persisted values that belong with the library (not theme/language). */

@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('api', {
   separateStems: (sourceName: string, audio: { left: Float32Array; right: Float32Array; sampleRate: number }, thumbnailPath?: string) =>
     ipcRenderer.invoke('songs:separate-native', sourceName, audio, thumbnailPath),
   exportMix: (songName: string, wav: Uint8Array) => ipcRenderer.invoke('mix:export', { songName, wav }),
+  exportStems: (songName: string, stems: Array<{ name: string; data: Uint8Array }>) => ipcRenderer.invoke('stems:export', { songName, stems }),
   readFileBuffer: (filePath: string) => ipcRenderer.invoke('files:read-buffer', filePath),
   stageFileBuffer: (fileName: string, bytes: Uint8Array) => ipcRenderer.invoke('files:stage-buffer', fileName, bytes),
   driveStatus: () => ipcRenderer.invoke('drive:status'),

@@ -20,6 +20,23 @@ const en = {
   cpuInference: 'Using CPU for inference, it may take a while.',
   loadingLibrary: 'Loading library...',
   noSongs: 'No songs in your library',
+  emptyStateCta: 'No songs yet → Import your first song',
+  syncPillLocal: 'Local',
+  syncPillSynced: 'Synced',
+  syncPillRemote: 'Remote',
+  syncPillDownloading: 'Downloading',
+  syncLegendTitle: 'Sync states',
+  storageWarning: 'Storage is almost full ({percent}%). Free up space to avoid import failures.',
+  pendingChanges: '{count} pending changes',
+  syncStatePending: 'Pending',
+  syncStateSyncing: 'Syncing',
+  syncStateError: 'Error',
+  conflictTitle: 'Sync conflict',
+  conflictBody: '"{name}" changed both locally and on Google Drive.',
+  keepLocal: 'Keep local',
+  keepRemote: 'Keep remote',
+  songSize: 'Disk usage',
+  sortBySize: 'Largest first',
   stemsCount: '{count} stems',
   renameSongAction: 'Rename {name}',
   rename: 'Rename',
@@ -37,6 +54,10 @@ const en = {
   exportMixDisabledTooltip: 'Load a song to export its mix',
   exporting: 'Exporting...',
   exportMix: 'Export mix',
+  export: 'Export',
+  exportCurrentMix: 'Export current mix',
+  exportStems: 'Export stems (ZIP)',
+  stemsExported: 'Stems exported to {path}',
   dragToReorder: 'Drag to reorder',
   otherStem: 'Other',
   dragToLoopRange: 'Drag to select a loop range',
@@ -50,6 +71,7 @@ const en = {
   keepBoth: 'Keep both',
   deleteStemTitle: 'Delete stem',
   deleteSongBody: 'This permanently deletes "{name}" and all of its stems. This cannot be undone.',
+  deleteSongsBody: 'This permanently deletes {count} songs and all of their stems. This cannot be undone.',
   deleteStemBody: 'This deletes "{stem}" from "{song}". This cannot be undone.',
   importAudio: 'Import audio',
   importAudioDescription: 'Choose an audio file from your computer or extract audio from a YouTube video.',
@@ -114,10 +136,25 @@ const en = {
   aboutSource: 'Source code',
   aboutPrivacy: 'Privacy Policy',
   aboutTerms: 'Terms of Service',
-  aboutLicense: 'Licensed under the GNU General Public License v3.'
+  aboutLicense: 'Licensed under the GNU General Public License v3.',
+  songDetails: 'Song details',
+  filterAll: 'All',
+  filterLocal: 'Local',
+  filterSynced: 'Synced',
+  filterRemote: 'Remote',
+  sortBy: 'Sort by',
+  sortByName: 'Name',
+  sortByRecent: 'Recent',
+  sortByStems: 'Stems',
+  selectedCount: '{count} selected',
+  noMatchingSongs: 'No songs match your search',
+  status: 'Status',
+  syncStatus: 'Sync status',
+  syncStateSynced: 'Synced',  duration: 'Duration',
+  lastOpened: 'Last opened'
 }
 
-const es: Record<keyof typeof en, string> = {
+const es: Partial<Record<keyof typeof en, string>> = {
   close: 'Cerrar',
   cancel: 'Cancelar',
   delete: 'Eliminar',
@@ -231,7 +268,7 @@ const es: Record<keyof typeof en, string> = {
   aboutLicense: 'Licenciado bajo la Licencia Pública General de GNU v3.'
 }
 
-const pt: Record<keyof typeof en, string> = {
+const pt: Partial<Record<keyof typeof en, string>> = {
   close: 'Fechar',
   cancel: 'Cancelar',
   delete: 'Excluir',
@@ -345,7 +382,7 @@ const pt: Record<keyof typeof en, string> = {
   aboutLicense: 'Licenciado sob a Licença Pública Geral GNU v3.'
 }
 
-const ru: Record<keyof typeof en, string> = {
+const ru: Partial<Record<keyof typeof en, string>> = {
   close: 'Закрыть',
   cancel: 'Отмена',
   delete: 'Удалить',
@@ -459,7 +496,7 @@ const ru: Record<keyof typeof en, string> = {
   aboutLicense: 'Лицензия GNU GPL v3.'
 }
 
-const ja: Record<keyof typeof en, string> = {
+const ja: Partial<Record<keyof typeof en, string>> = {
   close: '閉じる',
   cancel: 'キャンセル',
   delete: '削除',
@@ -573,7 +610,7 @@ const ja: Record<keyof typeof en, string> = {
   aboutLicense: 'GNU General Public License v3 の下でライセンスされています。'
 }
 
-const ko: Record<keyof typeof en, string> = {
+const ko: Partial<Record<keyof typeof en, string>> = {
   close: '닫기',
   cancel: '취소',
   delete: '삭제',
@@ -687,7 +724,7 @@ const ko: Record<keyof typeof en, string> = {
   aboutLicense: 'GNU General Public License v3에 따라 라이선스가 부여됩니다.'
 }
 
-const fr: Record<keyof typeof en, string> = {
+const fr: Partial<Record<keyof typeof en, string>> = {
   close: 'Fermer',
   cancel: 'Annuler',
   delete: 'Supprimer',
@@ -801,7 +838,7 @@ const fr: Record<keyof typeof en, string> = {
   aboutLicense: 'Sous licence GNU General Public License v3.'
 }
 
-const zh: Record<keyof typeof en, string> = {
+const zh: Partial<Record<keyof typeof en, string>> = {
   close: '关闭',
   cancel: '取消',
   delete: '删除',
@@ -915,7 +952,7 @@ const zh: Record<keyof typeof en, string> = {
   aboutLicense: '根据 GNU General Public License v3 授权。'
 }
 
-const de: Record<keyof typeof en, string> = {
+const de: Partial<Record<keyof typeof en, string>> = {
   close: 'Schließen',
   cancel: 'Abbrechen',
   delete: 'Löschen',
@@ -1029,7 +1066,7 @@ const de: Record<keyof typeof en, string> = {
   aboutLicense: 'Lizenziert unter der GNU General Public License v3.'
 }
 
-const eo: Record<keyof typeof en, string> = {
+const eo: Partial<Record<keyof typeof en, string>> = {
   close: 'Fermi',
   cancel: 'Nuligi',
   delete: 'Forigi',
@@ -1143,14 +1180,14 @@ const eo: Record<keyof typeof en, string> = {
   aboutLicense: 'Licencita sub la GNU General Public License v3.'
 }
 
-const dictionaries: Record<Language, typeof en> = { en, es, pt, ru, ja, ko, fr, zh, de, eo }
+const dictionaries: Record<Language, Partial<typeof en>> = { en, es, pt, ru, ja, ko, fr, zh, de, eo }
 
 export type TranslationKey = keyof typeof en
 
 export function useTranslation() {
   const language = useSettingsStore((store) => store.language)
   return useMemo(() => (key: TranslationKey, vars?: Record<string, string | number>) => {
-    let text: string = dictionaries[language][key] ?? key
+    let text: string = dictionaries[language]?.[key] ?? en[key] ?? key
     if (vars) {
       for (const [name, value] of Object.entries(vars)) text = text.replaceAll(`{${name}}`, String(value))
     }

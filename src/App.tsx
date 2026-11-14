@@ -89,6 +89,7 @@ export default function App() {
   const [confirmDialog, setConfirmDialog] = useState<ConfirmData>()
   const [draggedTrackId, setDraggedTrackId] = useState<string>()
   const [duplicateSong, setDuplicateSong] = useState<{ name: string; display: string }>()
+  const [conflictName, setConflictName] = useState<string | undefined>()
   const duplicateDialogRef = useRef<HTMLDivElement>(null)
   const duplicateResolveRef = useRef<((decision: 'replace' | 'keep' | undefined) => void) | null>(null)
   const resolveDuplicate = useCallback((decision: 'replace' | 'keep' | undefined) => {
@@ -97,6 +98,7 @@ export default function App() {
     duplicateResolveRef.current = null
   }, [])
   const [exportingMix, setExportingMix] = useState(false)
+  const [exportingStems, setExportingStems] = useState(false)
   const [notice, setNotice] = useState<string>()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
@@ -126,6 +128,9 @@ export default function App() {
     void library.hydrate().then(() => useSyncStore.getState().init())
     // Ask Chromium to make storage durable so eviction pressure never drops songs.
     void navigator.storage?.persist?.()
+    void navigator.storage?.estimate?.().then((estimate) => {
+      if (estimate?.quota) setStorage({ usage: estimate.usage ?? 0, quota: estimate.quota })
+    })
     if (!window.api) {
       setError(t('electronBridgeError'))
       return
@@ -233,6 +238,11 @@ export default function App() {
       if (estimate?.quota) setStorage({ usage: estimate.usage ?? 0, quota: estimate.quota })
     })
   }, [settingsOpen])
+
+  // Surface the first unresolved sync conflict as a dialog.
+  useEffect(() => {
+    if (sync.conflicts.length && !conflictName) setConflictName(sync.conflicts[0])
+  }, [sync.conflicts, conflictName])
 
 
 
@@ -491,6 +501,68 @@ export default function App() {
     })
   }, [activeSong, engine, library, setTransport, t])
 
+  const bulkDeleteSongs = useCallback((songsToDelete: Song[]) => {
+    if (!songsToDelete.length) return
+    setConfirmDialog({
+      title: t('deleteSongTitle'),
+      body: t('deleteSongsBody', { count: songsToDelete.length }),
+      action: async () => {
+        try {
+          for (const song of songsToDelete) {
+            await library.deleteSong(song.name)
+            void deletePracticeState(song.name)
+          }
+          if (songsToDelete.some((s) => s.name === activeSong)) {
+            engine.stop()
+            engine.setLoopRange()
+            setActiveSong(undefined)
+            setTracks([])
+            setLoopRange(undefined)
+            setLooping(false)
+            setTransport({ currentTime: 0, duration: 0, isPlaying: false })
+          }
+        } catch (reason) {
+          const message = reason instanceof Error ? reason.message : t('unknownDeletionError')
+          setError(t('deleteSongFailed', { name: songsToDelete[0].name, message }))
+        }
+      },
+    })
+  }, [activeSong, engine, library, setTransport, t])
+
+  const bulkSyncSongs = useCallback((songsToSync: Song[]) => {
+    songsToSync.forEach((song) => {
+      if (!song.remoteOnly && !sync.syncedNames.has(song.name)) void sync.backupSong(song.name)
+    })
+  }, [sync])
+
+  const bulkDownloadSongs = useCallback((songsToDownload: Song[]) => {
+    const remote = songsToDownload.filter((s) => s.remoteOnly)
+    if (!remote.length) return
+    if (!sync.connected) {
+      setError(t('driveSongOffline'))
+      return
+    }
+    setDownloading({ name: '', percent: 0 })
+    void (async () => {
+      try {
+        for (const song of remote) {
+          await sync.downloadSong(song.name, (percent) => setDownloading({ name: song.name, percent }))
+        }
+      } catch (reason) {
+        const message = reason instanceof Error ? reason.message : String(reason)
+        setError(t('loadSongFailed', { name: 'Google Drive', message }))
+      } finally {
+        setDownloading(undefined)
+      }
+    })()
+  }, [sync, t])
+
+  const bulkEvictSongs = useCallback((songsToEvict: Song[]) => {
+    songsToEvict.forEach((song) => {
+      if (!song.remoteOnly && sync.syncedNames.has(song.name)) void sync.freeUpSpace(song.name)
+    })
+  }, [sync])
+
   const deleteStem = useCallback((track: TrackState) => {
     if (!track || !activeSong) return
     const stemTitle = track.name.replace(/\.[^.]+$/, '')
@@ -537,7 +609,28 @@ export default function App() {
     }
   }, [activeSong, tracks, exportingMix, engine, t])
 
+  const exportStems = useCallback(async () => {
+    if (!activeSong || !tracks.length || exportingStems) return
+    setExportingStems(true)
+    setError(undefined)
+    setNotice(undefined)
+    try {
+      const stems = await Promise.all(tracks.map(async (track) => ({
+        name: track.name,
+        data: new Uint8Array(await library.getStemBuffer(activeSong, track.name)),
+      })))
+      const savedPath = await window.api.exportStems(activeSong, stems)
+      if (savedPath) setNotice(t('stemsExported', { path: savedPath }))
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : t('unknownExportError')
+      setError(t('exportFailed', { message }))
+    } finally {
+      setExportingStems(false)
+    }
+  }, [activeSong, tracks, exportingStems, library, t])
+
   const handleExportMix = useCallback(() => { void exportMix() }, [exportMix])
+  const handleExportStems = useCallback(() => { void exportStems() }, [exportStems])
 
   const updateTrack = useCallback((trackId: string, patch: Partial<Pick<TrackState, 'volume' | 'pan' | 'muted' | 'soloed'>>) => {
     engine.updateTrack(trackId, patch)
@@ -598,9 +691,9 @@ export default function App() {
 
   return (
     <main className="app-shell">
-      <TitleBar onOpenSettings={openSettings} onOpenAbout={openAbout} drive={{ connected: sync.connected, syncing: sync.syncing, error: sync.error }} onOpenDrive={openSettings} />
+      <TitleBar onOpenSettings={openSettings} onOpenAbout={openAbout} drive={{ connected: sync.connected, syncing: sync.syncing, error: sync.error, pendingChanges: sync.pendingChanges }} onOpenDrive={openSettings} />
       <div className="app-content">
-        <Sidebar songs={library.songs} activeSong={activeSong} loading={library.loading} importing={importing} cancelling={cancelling} importProgress={importProgress} importStage={importStage} syncedNames={sync.syncedNames} driveConnected={sync.connected} downloading={downloading} remoteCount={library.songs.filter((song) => song.remoteOnly).length} onDriveRemove={(song) => { void sync.removeBackup(song.name) }} onDriveSync={(song) => { void sync.backupSong(song.name) }} onEvict={(song) => { void sync.freeUpSpace(song.name) }} onDriveDownload={(song) => { void selectSong(song) }} onDownloadAll={downloadAllRemote} onSelect={selectSong} onImport={openImportSource} onCancelImport={cancelImport} onRename={openRenameDialog} onDelete={deleteSong} />
+        <Sidebar songs={library.songs} activeSong={activeSong} loading={library.loading} importing={importing} cancelling={cancelling} importProgress={importProgress} importStage={importStage} syncedNames={sync.syncedNames} driveConnected={sync.connected} downloading={downloading} remoteCount={library.songs.filter((song) => song.remoteOnly).length} onDriveRemove={(song) => { void sync.removeBackup(song.name) }} onDriveSync={(song) => { void sync.backupSong(song.name) }} onEvict={(song) => { void sync.freeUpSpace(song.name) }} onDriveDownload={(song) => { void selectSong(song) }} onDownloadAll={downloadAllRemote} onSelect={selectSong} onImport={openImportSource} onCancelImport={cancelImport} onRename={openRenameDialog} onDelete={deleteSong} onBulkDelete={bulkDeleteSongs} onBulkSync={bulkSyncSongs} onBulkDownload={bulkDownloadSongs} onBulkEvict={bulkEvictSongs} />
         <div className="workspace">
         <div className="timeline-header"><span>TRACK</span><span>{activeSong ? songDisplayName(activeSong) : t('selectSongHint')}</span></div>
         {(error || library.unavailable) && <div className="error-message" role="alert">{error ?? t('readingLibraryFailed', { message: library.unavailable ?? '' })}</div>}
@@ -632,7 +725,9 @@ export default function App() {
           looping={looping}
           onToggleLoop={toggleLoop}
           exportingMix={exportingMix}
+          exportingStems={exportingStems}
           onExportMix={handleExportMix}
+          onExportStems={handleExportStems}
         />
         </div>
       </div>
@@ -677,6 +772,19 @@ export default function App() {
               <button type="button" onClick={() => resolveDuplicate(undefined)}>{t('cancel')}</button>
               <button type="button" className="primary-button danger" onClick={() => resolveDuplicate('replace')}>{t('replaceSong')}</button>
               <button type="button" autoFocus className="primary-button" onClick={() => resolveDuplicate('keep')}>{t('keepBoth')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {conflictName && (
+        <div className="dialog-backdrop" role="presentation" onClick={() => setConflictName(undefined)}>
+          <div className="rename-dialog confirm-dialog" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="conflict-title">
+            <h2 id="conflict-title">{t('conflictTitle')}</h2>
+            <p id="conflict-body">{t('conflictBody', { name: conflictName })}</p>
+            <div className="dialog-actions">
+              <button type="button" onClick={() => { void sync.resolveConflict(conflictName, 'local'); setConflictName(undefined) }}>{t('keepLocal')}</button>
+              <button type="button" onClick={() => { void sync.resolveConflict(conflictName, 'remote'); setConflictName(undefined) }}>{t('keepRemote')}</button>
+              <button type="button" autoFocus className="primary-button" onClick={() => { void sync.resolveConflict(conflictName, 'both'); setConflictName(undefined) }}>{t('keepBoth')}</button>
             </div>
           </div>
         </div>
@@ -762,9 +870,13 @@ export default function App() {
                 </div>
               )}
               {sync.error && <small className="drive-error" role="alert">{t('driveSyncFailed', { message: sync.error })}</small>}
+              {sync.pendingChanges > 0 && <small className="storage-usage">{t('pendingChanges', { count: sync.pendingChanges })}</small>}
             </div>
             <div className="settings-section" role="group" aria-label={t('storage')}>
               <span className="settings-section-label">{t('storage')}</span>
+              {storage && storage.usage / storage.quota >= 0.8 && (
+                <small className="storage-warning" role="alert">{t('storageWarning', { percent: Math.round((storage.usage / storage.quota) * 100) })}</small>
+              )}
               {storage ? (
                 <>
                   <div className="storage-bar">
@@ -782,6 +894,15 @@ export default function App() {
                     void navigator.storage?.estimate?.().then((e) => { if (e?.quota) setStorage({ usage: e.usage ?? 0, quota: e.quota }) })
                   })
                 }}>{t('storageFreeOldest')}</button>
+              </div>
+            </div>
+            <div className="settings-section" role="group" aria-label={t('syncLegendTitle')}>
+              <span className="settings-section-label">{t('syncLegendTitle')}</span>
+              <div className="sync-legend">
+                <span className="sync-pill sync-pill-local">{t('syncPillLocal')}</span>
+                <span className="sync-pill sync-pill-synced">{t('syncPillSynced')}</span>
+                <span className="sync-pill sync-pill-remote">{t('syncPillRemote')}</span>
+                <span className="sync-pill sync-pill-downloading">{t('syncPillDownloading')}</span>
               </div>
             </div>
             <p className="settings-footer">

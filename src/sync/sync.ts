@@ -120,7 +120,7 @@ async function reconcileFile(options: {
   remote: ManifestFile | undefined
   snapshot: ManifestFile | undefined
   localSha?: string
-}): Promise<{ file: ManifestFile; repull?: boolean }> {
+}): Promise<{ file: ManifestFile; repull?: boolean; conflict?: boolean }> {
   const { name, local, remote, snapshot, localSha } = options
   if (!local) {
     // No local data: the remote is the only source of truth → re-pull.
@@ -135,6 +135,10 @@ async function reconcileFile(options: {
   if (remote.sha256 === sha) return { file: remote }
   // Locally unchanged since the snapshot: the remote changed → re-pull.
   if (snapshot?.sha256 === sha) return { file: remote, repull: true }
+  // Both sides diverged since the snapshot: surface a conflict instead of silently overwriting.
+  if (snapshot?.sha256 && snapshot.sha256 !== remote.sha256 && snapshot.sha256 !== sha && remote.sha256 !== sha) {
+    return { file: remote, conflict: true }
+  }
   // Local changed (first sync or remote-also-changed): the local side wins.
   return { file: await uploadFile(name, local.mime, local.bytes, sha, remote.fileId) }
 }
@@ -200,7 +204,7 @@ async function pushSong(record: SongRecord): Promise<ManifestSong> {
 }
 
 /** Reconcile a song that exists on both sides, returning its manifest entry. */
-async function reconcileSong(record: SongRecord, entry: ManifestSong, snapshotSong: ManifestSong | undefined): Promise<ManifestSong> {
+async function reconcileSong(record: SongRecord, entry: ManifestSong, snapshotSong: ManifestSong | undefined, conflicts?: string[]): Promise<ManifestSong> {
   const remoteStems = entry.stems ?? {}
   const snapshotStems = snapshotSong?.stems ?? {}
 
@@ -213,11 +217,19 @@ async function reconcileSong(record: SongRecord, entry: ManifestSong, snapshotSo
       remote: entry.json,
       snapshot: snapshotSong?.json,
     })
+    if (jsonResult.conflict) {
+      conflicts?.push(record.name)
+      return entry
+    }
     if (jsonResult.repull) await refreshRemoteSongMeta(record, entry)
     let cover = entry.cover
     if (record.coverFileId && entry.cover) {
       const local = await getLocalFile(record.coverFileId)
       const coverResult = await reconcileFile({ name: coverFileName(record.name), local, remote: entry.cover, snapshot: snapshotSong?.cover })
+      if (coverResult.conflict) {
+        conflicts?.push(record.name)
+        return entry
+      }
       if (coverResult.repull && local) {
         const bytes = await window.api.driveDownload(entry.cover.fileId)
         await useLibraryStore.getState().applyStemFiles(record.name, [], bytes)
@@ -230,6 +242,7 @@ async function reconcileSong(record: SongRecord, entry: ManifestSong, snapshotSo
   const stems: Record<string, ManifestFile> = {}
   const removedRemote: string[] = []
   let repull = false
+  let conflict = false
 
   for (const [stemName, fileId] of Object.entries(record.stems)) {
     if (fileId === null) continue // Evicted stems are handled by the remote-only branch.
@@ -240,6 +253,7 @@ async function reconcileSong(record: SongRecord, entry: ManifestSong, snapshotSo
       remote: remoteStems[stemName],
       snapshot: snapshotStems[stemName],
     })
+    if (result.conflict) conflict = true
     if (result.repull) repull = true
     stems[stemName] = result.file
   }
@@ -257,10 +271,16 @@ async function reconcileSong(record: SongRecord, entry: ManifestSong, snapshotSo
       remote: entry.cover,
       snapshot: snapshotSong?.cover,
     })
+    if (result.conflict) conflict = true
     if (result.repull) repull = true
     cover = result.file
   } else if (entry.cover) {
     removedRemote.push(entry.cover.fileId)
+  }
+
+  if (conflict) {
+    conflicts?.push(record.name)
+    return entry
   }
 
   if (repull) {
@@ -280,6 +300,10 @@ async function reconcileSong(record: SongRecord, entry: ManifestSong, snapshotSo
     remote: entry.json,
     snapshot: snapshotSong?.json,
   })
+  if (jsonResult.conflict) {
+    conflicts?.push(record.name)
+    return entry
+  }
   if (jsonResult.repull) {
     await Promise.allSettled(removedRemote.map((fileId) => window.api.driveDelete(fileId)))
     const pulledEntry = pruneRemoved(entry, removedRemote)
@@ -452,7 +476,7 @@ export async function backupSongToDrive(slug: string): Promise<Set<string>> {
 }
 
 /** Run one full two-way sync. Throws on any failure; the caller owns state. Returns the synced song slugs. */
-export async function syncLibrary(): Promise<Set<string>> {
+export async function syncLibrary(): Promise<{ syncedNames: Set<string>; conflicts: string[] }> {
   const status = await window.api.driveStatus()
   if (!status.connected) throw new Error('Google Drive is not connected.')
 
@@ -502,6 +526,7 @@ export async function syncLibrary(): Promise<Set<string>> {
 
   // --- Reconcile/push local songs ---
   const localRecords = [...useLibraryStore.getState().records.values()]
+  const conflicts: string[] = []
   const songs: Record<string, ManifestSong> = {}
   const excludedRemovals: ManifestSong[] = []
   for (const [slug, entry] of Object.entries(manifest.songs)) {
@@ -520,7 +545,7 @@ export async function syncLibrary(): Promise<Set<string>> {
     if (record.remoteOnly && !entry) continue
     const snapshotSong = snapshot.songs?.[record.name]
     songs[record.name] = entry
-      ? await reconcileSong(record, entry, snapshotSong)
+      ? await reconcileSong(record, entry, snapshotSong, conflicts)
       : await pushSong(record)
   }
   await Promise.allSettled(excludedRemovals.flatMap((entry) => [
@@ -536,7 +561,7 @@ export async function syncLibrary(): Promise<Set<string>> {
   await setKv(MANIFEST_SNAPSHOT_KEY, finalManifest)
   await clearAllTombstones()
   await setKv(LAST_SYNCED_KEY, Date.now())
-  return new Set(Object.keys(songs))
+  return { syncedNames: new Set(Object.keys(songs)), conflicts }
 }
 
 /** Last successful sync time (epoch ms), if any. */

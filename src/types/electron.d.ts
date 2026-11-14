@@ -34,6 +34,7 @@ declare global {
       prepareYouTubeImport: (url: string) => Promise<{ sourceName: string; thumbnailPath?: string }>
       separateStems: (sourceName: string, audio: StereoAudio, thumbnailPath?: string) => Promise<SeparationResult>
       exportMix: (songName: string, wav: Uint8Array) => Promise<string | null>
+      exportStems: (songName: string, stems: Array<{ name: string; data: Uint8Array }>) => Promise<string | null>
       readFileBuffer: (filePath: string) => Promise<ArrayBuffer>
       stageFileBuffer: (fileName: string, bytes: Uint8Array) => Promise<string>
       driveStatus: () => Promise<{ connected: boolean; account?: string }>
