@@ -234,16 +234,7 @@ export default function App() {
     })
   }, [settingsOpen])
 
-  // Surface auto-sync success as a toast.
-  useEffect(() => {
-    if (!sync.notify) return
-    setNotice(t('librarySynced'))
-    const timer = window.setTimeout(() => {
-      setNotice(undefined)
-      sync.clearNotify()
-    }, 3000)
-    return () => window.clearTimeout(timer)
-  }, [sync.notify, t])
+
 
   const selectSong = useCallback(async (song: Song) => {
     setLoadingSong(song.name)

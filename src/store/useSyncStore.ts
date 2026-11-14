@@ -17,7 +17,6 @@ interface SyncStore {
   /** Songs backed up on Drive per the last synced manifest (badge in the sidebar). */
   syncedNames: Set<string>
   error?: string
-  notify?: string
   /** Load connection state + last sync time; called once at startup after the library hydrates. */
   init: () => Promise<void>
   connect: () => Promise<void>
@@ -38,7 +37,6 @@ interface SyncStore {
   /** Rename a remote-only song on Drive, then locally. */
   renameRemoteSong: (oldName: string, newName: string) => Promise<void>
   /** Clear the auto-sync toast notice. */
-  clearNotify: () => void
   /** Debounced background sync after library changes or on startup. */
   scheduleSync: () => void
 }
@@ -143,8 +141,6 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
     return freed
   },
 
-  clearNotify: () => set({ notify: undefined }),
-
   renameRemoteSong: async (oldName, newName) => {
     const synced = await renameSongOnDrive(oldName, newName)
     await useLibraryStore.getState().renameSongName(oldName, newName)
@@ -170,7 +166,7 @@ async function runSync(
   set({ syncing: true, error: undefined })
   try {
     const syncedNames = await action()
-    set({ lastSyncedAt: Date.now(), syncedNames, ...(auto ? { notify: 'synced' } : {}) })
+    set({ lastSyncedAt: Date.now(), syncedNames })
   } catch (reason) {
     set({ error: reason instanceof Error ? reason.message : String(reason) })
   } finally {
