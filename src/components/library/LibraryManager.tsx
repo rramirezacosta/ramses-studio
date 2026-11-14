@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { CloudDownload, CloudOff, CloudUpload, FilePenLine, FilePlus2, HardDrive, HardDriveDownload, Search, Trash2, Info, ArrowUpDown, X } from 'lucide-react'
+import { CloudDownload, CloudOff, CloudUpload, FilePenLine, FilePlus2, HardDrive, HardDriveDownload, Search, Trash2, Info, ArrowUpDown, X, Music } from 'lucide-react'
 import { DriveLogo } from '../drive/DriveLogo'
 import { useTranslation } from '../../i18n'
 import { parseSongName, songDisplayName } from '../../utils/songName'
@@ -197,8 +197,26 @@ export const LibraryManager = memo(function LibraryManager(props: Props) {
             ))}
           </div>
         ) : props.songs.length === 0 ? (
-          <div className="empty-state">
-            <p>{t('noSongs')}</p>
+          <div className="empty-state library-empty-state">
+            <div className="library-empty-header">
+              <h3>{t('libraryEmptyTitle')}</h3>
+              <p>{t('libraryEmptySubtitle')}</p>
+            </div>
+            <div className="library-empty-steps">
+              <h4>{t('libraryEmptyHowItWorks')}</h4>
+              <div className="library-empty-step">
+                <span className="library-empty-step-number">1</span>
+                <span>{t('libraryEmptyStep1')}</span>
+              </div>
+              <div className="library-empty-step">
+                <span className="library-empty-step-number">2</span>
+                <span>{t('libraryEmptyStep2')}</span>
+              </div>
+              <div className="library-empty-step">
+                <span className="library-empty-step-number">3</span>
+                <span>{t('libraryEmptyStep3')}</span>
+              </div>
+            </div>
             <button type="button" className="primary-button" onClick={props.onImport}>{t('importSong')}</button>
           </div>
         ) : visibleSongs.length === 0 ? (

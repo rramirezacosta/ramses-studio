@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { CloudDownload, CloudOff, CloudUpload, FilePenLine, FilePlus2, HardDrive, HardDriveDownload, Search, Trash2, Info, Check, ArrowUpDown, Filter } from 'lucide-react'
+import { CloudDownload, CloudOff, CloudUpload, FilePenLine, FilePlus2, HardDrive, HardDriveDownload, Search, Trash2, Info, Check, ArrowUpDown, Filter, Music, Wand2, Headphones, Cloud } from 'lucide-react'
 import { DriveLogo } from '../drive/DriveLogo'
 import logo from '../../assets/logo.png'
 import { useTranslation } from '../../i18n'
@@ -236,8 +236,34 @@ export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, impor
         </div>
       )}
       {!loading && songs.length === 0 && (
-        <div className="empty-state">
-          <button type="button" className="primary-button empty-state-cta" onClick={onImport}>{t('emptyStateCta')}</button>
+        <div className="empty-state onboarding-empty">
+          <div className="onboarding-header">
+            <h3>{t('emptyStateTitle')}</h3>
+            <p>{t('emptyStateSubtitle')}</p>
+          </div>
+          <div className="onboarding-steps">
+            <div className="onboarding-step">
+              <span className="onboarding-step-icon"><Music size={18} /></span>
+              <div>
+                <strong>{t('onboardingStep1Title')}</strong>
+                <span>{t('onboardingStep1Desc')}</span>
+              </div>
+            </div>
+            <div className="onboarding-step">
+              <span className="onboarding-step-icon"><Wand2 size={18} /></span>
+              <div>
+                <strong>{t('onboardingStep2Title')}</strong>
+                <span>{t('onboardingStep2Desc')}</span>
+              </div>
+            </div>
+            <div className="onboarding-step">
+              <span className="onboarding-step-icon"><Headphones size={18} /></span>
+              <div>
+                <strong>{t('onboardingStep3Title')}</strong>
+                <span>{t('onboardingStep3Desc')}</span>
+              </div>
+            </div>
+          </div>
         </div>
       )}
       {!loading && songs.length > 0 && visibleSongs.length === 0 && (

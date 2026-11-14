@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Download, Headphones, Repeat2, SlidersVertical, VolumeX } from 'lucide-react'
 import { AudioEngine } from './audio/AudioEngine'
 import { TrackLane } from './components/daw/TrackLane'
 import { Sidebar } from './components/layout/Sidebar'
@@ -696,44 +697,79 @@ export default function App() {
 
   return (
     <main className="app-shell">
-      <TitleBar onOpenSettings={openSettings} onOpenAbout={openAbout} drive={{ connected: sync.connected, syncing: sync.syncing, error: sync.error, pendingChanges: sync.pendingChanges }} onOpenDrive={() => setLibraryManageOpen(true)} />
+      <TitleBar onOpenSettings={openSettings} onOpenAbout={openAbout} drive={library.songs.length === 0 ? undefined : { connected: sync.connected, syncing: sync.syncing, error: sync.error, pendingChanges: sync.pendingChanges }} onOpenDrive={() => setLibraryManageOpen(true)} />
       <div className="app-content">
         <Sidebar songs={library.songs} activeSong={activeSong} loading={library.loading} importing={importing} cancelling={cancelling} importProgress={importProgress} importStage={importStage} syncedNames={sync.syncedNames} driveConnected={sync.connected} downloading={downloading} remoteCount={library.songs.filter((song) => song.remoteOnly).length} onDriveRemove={(song) => { void sync.removeBackup(song.name) }} onDriveSync={(song) => { void sync.backupSong(song.name) }} onEvict={(song) => { void sync.freeUpSpace(song.name) }} onDriveDownload={(song) => { void selectSong(song) }} onDownloadAll={downloadAllRemote} onSelect={selectSong} onImport={openImportSource} onCancelImport={cancelImport} onRename={openRenameDialog} onDelete={deleteSong} onBulkDelete={bulkDeleteSongs} onBulkSync={bulkSyncSongs} onBulkDownload={bulkDownloadSongs} onBulkEvict={bulkEvictSongs} />
         <div className="workspace">
-        <div className="timeline-header"><span>TRACK</span><span>{activeSong ? songDisplayName(activeSong) : t('selectSongHint')}</span></div>
-        {(error || library.unavailable) && <div className="error-message" role="alert">{error ?? t('readingLibraryFailed', { message: library.unavailable ?? '' })}</div>}
-        {notice && <div className="status-message" role="status">{notice}</div>}
-        <div className="tracks">
-          {tracks.map((track, index) => (
-            <TrackLane key={track.id} track={track} index={index}
+        {library.songs.length === 0 && !library.loading ? (
+          <div className="welcome">
+            <img className="welcome-logo" src={appIcon} alt="Ramses Studio" />
+            <h1>{t('welcomeTitle')}</h1>
+            <p>{t('welcomeBody')}</p>
+            <div className="welcome-features">
+              <h3>{t('welcomeFeatureTitle')}</h3>
+              <div className="welcome-feature-grid">
+                <div className="welcome-feature-card">
+                  <span className="welcome-feature-icon"><VolumeX size={18} /></span>
+                  <span>{t('welcomeMuteStems')}</span>
+                </div>
+                <div className="welcome-feature-card">
+                  <span className="welcome-feature-icon"><Repeat2 size={18} /></span>
+                  <span>{t('welcomeLoopSection')}</span>
+                </div>
+                <div className="welcome-feature-card">
+                  <span className="welcome-feature-icon"><SlidersVertical size={18} /></span>
+                  <span>{t('welcomeAdjustVolume')}</span>
+                </div>
+                <div className="welcome-feature-card">
+                  <span className="welcome-feature-icon"><Download size={18} /></span>
+                  <span>{t('welcomeExportMix')}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="timeline-header"><span>TRACK</span><span>{activeSong ? songDisplayName(activeSong) : t('selectSongHint')}</span></div>
+            {(error || library.unavailable) && <div className="error-message" role="alert">{error ?? t('readingLibraryFailed', { message: library.unavailable ?? '' })}</div>}
+            {notice && <div className="status-message" role="status">{notice}</div>}
+            <div className="tracks">
+              {tracks.map((track, index) => (
+                <TrackLane key={track.id} track={track} index={index}
+                  onSeek={seek}
+                  loopRange={loopRange}
+                  onRangeChange={updateLoopRange}
+                  onRangeCommit={startLoopRange}
+                  onClearRange={clearLoopRange}
+                  onRemove={deleteStem}
+                  dragging={draggedTrackId === track.id}
+                  onDragStart={setDraggedTrackId}
+                  onDragEnd={endTrackDrag}
+                  onDrop={reorderTracks}
+                  onUpdate={updateTrack}
+                />
+              ))}
+              {!tracks.length && (
+                <div className="empty-state">
+                  <p>{t('selectSongHint')}</p>
+                </div>
+              )}
+            </div>
+            <TransportBar
+              onPlayPause={togglePlayback}
+              onStop={stopPlayback}
               onSeek={seek}
+              onMasterVolume={setMasterVolume}
               loopRange={loopRange}
-              onRangeChange={updateLoopRange}
-              onRangeCommit={startLoopRange}
-              onClearRange={clearLoopRange}
-              onRemove={deleteStem}
-              dragging={draggedTrackId === track.id}
-              onDragStart={setDraggedTrackId}
-              onDragEnd={endTrackDrag}
-              onDrop={reorderTracks}
-              onUpdate={updateTrack}
+              looping={looping}
+              onToggleLoop={toggleLoop}
+              exportingMix={exportingMix}
+              exportingStems={exportingStems}
+              onExportMix={handleExportMix}
+              onExportStems={handleExportStems}
             />
-          ))}
-          {!library.loading && !tracks.length && <div className="welcome"><h1>{t('welcomeTitle')}</h1><p>{t('welcomeBody')}</p></div>}
-        </div>
-        <TransportBar
-          onPlayPause={togglePlayback}
-          onStop={stopPlayback}
-          onSeek={seek}
-          onMasterVolume={setMasterVolume}
-          loopRange={loopRange}
-          looping={looping}
-          onToggleLoop={toggleLoop}
-          exportingMix={exportingMix}
-          exportingStems={exportingStems}
-          onExportMix={handleExportMix}
-          onExportStems={handleExportStems}
-        />
+          </>
+        )}
         </div>
       </div>
       {dragOver && (
