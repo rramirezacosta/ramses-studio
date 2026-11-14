@@ -807,6 +807,8 @@ export default function App() {
             <p className="about-license">{t('aboutLicense')}</p>
             <div className="about-links">
               <a href="https://github.com/rramirezacosta/ramses-studio" target="_blank" rel="noopener noreferrer">{t('aboutSource')}</a>
+              <a href="https://rramirezacosta.github.io/ramses-studio/privacy.html" target="_blank" rel="noopener noreferrer">{t('aboutPrivacy')}</a>
+              <a href="https://rramirezacosta.github.io/ramses-studio/terms.html" target="_blank" rel="noopener noreferrer">{t('aboutTerms')}</a>
             </div>
             <div className="dialog-actions">
               <button type="button" autoFocus onClick={() => setAboutOpen(false)} className="primary-button settings-close">{t('close')}</button>

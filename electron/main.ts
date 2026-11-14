@@ -1,6 +1,6 @@
 import { execFile as execFileCallback } from 'node:child_process'
 import { promisify } from 'node:util'
-import { app, BrowserWindow, ipcMain, Menu } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { registerStemImportIpc } from './ipc/stemImport'
@@ -74,6 +74,12 @@ function createWindow() {
     },
   })
   mainWindow.setMenuBarVisibility(false)
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//i.test(url)) {
+      void shell.openExternal(url)
+    }
+    return { action: 'deny' }
+  })
 
   const devServerUrl = process.env.VITE_DEV_SERVER_URL
   if (devServerUrl) {
