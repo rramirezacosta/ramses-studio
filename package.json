@@ -13,7 +13,8 @@
     "package:linux": "npm run build && electron-builder --linux AppImage",
     "package:rpm": "npm run build && electron-builder --linux rpm",
     "package:flatpak": "npm run build && electron-builder --linux flatpak",
-    "package:windows": "npm run build && electron-builder --win portable"
+    "package:windows": "npm run build && electron-builder --win portable",
+    "package:win-installer": "npm run build && electron-builder --win nsis"
   },
   "dependencies": {
     "@ffmpeg/core": "^0.12.10",
@@ -106,7 +107,8 @@
     },
     "win": {
       "target": [
-        "portable"
+        "portable",
+        "nsis"
       ],
       "artifactName": "${productName}-${version}-windows-${arch}.${ext}",
       "files": [
@@ -134,6 +136,11 @@
     "flatpak": {
       "runtimeVersion": "23.08",
       "baseVersion": "23.08"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "${productName}-${version}-windows-setup-${arch}.${ext}"
     }
   }
 }

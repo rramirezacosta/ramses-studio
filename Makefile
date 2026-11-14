@@ -1,4 +1,4 @@
-.PHONY: clean linux windows flatpak rpm packages
+.PHONY: clean linux windows win-installer flatpak rpm packages
 
 clean:
 	rm -rf dist dist-electron release
@@ -15,4 +15,7 @@ rpm:
 windows:
 	npm run package:windows
 
-packages: appimage flatpak rpm windows
+win-installer:
+	npm run package:win-installer
+
+packages: appimage flatpak rpm windows win-installer
