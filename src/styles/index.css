@@ -267,6 +267,7 @@ code { color: #b9b1ff; }
 .drive-last-synced { font-size: 12px; color: #9aa2bd; }
 .drive-actions { display: flex; gap: 8px; }
 .drive-error { color: #ff7a7a; font-size: 12px; }
+.settings-dialog { width: min(460px, 100%); }
 .settings-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 6px; padding-top: 12px; border-top: 1px solid rgba(206, 211, 255, .12); color: #9aa2bd; font-size: 12px; }
 .settings-section-label { color: var(--label-color); font-size: var(--label-size); font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .theme-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }

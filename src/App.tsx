@@ -546,7 +546,7 @@ export default function App() {
       )}
       {settingsOpen && (
         <div className="dialog-backdrop" role="presentation" onClick={() => setSettingsOpen(false)}>
-          <div className="rename-dialog confirm-dialog" ref={settingsDialogRef} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="settings-title">
+          <div className="rename-dialog confirm-dialog settings-dialog" ref={settingsDialogRef} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="settings-title">
             <h2 id="settings-title">{t('settings')}</h2>
             <div className="settings-section" role="group" aria-label={t('theme')}>
               <span className="settings-section-label">{t('theme')}</span>
