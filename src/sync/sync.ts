@@ -20,6 +20,8 @@ const MANIFEST_VERSION = 1
 const MANIFEST_SNAPSHOT_KEY = 'drive-sync-manifest'
 const HASH_CACHE_KEY = 'drive-sync-hashes'
 const LAST_SYNCED_KEY = 'drive-last-synced'
+/** Per-device slugs the user excluded from Drive backup ("Remove from Google Drive"). */
+const EXCLUDED_KEY = 'drive-sync-excluded'
 
 /** Drive file entry inside the manifest. */
 export interface ManifestFile {
@@ -258,6 +260,80 @@ export const syncedSongNames = async (): Promise<Set<string>> => {
   return new Set(Object.keys(snapshot?.songs ?? {}))
 }
 
+/** Slugs this device keeps out of Drive backup; they still sync as deletions. */
+const excludedSlugs = async (): Promise<Set<string>> => new Set((await getKv<string[]>(EXCLUDED_KEY)) ?? [])
+
+async function setExcludedSlugs(slugs: Set<string>): Promise<void> {
+  await setKv(EXCLUDED_KEY, [...slugs])
+}
+
+/** Delete a song's remote files and drop its manifest entry in one pass. */
+async function deleteSongRemotely(manifest: Manifest, entry: ManifestSong): Promise<Manifest> {
+  const fileIds = [entry.json.fileId, ...Object.values(entry.stems ?? {}).map((meta) => meta.fileId), ...(entry.cover ? [entry.cover.fileId] : [])]
+  await Promise.allSettled(fileIds.map((fileId) => window.api.driveDelete(fileId)))
+  const songs = { ...manifest.songs }
+  delete songs[entry.name]
+  return { ...manifest, songs }
+}
+
+/** Upload the manifest back to Drive and refresh the local snapshot. */
+async function persistManifest(manifest: Manifest, manifestFileId?: string): Promise<Set<string>> {
+  const bytes = encodeJson(manifest)
+  await uploadFile(MANIFEST_NAME, 'application/json', bytes, await sha256Hex(bytes), manifestFileId)
+  await setKv(MANIFEST_SNAPSHOT_KEY, manifest)
+  return new Set(Object.keys(manifest.songs))
+}
+
+/** Shared head of the per-song operations: connection check + remote manifest. */
+async function loadRemoteManifest(): Promise<{ manifest: Manifest; manifestFileId?: string }> {
+  const status = await window.api.driveStatus()
+  if (!status.connected) throw new Error('Google Drive is not connected.')
+  const files = await window.api.driveList()
+  const manifestFile = files.find((file) => file.name === MANIFEST_NAME)
+  const manifest = manifestFile ? parseManifest(await window.api.driveDownload(manifestFile.id)) : EMPTY_MANIFEST
+  return { manifest, ...(manifestFile ? { manifestFileId: manifestFile.id } : {}) }
+}
+
+/**
+ * Remove one song's backup from Drive ("Remove from Google Drive").
+ * Keeps the local copy, deletes the remote files, and remembers the slug so
+ * future syncs stop backing it up from this device. Returns the synced set.
+ */
+export async function removeSongFromDrive(slug: string): Promise<Set<string>> {
+  const excluded = await excludedSlugs()
+  excluded.add(slug)
+  await setExcludedSlugs(excluded)
+
+  const { manifest, manifestFileId } = await loadRemoteManifest()
+  const entry = manifest.songs[slug]
+  if (!entry) return new Set(Object.keys(manifest.songs))
+  return persistManifest(await deleteSongRemotely(manifest, entry), manifestFileId)
+}
+
+/**
+ * Back up one song right now ("Sync with Google Drive"): uploads or
+ * reconciles just this song against the remote manifest and clears any
+ * deletion tombstone or per-device exclusion for it. Returns the synced set.
+ */
+export async function backupSongToDrive(slug: string): Promise<Set<string>> {
+  const record = useLibraryStore.getState().records.get(slug)
+  if (!record) throw new Error(`"${slug}" is not in the local library.`)
+
+  const excluded = await excludedSlugs()
+  excluded.delete(slug)
+  await setExcludedSlugs(excluded)
+
+  const { manifest, manifestFileId } = await loadRemoteManifest()
+  const tombstones = { ...manifest.tombstones }
+  delete tombstones[slug]
+
+  const entry = manifest.songs[slug]
+  const song = entry
+    ? await reconcileSong(record, entry, (await getKv<Manifest>(MANIFEST_SNAPSHOT_KEY))?.songs?.[slug])
+    : await pushSong(record)
+  return persistManifest({ ...manifest, tombstones, songs: { ...manifest.songs, [slug]: song } }, manifestFileId)
+}
+
 /** Run one full two-way sync. Throws on any failure; the caller owns state. Returns the synced song slugs. */
 export async function syncLibrary(): Promise<Set<string>> {
   const status = await window.api.driveStatus()
@@ -272,6 +348,7 @@ export async function syncLibrary(): Promise<Set<string>> {
     ? parseManifest(await window.api.driveDownload(manifestFile.id))
     : { ...EMPTY_MANIFEST, songs: {}, tombstones: {} }
   const snapshot = (await getKv<Manifest>(MANIFEST_SNAPSHOT_KEY)) ?? EMPTY_MANIFEST
+  const excluded = await excludedSlugs()
 
   // --- Tombstones ---
   const pending = await getPendingTombstones()
@@ -300,23 +377,36 @@ export async function syncLibrary(): Promise<Set<string>> {
   // --- Pull songs that only exist remotely ---
   for (const [slug, entry] of Object.entries(manifest.songs)) {
     if (removedSongs.has(slug) || library.records.has(slug)) continue
+    if (excluded.has(slug)) continue // This device opted out of this song's backup.
     await pullSong(slug, entry)
   }
 
   // --- Reconcile/push local songs ---
   const localRecords = [...useLibraryStore.getState().records.values()]
   const songs: Record<string, ManifestSong> = {}
+  const excludedRemovals: ManifestSong[] = []
   for (const [slug, entry] of Object.entries(manifest.songs)) {
-    if (!removedSongs.has(slug)) songs[slug] = entry
+    if (removedSongs.has(slug)) continue
+    if (excluded.has(slug)) {
+      // Opted out here: strip the stale remote backup (files + entry).
+      excludedRemovals.push(entry)
+      continue
+    }
+    songs[slug] = entry
   }
   for (const record of localRecords) {
-    if (tombstones[record.name] !== undefined) continue
+    if (tombstones[record.name] !== undefined || excluded.has(record.name)) continue
     const entry = manifest.songs[record.name]
     const snapshotSong = snapshot.songs?.[record.name]
     songs[record.name] = entry
       ? await reconcileSong(record, entry, snapshotSong)
       : await pushSong(record)
   }
+  await Promise.allSettled(excludedRemovals.flatMap((entry) => [
+    entry.json.fileId,
+    ...Object.values(entry.stems ?? {}).map((meta) => meta.fileId),
+    ...(entry.cover ? [entry.cover.fileId] : []),
+  ]).map((fileId) => window.api.driveDelete(fileId)))
 
   // --- Manifest + bookkeeping ---
   const finalManifest: Manifest = { version: MANIFEST_VERSION, songs, tombstones }

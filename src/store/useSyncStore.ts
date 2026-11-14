@@ -1,5 +1,5 @@
-import { create } from 'zustand'
-import { syncLibrary, lastSyncedAt, syncedSongNames } from '../sync/sync'
+import { create, type StoreApi } from 'zustand'
+import { syncLibrary, lastSyncedAt, syncedSongNames, removeSongFromDrive, backupSongToDrive } from '../sync/sync'
 
 /**
  * Google Drive sync state: connection, last sync time, and scheduling.
@@ -20,6 +20,10 @@ interface SyncStore {
   connect: () => Promise<void>
   disconnect: () => Promise<void>
   syncNow: () => Promise<void>
+  /** Per-song: remove its Drive backup (local copy is kept) and stop backing it up. */
+  removeBackup: (name: string) => Promise<void>
+  /** Per-song: upload or reconcile just this song right now. */
+  backupSong: (name: string) => Promise<void>
   /** Debounced background sync after library changes or on startup. */
   scheduleSync: () => void
 }
@@ -70,15 +74,17 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
 
   syncNow: async () => {
     if (get().syncing || !get().connected) return
-    set({ syncing: true, error: undefined })
-    try {
-      const synced = await syncLibrary()
-      set({ lastSyncedAt: Date.now(), syncedNames: synced })
-    } catch (reason) {
-      set({ error: reason instanceof Error ? reason.message : String(reason) })
-    } finally {
-      set({ syncing: false })
-    }
+    await runSync(set, get, () => syncLibrary())
+  },
+
+  removeBackup: async (name) => {
+    if (get().syncing || !get().connected) return
+    await runSync(set, get, () => removeSongFromDrive(name))
+  },
+
+  backupSong: async (name) => {
+    if (get().syncing || !get().connected) return
+    await runSync(set, get, () => backupSongToDrive(name))
   },
 
   scheduleSync: () => {
@@ -89,3 +95,20 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
     }, AUTO_SYNC_DELAY_MS)
   },
 }))
+
+/** Shared body of every explicit sync action: mutex, last-synced stamp, error line. */
+async function runSync(
+  set: StoreApi<SyncStore>['setState'],
+  get: StoreApi<SyncStore>['getState'],
+  action: () => Promise<Set<string>>,
+): Promise<void> {
+  set({ syncing: true, error: undefined })
+  try {
+    const syncedNames = await action()
+    set({ lastSyncedAt: Date.now(), syncedNames })
+  } catch (reason) {
+    set({ error: reason instanceof Error ? reason.message : String(reason) })
+  } finally {
+    set({ syncing: false })
+  }
+}

@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { FilePenLine, FilePlus2, Search, Trash2 } from 'lucide-react'
+import { CloudOff, CloudUpload, FilePenLine, FilePlus2, Search, Trash2 } from 'lucide-react'
 import logo from '../../assets/logo.png'
 import { useTranslation } from '../../i18n'
 import { parseSongName, songDisplayName } from '../../utils/songName'
@@ -80,6 +80,12 @@ interface Props {
   importStage?: string
   /** Songs backed up on Google Drive (Drive badge on their cover). */
   syncedNames: Set<string>
+  /** Whether Google Drive is connected (Drive menu items appear only then). */
+  driveConnected: boolean
+  /** Remove one song's Drive backup, keeping the local copy. */
+  onDriveRemove: (song: Song) => void
+  /** Upload/reconcile one song on Drive right now. */
+  onDriveSync: (song: Song) => void
   onSelect: (song: Song) => void
   onImport: () => void
   onCancelImport?: () => void
@@ -87,7 +93,7 @@ interface Props {
   onDelete: (song: Song) => void
 }
 
-export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, importing, cancelling, importProgress, importStage, syncedNames, onSelect, onImport, onCancelImport, onRename, onDelete }: Props) {
+export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, importing, cancelling, importProgress, importStage, syncedNames, driveConnected, onDriveRemove, onDriveSync, onSelect, onImport, onCancelImport, onRename, onDelete }: Props) {
   const t = useTranslation()
   const [query, setQuery] = useState('')
   const [importHovered, setImportHovered] = useState(false)
@@ -156,6 +162,15 @@ export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, impor
         // Portal to <body>: the sidebar's backdrop-filter makes it the containing block
         // for position:fixed children, which would offset the menu away from the cursor.
         <div className="song-menu" ref={menuRef} style={{ left: menu.x, top: menu.y }} role="menu" tabIndex={-1} aria-label={t('songLibrary')}>
+          {driveConnected && (syncedNames.has(menu.song.name) ? (
+            <button role="menuitem" onClick={() => { setMenu(undefined); onDriveRemove(menu.song) }}>
+              <CloudOff size={14} /> {t('driveSongRemove')}
+            </button>
+          ) : (
+            <button role="menuitem" onClick={() => { setMenu(undefined); onDriveSync(menu.song) }}>
+              <CloudUpload size={14} /> {t('driveSongSync')}
+            </button>
+          ))}
           <button role="menuitem" onClick={() => { setMenu(undefined); onRename(menu.song) }}>
             <FilePenLine size={14} /> {t('rename')}
           </button>
