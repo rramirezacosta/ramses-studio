@@ -19,6 +19,10 @@ export default defineConfig(() => ({
           build: {
             rollupOptions: { external: ['onnxruntime-node'] },
           },
+          define: {
+            // Baked at build time for packaged apps; runtime env var still wins at dev.
+            __GOOGLE_CLIENT_ID__: JSON.stringify(process.env.GOOGLE_CLIENT_ID ?? ''),
+          },
         },
       },
       {

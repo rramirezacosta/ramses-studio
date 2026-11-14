@@ -10,7 +10,8 @@ import {
   renameSong,
   updateSong,
 } from '../db/db'
-import { newRecordId, type RecordId, type SongRecord } from '../db/types'
+import { newRecordId, type RecordId, type SongPayload, type SongRecord } from '../db/types'
+import { clearTombstone, recordTombstone } from '../sync/tombstones'
 import type { Song } from '../types/audio'
 
 /**
@@ -46,6 +47,10 @@ interface LibraryStore {
   touchSong: (name: string, patch: { duration?: number }) => Promise<void>
   renameSongName: (oldName: string, newName: string) => Promise<void>
   deleteSong: (name: string) => Promise<void>
+  /** Delete without recording a sync tombstone (used when the remote already deleted it). */
+  deleteSongLocal: (name: string) => Promise<void>
+  /** Store a song pulled from Drive, replacing any local copy of the same slug. */
+  upsertRemoteSong: (payload: SongPayload, files: Array<{ stemName: string; bytes: Uint8Array }>, cover?: Uint8Array) => Promise<Song>
   deleteStem: (name: string, stemName: string) => Promise<void>
 }
 
@@ -74,6 +79,64 @@ async function putFileOrQuota(recordId: RecordId, name: string, mime: string, by
     if (isQuotaError(reason)) throw new LibraryQuotaError()
     throw reason
   }
+}
+
+/** A media file to store together with its song record. */
+interface PendingFile {
+  name: string
+  mime: string
+  bytes: Uint8Array
+  stemName?: string
+  isCover?: boolean
+}
+
+/**
+ * Write every file then the song record; rolls back already-written blobs if
+ * anything fails, so a crash or quota error never leaves a half-imported song.
+ */
+async function writeSongWithFiles(record: SongRecord, files: PendingFile[]): Promise<Song> {
+  const written: RecordId[] = []
+  try {
+    const stemFileIds: Record<string, RecordId> = {}
+    let coverFileId: RecordId | undefined
+    let coverBytes: Uint8Array | undefined
+    for (const file of files) {
+      const fileId = newRecordId()
+      await putFileOrQuota(fileId, file.name, file.mime, file.bytes)
+      written.push(fileId)
+      if (file.isCover) {
+        coverFileId = fileId
+        coverBytes = file.bytes
+      } else if (file.stemName) {
+        stemFileIds[file.stemName] = fileId
+      }
+    }
+    const full: SongRecord = { ...record, stems: stemFileIds, ...(coverFileId ? { coverFileId } : {}) }
+    await putSong(full)
+    const { records, covers } = useLibraryStore.getState()
+    records.set(full.name, full)
+    if (coverFileId && coverBytes) {
+      covers.set(full.name, URL.createObjectURL(new Blob([coverBytes as Uint8Array<ArrayBuffer>], { type: 'image/jpeg' })))
+    }
+    useLibraryStore.setState({ songs: buildUiSongs(records, covers) })
+    return toUiSong(full, covers)
+  } catch (reason) {
+    // Never leave a half-imported song: roll back any blobs already written.
+    await Promise.allSettled(written.map((fileId) => deleteFile(fileId)))
+    throw reason
+  }
+}
+
+/** Remove a song from the in-memory maps and refresh the UI list. */
+async function forgetSong(name: string): Promise<void> {
+  const { records, covers } = useLibraryStore.getState()
+  records.delete(name)
+  const cover = covers.get(name)
+  if (cover) {
+    URL.revokeObjectURL(cover)
+    covers.delete(name)
+  }
+  useLibraryStore.setState({ songs: buildUiSongs(records, covers) })
 }
 
 export const useLibraryStore = create<LibraryStore>((set, get) => ({
@@ -120,38 +183,18 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   },
 
   persistSeparation: async (name, stems, cover) => {
-    const stemEntries = Object.entries(stems)
-    // File ids already written, for rollback if a later write fails.
-    const written: RecordId[] = []
-    try {
-      const stemFileIds: Record<string, RecordId> = {}
-      // One write per file keeps individual transactions small and lets the
-      // quota error surface on the specific blob that failed.
-      for (const [stemName, bytes] of stemEntries) {
-        const fileId = newRecordId()
-        await putFileOrQuota(fileId, `${stemName}.mp3`, 'audio/mpeg', bytes)
-        written.push(fileId)
-        stemFileIds[stemName] = fileId
-      }
-      let coverFileId: RecordId | undefined
-      if (cover?.length) {
-        coverFileId = newRecordId()
-        await putFileOrQuota(coverFileId, 'cover.jpg', 'image/jpeg', cover)
-        written.push(coverFileId)
-      }
-      const now = Date.now()
-      const record: SongRecord = { name, createdAt: now, lastOpened: now, duration: 0, stems: stemFileIds, ...(coverFileId ? { coverFileId } : {}) }
-      await putSong(record)
-      const { records, covers } = get()
-      records.set(record.name, record)
-      if (coverFileId && cover) covers.set(record.name, URL.createObjectURL(new Blob([cover as Uint8Array<ArrayBuffer>], { type: 'image/jpeg' })))
-      set({ songs: buildUiSongs(records, covers) })
-      return toUiSong(record, covers)
-    } catch (reason) {
-      // Never leave a half-imported song: roll back any blobs already written.
-      await Promise.allSettled(written.map((fileId) => deleteFile(fileId)))
-      throw reason
-    }
+    const files: PendingFile[] = Object.entries(stems).map(([stemName, bytes]) => ({
+      name: `${stemName}.mp3`,
+      mime: 'audio/mpeg',
+      bytes,
+      stemName,
+    }))
+    if (cover?.length) files.push({ name: 'cover.jpg', mime: 'image/jpeg', bytes: cover, isCover: true })
+    const now = Date.now()
+    const song = await writeSongWithFiles({ name, createdAt: now, lastOpened: now, duration: 0, stems: {} }, files)
+    // A fresh import re-creates the slug: any pending deletion tombstone is void.
+    await clearTombstone(name)
+    return song
   },
 
   getStemBuffer: async (name, stemName) => {
@@ -176,8 +219,13 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
     const record = records.get(oldName)
     if (!record || oldName === newName) return
     await renameSong(oldName, newName)
+    await recordTombstone(oldName)
     records.delete(oldName)
-    records.set(newName, { ...record, name: newName })
+    // Renaming back onto a deleted slug re-creates it; a fresh createdAt keeps
+    // the sync tombstone rule (createdAt > deletedAt) from deleting the song.
+    let createdAt = record.createdAt
+    if (await clearTombstone(newName)) createdAt = Date.now()
+    records.set(newName, { ...record, name: newName, createdAt })
     const cover = covers.get(oldName)
     if (cover) {
       covers.delete(oldName)
@@ -188,14 +236,27 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
 
   deleteSong: async (name) => {
     await deleteSongWithFiles(name)
-    const { records, covers } = get()
-    records.delete(name)
-    const cover = covers.get(name)
-    if (cover) {
-      URL.revokeObjectURL(cover)
-      covers.delete(name)
-    }
-    set({ songs: buildUiSongs(records, covers) })
+    await recordTombstone(name)
+    await forgetSong(name)
+  },
+
+  deleteSongLocal: async (name) => {
+    await deleteSongWithFiles(name)
+    await forgetSong(name)
+  },
+
+  upsertRemoteSong: async (payload, files, cover) => {
+    const pending: PendingFile[] = files.map(({ stemName, bytes }) => ({
+      name: `${stemName}.mp3`,
+      mime: 'audio/mpeg',
+      bytes,
+      stemName,
+    }))
+    if (cover) pending.push({ name: 'cover.jpg', mime: 'image/jpeg', bytes: cover, isCover: true })
+    return writeSongWithFiles(
+      { name: payload.name, createdAt: payload.createdAt, lastOpened: payload.lastOpened, duration: payload.duration, stems: {} },
+      pending,
+    )
   },
 
   deleteStem: async (name, stemName) => {
@@ -207,14 +268,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
     // Covers alone do not keep a song alive, matching the previous on-disk behavior.
     if (!remaining.length) {
       await deleteSongWithFiles(name)
-      const { records, covers } = get()
-      records.delete(name)
-      const cover = covers.get(name)
-      if (cover) {
-        URL.revokeObjectURL(cover)
-        covers.delete(name)
-      }
-      set({ songs: buildUiSongs(records, covers) })
+      await forgetSong(name)
       return
     }
     const stems = { ...record.stems }

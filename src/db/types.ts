@@ -41,6 +41,18 @@ export interface KvRecord {
   value: unknown
 }
 
+/**
+ * Song metadata as exchanged with Drive: no file ids, just the stem names.
+ * File identities are per-device; the manifest checksums link content.
+ */
+export interface SongPayload {
+  name: string
+  createdAt: number
+  lastOpened: number
+  duration: number
+  stems: string[]
+}
+
 /** Id helper. `crypto.randomUUID` is unavailable in some non-secure contexts, so fall back to random bytes. */
 export function newRecordId(): RecordId {
   if (typeof crypto.randomUUID === 'function') return crypto.randomUUID()

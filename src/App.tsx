@@ -10,6 +10,7 @@ import { useTranslation, LANGUAGES } from './i18n'
 import { useSettingsStore } from './store/useSettingsStore'
 import { useTransportStore } from './store/useTransportStore'
 import { useLibraryStore, LibraryQuotaError } from './store/useLibraryStore'
+import { useSyncStore } from './store/useSyncStore'
 import { useDialogFocusTrap } from './hooks/useDialogFocusTrap'
 import appIcon from './assets/app_512.png'
 import { parseSongName, songDisplayName, songFolderName, songNameFromSource } from './utils/songName'
@@ -83,6 +84,11 @@ export default function App() {
   const [aboutOpen, setAboutOpen] = useState(false)
   const [theme, setTheme] = useState<ThemeId>(loadStoredTheme)
   const setTransport = useTransportStore((store) => store.setTransport)
+  const sync = useSyncStore()
+  const connectDrive = useCallback(() => {
+    setSettingsOpen(true)
+    void sync.connect()
+  }, [sync])
 
   useDialogFocusTrap(renameDialogRef, Boolean(renamingSong))
   useDialogFocusTrap(confirmDialogRef, Boolean(confirmDialog))
@@ -99,7 +105,7 @@ export default function App() {
   useEffect(() => {
     // The library lives in IndexedDB and hydrates regardless of the Electron
     // bridge; only import/separation features depend on the bridge.
-    void library.hydrate()
+    void library.hydrate().then(() => useSyncStore.getState().init())
     // Ask Chromium to make storage durable so eviction pressure never drops songs.
     void navigator.storage?.persist?.()
     if (!window.api) {
@@ -244,6 +250,8 @@ export default function App() {
       if (controller.signal.aborted) return
       const song = await library.persistSeparation(name, separated.stems, separated.cover)
       await selectSong(song)
+      // Push the new song to Drive in the background once connected.
+      useSyncStore.getState().scheduleSync()
     } catch (reason) {
       if (controller.signal.aborted || (reason instanceof Error && reason.name === 'AbortError')) return
       if (reason instanceof LibraryQuotaError) {
@@ -560,6 +568,31 @@ export default function App() {
                   </button>
                 ))}
               </div>
+            </div>
+            <div className="settings-section" role="group" aria-label={t('driveSync')}>
+              <span className="settings-section-label">{t('driveSync')}</span>
+              {sync.connected ? (
+                <>
+                  <span className="drive-account">{sync.account}</span>
+                  <span className="drive-last-synced">
+                    {sync.lastSyncedAt ? t('driveLastSynced', { time: new Date(sync.lastSyncedAt).toLocaleString() }) : ''}
+                  </span>
+                  <div className="drive-actions">
+                    <button type="button" className="primary-button" disabled={sync.syncing} onClick={() => { void sync.syncNow() }}>
+                      {sync.syncing ? t('driveSyncing') : t('driveSyncNow')}
+                    </button>
+                    <button type="button" onClick={() => { void sync.disconnect() }}>{t('driveDisconnect')}</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <small>{t('driveNotConnected')}</small>
+                  <div className="drive-actions">
+                    <button type="button" className="primary-button" onClick={connectDrive}>{t('driveConnect')}</button>
+                  </div>
+                </>
+              )}
+              {sync.error && <small className="drive-error" role="alert">{t('driveSyncFailed', { message: sync.error })}</small>}
             </div>
             <p className="settings-footer">
               <span>{t('version')} {__APP_VERSION__}</span>

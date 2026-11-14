@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { registerStemImportIpc } from './ipc/stemImport'
 import { registerMixIpc } from './ipc/mixExport'
+import { registerDriveIpc } from './drive/ipc'
 
 if (process.platform === 'linux') app.commandLine.appendSwitch('enable-features', 'Vulkan')
 
@@ -87,6 +88,7 @@ app.whenReady().then(() => {
   registerStemImportIpc()
   registerMixIpc()
   registerWindowIpc()
+  registerDriveIpc()
   createWindow()
 })
 
