@@ -238,8 +238,10 @@ export default function App() {
   useEffect(() => {
     if (!sync.notify) return
     setNotice(t('librarySynced'))
-    sync.clearNotify()
-    const timer = window.setTimeout(() => setNotice(undefined), 3000)
+    const timer = window.setTimeout(() => {
+      setNotice(undefined)
+      sync.clearNotify()
+    }, 3000)
     return () => window.clearTimeout(timer)
   }, [sync.notify, t])
 
