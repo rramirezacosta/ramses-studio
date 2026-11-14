@@ -260,6 +260,18 @@ export function registerStemImportIpc() {
     return readFile(filePath)
   })
 
+  // Dropped files arrive as raw bytes; stage them in a temp dir so the normal
+  // import pipeline (which works with paths) can pick them up.
+  ipcMain.handle('files:stage-buffer', async (_event, fileName: unknown, bytes: unknown) => {
+    if (typeof fileName !== 'string' || !fileName.trim()) throw new Error('Invalid file name.')
+    if (!(bytes instanceof Uint8Array)) throw new Error('Invalid file data.')
+    const safeName = fileName.split(/[\\/]/).pop() || 'audio'
+    const directory = await mkdtemp(join(tmpdir(), 'ramses-studio-'))
+    const path = join(directory, safeName)
+    await writeFile(path, bytes)
+    return path
+  })
+
   ipcMain.handle('songs:prepare-import', async (event) => {
     const selection = await dialog.showOpenDialog({
       title: 'Import audio for stem separation',

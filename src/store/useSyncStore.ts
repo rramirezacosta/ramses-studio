@@ -1,6 +1,7 @@
 import { create, type StoreApi } from 'zustand'
 import { syncLibrary, lastSyncedAt, syncedSongNames, removeSongFromDrive, backupSongToDrive, downloadSongToLibrary, renameSongOnDrive, canEvictSong } from '../sync/sync'
 import { useLibraryStore } from './useLibraryStore'
+import { getFile } from '../db/db'
 
 /**
  * Google Drive sync state: connection, last sync time, and scheduling.
@@ -16,11 +17,12 @@ interface SyncStore {
   /** Songs backed up on Drive per the last synced manifest (badge in the sidebar). */
   syncedNames: Set<string>
   error?: string
+  notify?: string
   /** Load connection state + last sync time; called once at startup after the library hydrates. */
   init: () => Promise<void>
   connect: () => Promise<void>
   disconnect: () => Promise<void>
-  syncNow: () => Promise<void>
+  syncNow: (auto?: boolean) => Promise<void>
   /** Per-song: remove its Drive backup (local copy is kept) and stop backing it up. */
   removeBackup: (name: string) => Promise<void>
   /** Per-song: upload or reconcile just this song right now. */
@@ -29,8 +31,14 @@ interface SyncStore {
   freeUpSpace: (name: string) => Promise<void>
   /** Per-song: download a remote-only song's stems, reporting progress 0..1. */
   downloadSong: (name: string, onProgress?: (percent: number) => void) => Promise<void>
+  /** Download every remote-only song, reporting aggregated progress 0..1. */
+  downloadAllSongs: (onProgress?: (name: string, percent: number) => void) => Promise<void>
+  /** Evict the stems of every backed-up song except the N most recently opened. */
+  freeUpOldest: (keep?: number) => Promise<number>
   /** Rename a remote-only song on Drive, then locally. */
   renameRemoteSong: (oldName: string, newName: string) => Promise<void>
+  /** Clear the auto-sync toast notice. */
+  clearNotify: () => void
   /** Debounced background sync after library changes or on startup. */
   scheduleSync: () => void
 }
@@ -79,9 +87,9 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
     set({ connected: false, account: undefined, lastSyncedAt: undefined, error: undefined })
   },
 
-  syncNow: async () => {
+  syncNow: async (auto) => {
     if (get().syncing || !get().connected) return
-    await runSync(set, get, () => syncLibrary())
+    await runSync(set, get, () => syncLibrary(), Boolean(auto))
   },
 
   removeBackup: async (name) => {
@@ -105,6 +113,38 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
     await downloadSongToLibrary(name, onProgress)
   },
 
+  downloadAllSongs: async (onProgress) => {
+    if (get().syncing || !get().connected) throw new Error('Google Drive is not connected.')
+    const records = [...useLibraryStore.getState().records.values()].filter((record) => record.remoteOnly)
+    const total = records.length
+    let done = 0
+    for (const record of records) {
+      await downloadSongToLibrary(record.name, (percent) => onProgress?.(record.name, total ? (done + percent) / total : 1))
+      done += 1
+      onProgress?.(record.name, total ? done / total : 1)
+    }
+  },
+
+  freeUpOldest: async (keep = 5) => {
+    const records = [...useLibraryStore.getState().records.values()]
+      .filter((record) => !record.remoteOnly)
+      .sort((a, b) => b.lastOpened - a.lastOpened)
+    const candidates = records.slice(keep)
+    let freed = 0
+    for (const record of candidates) {
+      if (!(await canEvictSong(record.name))) continue
+      for (const fileId of Object.values(record.stems)) {
+        if (!fileId) continue
+        const file = await getFile(fileId)
+        if (file) freed += file.size
+      }
+      await useLibraryStore.getState().evictSong(record.name)
+    }
+    return freed
+  },
+
+  clearNotify: () => set({ notify: undefined }),
+
   renameRemoteSong: async (oldName, newName) => {
     const synced = await renameSongOnDrive(oldName, newName)
     await useLibraryStore.getState().renameSongName(oldName, newName)
@@ -115,7 +155,7 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
     if (!get().connected || get().syncing || autoSyncTimer) return
     autoSyncTimer = setTimeout(() => {
       autoSyncTimer = undefined
-      void get().syncNow()
+      void get().syncNow(true)
     }, AUTO_SYNC_DELAY_MS)
   },
 }))
@@ -125,11 +165,12 @@ async function runSync(
   set: StoreApi<SyncStore>['setState'],
   get: StoreApi<SyncStore>['getState'],
   action: () => Promise<Set<string>>,
+  auto = false,
 ): Promise<void> {
   set({ syncing: true, error: undefined })
   try {
     const syncedNames = await action()
-    set({ lastSyncedAt: Date.now(), syncedNames })
+    set({ lastSyncedAt: Date.now(), syncedNames, ...(auto ? { notify: 'synced' } : {}) })
   } catch (reason) {
     set({ error: reason instanceof Error ? reason.message : String(reason) })
   } finally {

@@ -35,6 +35,7 @@ declare global {
       separateStems: (sourceName: string, audio: StereoAudio, thumbnailPath?: string) => Promise<SeparationResult>
       exportMix: (songName: string, wav: Uint8Array) => Promise<string | null>
       readFileBuffer: (filePath: string) => Promise<ArrayBuffer>
+      stageFileBuffer: (fileName: string, bytes: Uint8Array) => Promise<string>
       driveStatus: () => Promise<{ connected: boolean; account?: string }>
       driveConnect: () => Promise<{ account?: string }>
       driveDisconnect: () => Promise<void>

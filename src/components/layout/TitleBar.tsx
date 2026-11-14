@@ -1,4 +1,4 @@
-import { CircleHelp, Copy, Minus, Settings, Square, X } from 'lucide-react'
+import { CircleHelp, Cloud, CloudOff, Copy, Minus, Settings, Square, X } from 'lucide-react'
 import { memo, useEffect, useState } from 'react'
 import { useTranslation } from '../../i18n'
 
@@ -14,9 +14,11 @@ const defaultLayout: ButtonLayout = { left: [], right: ['minimize', 'maximize', 
 interface TitleBarProps {
   onOpenSettings?: () => void
   onOpenAbout?: () => void
+  drive?: { connected: boolean; syncing: boolean; error?: string }
+  onOpenDrive?: () => void
 }
 
-export const TitleBar = memo(function TitleBar({ onOpenSettings, onOpenAbout }: TitleBarProps) {
+export const TitleBar = memo(function TitleBar({ onOpenSettings, onOpenAbout, drive, onOpenDrive }: TitleBarProps) {
   const t = useTranslation()
   const [layout, setLayout] = useState<ButtonLayout>(defaultLayout)
   const [maximized, setMaximized] = useState(false)
@@ -65,6 +67,19 @@ export const TitleBar = memo(function TitleBar({ onOpenSettings, onOpenAbout }: 
     </button>
   )
 
+  const driveButton = drive ? (
+    <button
+      key="drive"
+      className={`titlebar-button titlebar-drive${drive.syncing ? ' syncing' : ''}${drive.error ? ' error' : ''}`}
+      type="button"
+      aria-label={t('driveSync')}
+      title={drive.error ? drive.error : t('driveSync')}
+      onClick={onOpenDrive}
+    >
+      {drive.error ? <CloudOff size={15} /> : <Cloud size={15} />}
+    </button>
+  ) : null
+
   const leftControls = [...layout.left]
   const rightControls = [...layout.right]
 
@@ -75,14 +90,14 @@ export const TitleBar = memo(function TitleBar({ onOpenSettings, onOpenAbout }: 
   return (
     <header className="titlebar">
       <div className="titlebar-window-controls">
-        {hasLeftButtons ? leftControls.map(renderButton) : [aboutButton, settingsButton]}
+        {hasLeftButtons ? leftControls.map(renderButton) : [driveButton, aboutButton, settingsButton].filter(Boolean)}
       </div>
       <div className="titlebar-drag-region" onDoubleClick={toggleMaximize}>
         <span className="titlebar-name">Ramses Studio</span>
         <span className="titlebar-version">v{__APP_VERSION__}</span>
       </div>
       <div className="titlebar-window-controls">
-        {hasLeftButtons ? [aboutButton, settingsButton] : rightControls.map(renderButton)}
+        {hasLeftButtons ? [driveButton, aboutButton, settingsButton].filter(Boolean) : rightControls.map(renderButton)}
       </div>
     </header>
   )

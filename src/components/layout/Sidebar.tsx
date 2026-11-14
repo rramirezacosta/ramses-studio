@@ -79,6 +79,8 @@ interface Props {
   driveConnected: boolean
   /** On-demand download in progress, if any. */
   downloading?: { name: string; percent: number }
+  /** Number of songs that live only on Drive (for the bulk download action). */
+  remoteCount: number
   /** Remove one song's Drive backup, keeping the local copy. */
   onDriveRemove: (song: Song) => void
   /** Upload/reconcile one song on Drive right now. */
@@ -87,6 +89,8 @@ interface Props {
   onEvict: (song: Song) => void
   /** Download a remote-only song right now. */
   onDriveDownload: (song: Song) => void
+  /** Download every remote-only song. */
+  onDownloadAll: () => void
   onSelect: (song: Song) => void
   onImport: () => void
   onCancelImport?: () => void
@@ -94,7 +98,7 @@ interface Props {
   onDelete: (song: Song) => void
 }
 
-export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, importing, cancelling, importProgress, importStage, syncedNames, driveConnected, downloading, onDriveRemove, onDriveSync, onEvict, onDriveDownload, onSelect, onImport, onCancelImport, onRename, onDelete }: Props) {
+export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, importing, cancelling, importProgress, importStage, syncedNames, driveConnected, downloading, remoteCount, onDriveRemove, onDriveSync, onEvict, onDriveDownload, onDownloadAll, onSelect, onImport, onCancelImport, onRename, onDelete }: Props) {
   const t = useTranslation()
   const [query, setQuery] = useState('')
   const [importHovered, setImportHovered] = useState(false)
@@ -181,6 +185,11 @@ export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, impor
               <CloudUpload size={14} /> {t('driveSongSync')}
             </button>
           ))}
+          {menu.song.remoteOnly && remoteCount > 1 && (
+            <button role="menuitem" onClick={() => { setMenu(undefined); onDownloadAll() }}>
+              <CloudDownload size={14} /> {t('downloadAll', { count: remoteCount })}
+            </button>
+          )}
           <button role="menuitem" onClick={() => { setMenu(undefined); onRename(menu.song) }}>
             <FilePenLine size={14} /> {t('rename')}
           </button>
