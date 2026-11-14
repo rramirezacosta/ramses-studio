@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { readFile, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { app, BrowserWindow, safeStorage } from 'electron'
-import { googleClientId } from './config'
+import { googleClientId, googleClientSecret } from './config'
 
 /**
  * Google OAuth for installed apps: PKCE authorization-code flow through a
@@ -79,13 +79,27 @@ export async function status(): Promise<{ connected: boolean; account?: string }
  * Exchange/refresh helper shared by the connect flow and token refresh.
  */
 async function tokenRequest(body: URLSearchParams): Promise<{ access_token: string; expires_in: number; refresh_token?: string }> {
+  // The client secret is optional for desktop clients but required by
+  // confidential (web-application type) clients; send it when provided.
+  const secret = googleClientSecret()
+  if (secret) body.set('client_secret', secret)
   const response = await fetch(TOKEN_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
     signal: AbortSignal.timeout(30_000),
   })
-  if (!response.ok) throw new Error(`Google token exchange failed (${response.status}).`)
+  if (!response.ok) {
+    let detail = ''
+    try {
+      const failure = (await response.json()) as { error?: string; error_description?: string }
+      if (failure.error_description) detail = `: ${failure.error_description}`
+      else if (failure.error) detail = ` (${failure.error})`
+    } catch {
+      // Non-JSON body: the status code alone is all we have.
+    }
+    throw new Error(`Google token exchange failed (${response.status}${detail}).`)
+  }
   return (await response.json()) as { access_token: string; expires_in: number; refresh_token?: string }
 }
 
@@ -149,7 +163,9 @@ function handleCallback(request: IncomingMessage, response: ServerResponse, flow
   }
   try {
     const url = new URL(request.url ?? '/', `http://127.0.0.1:${flow.port}`)
-    if (url.pathname !== '/callback') {
+    // Ignore noise (favicon, preconnect probes...) so they can't hijack the flow.
+    const hasAuthParams = ['state', 'code', 'error'].some((key) => url.searchParams.has(key))
+    if (!hasAuthParams) {
       respond(404, 'Not found')
       return
     }
@@ -160,8 +176,9 @@ function handleCallback(request: IncomingMessage, response: ServerResponse, flow
     }
     const error = url.searchParams.get('error')
     if (error) {
-      respond(200, 'Sign-in was cancelled. You can close this window.')
-      settleFlow(flow, new Error('Google sign-in was cancelled.'))
+      respond(200, 'Sign-in failed. You can close this window.')
+      // Surface the real OAuth error (redirect_uri_mismatch, access_denied...).
+      settleFlow(flow, new Error(`Google sign-in failed: ${error}.`))
       return
     }
     const code = url.searchParams.get('code')
@@ -235,7 +252,8 @@ export async function connect(): Promise<StoredAuth> {
       resolve(typeof address === 'object' && address ? address.port : 0)
     })
   })
-  const redirectUri = `http://127.0.0.1:${port}/callback`
+  // Bare loopback URI per the installed-app spec: any port, no path component.
+  const redirectUri = `http://127.0.0.1:${port}`
 
   const url = new URL(AUTH_ENDPOINT)
   url.searchParams.set('client_id', googleClientId())

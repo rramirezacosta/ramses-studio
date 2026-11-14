@@ -22,6 +22,7 @@ export default defineConfig(() => ({
           define: {
             // Baked at build time for packaged apps; runtime env var still wins at dev.
             __GOOGLE_CLIENT_ID__: JSON.stringify(process.env.GOOGLE_CLIENT_ID ?? ''),
+            __GOOGLE_CLIENT_SECRET__: JSON.stringify(process.env.GOOGLE_CLIENT_SECRET ?? ''),
           },
         },
       },

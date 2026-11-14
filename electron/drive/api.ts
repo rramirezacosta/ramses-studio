@@ -53,6 +53,8 @@ export async function listFiles(): Promise<DriveFileMeta[]> {
   do {
     const url = new URL(`${API}/files`)
     url.searchParams.set('q', "'appDataFolder' in parents and trashed = false")
+    // The appdata-only scope forbids searching all spaces at once.
+    url.searchParams.set('spaces', 'appDataFolder')
     url.searchParams.set('fields', 'nextPageToken, files(id, name, mimeType, modifiedTime, size)')
     url.searchParams.set('pageSize', '1000')
     if (pageToken) url.searchParams.set('pageToken', pageToken)
