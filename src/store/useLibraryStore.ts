@@ -51,12 +51,22 @@ interface LibraryStore {
   deleteSongLocal: (name: string) => Promise<void>
   /** Store a song pulled from Drive, replacing any local copy of the same slug. */
   upsertRemoteSong: (payload: SongPayload, files: Array<{ stemName: string; bytes: Uint8Array }>, cover?: Uint8Array) => Promise<Song>
+  /**
+   * Restore evicted stems (and optionally the cover) of a remote-only song
+   * with freshly downloaded bytes, flipping it back to fully local.
+   */
+  applyStemFiles: (name: string, files: Array<{ stemName: string; bytes: Uint8Array }>, cover?: Uint8Array) => Promise<Song>
+  /** Delete the local stem blobs of a backed-up song, keeping metadata + cover. */
+  evictSong: (name: string) => Promise<void>
+  /** Swap an updated record into the in-memory maps (used by the sync engine). */
+  replaceRecord: (next: SongRecord) => void
   deleteStem: (name: string, stemName: string) => Promise<void>
 }
 
 const toUiSong = (record: SongRecord, covers: Map<string, string>): Song => ({
   name: record.name,
   stems: Object.keys(record.stems).sort(),
+  ...(record.remoteOnly ? { remoteOnly: true } : {}),
   ...(covers.has(record.name) ? { cover: covers.get(record.name) } : {}),
 })
 
@@ -111,7 +121,13 @@ async function writeSongWithFiles(record: SongRecord, files: PendingFile[]): Pro
         stemFileIds[file.stemName] = fileId
       }
     }
-    const full: SongRecord = { ...record, stems: stemFileIds, ...(coverFileId ? { coverFileId } : {}) }
+    const full: SongRecord = {
+      ...record,
+      // Seed stems (null ids for a remote-only pull) survive for files not provided.
+      stems: { ...record.stems, ...stemFileIds },
+      ...(coverFileId ? { coverFileId } : {}),
+      ...(Object.keys(stemFileIds).length ? { remoteOnly: false } : { remoteOnly: true }),
+    }
     await putSong(full)
     const { records, covers } = useLibraryStore.getState()
     records.set(full.name, full)
@@ -204,9 +220,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
     const file = await getFile(fileId)
     if (!file) throw new Error(`Missing stem data for "${stemName}".`)
     return file.blob.arrayBuffer()
-  },
-
-  touchSong: async (name, patch) => {
+  },  touchSong: async (name, patch) => {
     const record = get().records.get(name)
     if (!record) return
     const next = { ...record, ...patch, lastOpened: Date.now() }
@@ -253,10 +267,75 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
       stemName,
     }))
     if (cover) pending.push({ name: 'cover.jpg', mime: 'image/jpeg', bytes: cover, isCover: true })
+    // Stem names are seeded as null ids: without downloaded bytes the song is
+    // remote-only and its stems re-download from Drive on demand.
     return writeSongWithFiles(
-      { name: payload.name, createdAt: payload.createdAt, lastOpened: payload.lastOpened, duration: payload.duration, stems: {} },
+      {
+        name: payload.name,
+        createdAt: payload.createdAt,
+        lastOpened: payload.lastOpened,
+        duration: payload.duration,
+        stems: Object.fromEntries(payload.stems.map((stemName) => [stemName, null])),
+      },
       pending,
     )
+  },
+
+  applyStemFiles: async (name, files, cover) => {
+    const record = get().records.get(name)
+    if (!record) throw new Error(`"${name}" is not in the local library.`)
+    const written: RecordId[] = []
+    try {
+      const stems = { ...record.stems }
+      for (const { stemName, bytes } of files) {
+        const fileId = newRecordId()
+        await putFileOrQuota(fileId, `${stemName}.mp3`, 'audio/mpeg', bytes)
+        written.push(fileId)
+        stems[stemName] = fileId
+      }
+      let coverFileId = record.coverFileId
+      if (cover?.length) {
+        if (record.coverFileId) await deleteFile(record.coverFileId)
+        coverFileId = newRecordId()
+        await putFileOrQuota(coverFileId, 'cover.jpg', 'image/jpeg', cover)
+        written.push(coverFileId)
+        const { covers } = get()
+        const previous = covers.get(name)
+        if (previous) URL.revokeObjectURL(previous)
+        covers.set(name, URL.createObjectURL(new Blob([cover as Uint8Array<ArrayBuffer>], { type: 'image/jpeg' })))
+      }
+      const next: SongRecord = { ...record, stems, ...(coverFileId ? { coverFileId } : {}), remoteOnly: false }
+      await putSong(next)
+      get().records.set(name, next)
+      set({ songs: buildUiSongs(get().records, get().covers) })
+      return toUiSong(next, get().covers)
+    } catch (reason) {
+      await Promise.allSettled(written.map((fileId) => deleteFile(fileId)))
+      throw reason
+    }
+  },
+
+  evictSong: async (name) => {
+    const record = get().records.get(name)
+    if (!record || record.remoteOnly) return
+    // Covers (a few KB) stay local so the sidebar keeps showing artwork.
+    const stemIds = Object.values(record.stems).filter((fileId): fileId is RecordId => fileId !== null)
+    if (!stemIds.length) return
+    await Promise.allSettled(stemIds.map((fileId) => deleteFile(fileId)))
+    const next: SongRecord = {
+      ...record,
+      stems: Object.fromEntries(Object.keys(record.stems).map((stemName) => [stemName, null])),
+      remoteOnly: true,
+    }
+    await putSong(next)
+    get().records.set(name, next)
+    set({ songs: buildUiSongs(get().records, get().covers) })
+  },
+
+  replaceRecord: (next) => {
+    const { records } = get()
+    records.set(next.name, next)
+    set({ songs: buildUiSongs(records, get().covers) })
   },
 
   deleteStem: async (name, stemName) => {

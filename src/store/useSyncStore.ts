@@ -1,5 +1,6 @@
 import { create, type StoreApi } from 'zustand'
-import { syncLibrary, lastSyncedAt, syncedSongNames, removeSongFromDrive, backupSongToDrive } from '../sync/sync'
+import { syncLibrary, lastSyncedAt, syncedSongNames, removeSongFromDrive, backupSongToDrive, downloadSongToLibrary, renameSongOnDrive, canEvictSong } from '../sync/sync'
+import { useLibraryStore } from './useLibraryStore'
 
 /**
  * Google Drive sync state: connection, last sync time, and scheduling.
@@ -24,6 +25,12 @@ interface SyncStore {
   removeBackup: (name: string) => Promise<void>
   /** Per-song: upload or reconcile just this song right now. */
   backupSong: (name: string) => Promise<void>
+  /** Per-song: delete the local stems of a backed-up song (it re-downloads on open). */
+  freeUpSpace: (name: string) => Promise<void>
+  /** Per-song: download a remote-only song's stems, reporting progress 0..1. */
+  downloadSong: (name: string, onProgress?: (percent: number) => void) => Promise<void>
+  /** Rename a remote-only song on Drive, then locally. */
+  renameRemoteSong: (oldName: string, newName: string) => Promise<void>
   /** Debounced background sync after library changes or on startup. */
   scheduleSync: () => void
 }
@@ -85,6 +92,23 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
   backupSong: async (name) => {
     if (get().syncing || !get().connected) return
     await runSync(set, get, () => backupSongToDrive(name))
+  },
+
+  freeUpSpace: async (name) => {
+    // Eviction works offline: the snapshot guarantees the Drive copy exists.
+    if (get().syncing || !(await canEvictSong(name))) return
+    await useLibraryStore.getState().evictSong(name)
+  },
+
+  downloadSong: async (name, onProgress) => {
+    if (get().syncing || !get().connected) throw new Error('Google Drive is not connected.')
+    await downloadSongToLibrary(name, onProgress)
+  },
+
+  renameRemoteSong: async (oldName, newName) => {
+    const synced = await renameSongOnDrive(oldName, newName)
+    await useLibraryStore.getState().renameSongName(oldName, newName)
+    set({ syncedNames: synced })
   },
 
   scheduleSync: () => {

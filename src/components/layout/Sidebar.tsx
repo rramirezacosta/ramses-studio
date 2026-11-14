@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { CloudOff, CloudUpload, FilePenLine, FilePlus2, Search, Trash2 } from 'lucide-react'
+import { CloudDownload, CloudOff, CloudUpload, FilePenLine, FilePlus2, HardDriveDownload, Search, Trash2 } from 'lucide-react'
 import logo from '../../assets/logo.png'
 import { useTranslation } from '../../i18n'
 import { parseSongName, songDisplayName } from '../../utils/songName'
@@ -35,12 +35,14 @@ interface RowProps {
   active: boolean
   /** True when the song is backed up on Google Drive. */
   synced: boolean
+  /** Ongoing on-demand download for this song (0..1), if any. */
+  downloading?: number
   onSelect: (song: Song) => void
   /** Open the per-song context menu; screenX/screenY in CSS pixels. */
   onMenu: (song: Song, x: number, y: number) => void
 }
 
-const SongRow = memo(function SongRow({ song, active, synced, onSelect, onMenu }: RowProps) {
+const SongRow = memo(function SongRow({ song, active, synced, downloading, onSelect, onMenu }: RowProps) {
   const t = useTranslation()
   const [coverFailed, setCoverFailed] = useState(false)
   const { artist, title } = parseSongName(song.name)
@@ -56,11 +58,17 @@ const SongRow = memo(function SongRow({ song, active, synced, onSelect, onMenu }
         ) : (
           <span className="song-cover song-cover-fallback" style={{ '--art-hue': artHue(song.name) } as React.CSSProperties}>{initialsFor(artist, title)}</span>
         )}
-        {synced && (
+        {downloading !== undefined ? (
+          <span className="song-download" style={{ width: `${Math.round(downloading * 100)}%` }} />
+        ) : song.remoteOnly ? (
+          <span className="drive-badge-chip" title={t('driveRemoteSong')}>
+            <CloudDownload size={9} />
+          </span>
+        ) : synced ? (
           <span className="drive-badge-chip" title={t('driveSynced')}>
             <DriveBadge />
           </span>
-        )}
+        ) : null}
         <span className="song-meta">
           <strong>{title}</strong>
           <small>{artist ?? t('stemsCount', { count: song.stems.length })}</small>
@@ -82,10 +90,16 @@ interface Props {
   syncedNames: Set<string>
   /** Whether Google Drive is connected (Drive menu items appear only then). */
   driveConnected: boolean
+  /** On-demand download in progress, if any. */
+  downloading?: { name: string; percent: number }
   /** Remove one song's Drive backup, keeping the local copy. */
   onDriveRemove: (song: Song) => void
   /** Upload/reconcile one song on Drive right now. */
   onDriveSync: (song: Song) => void
+  /** Delete the local stems of a backed-up song (it re-downloads on open). */
+  onEvict: (song: Song) => void
+  /** Download a remote-only song right now. */
+  onDriveDownload: (song: Song) => void
   onSelect: (song: Song) => void
   onImport: () => void
   onCancelImport?: () => void
@@ -93,7 +107,7 @@ interface Props {
   onDelete: (song: Song) => void
 }
 
-export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, importing, cancelling, importProgress, importStage, syncedNames, driveConnected, onDriveRemove, onDriveSync, onSelect, onImport, onCancelImport, onRename, onDelete }: Props) {
+export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, importing, cancelling, importProgress, importStage, syncedNames, driveConnected, downloading, onDriveRemove, onDriveSync, onEvict, onDriveDownload, onSelect, onImport, onCancelImport, onRename, onDelete }: Props) {
   const t = useTranslation()
   const [query, setQuery] = useState('')
   const [importHovered, setImportHovered] = useState(false)
@@ -155,14 +169,23 @@ export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, impor
       {!loading && songs.length === 0 && <p className="empty-state">{t('noSongs')}</p>}
       <nav className="song-list">
         {visibleSongs.map((song) => (
-          <SongRow key={song.name} song={song} active={song.name === activeSong} synced={syncedNames.has(song.name)} onSelect={onSelect} onMenu={openSongMenu} />
+          <SongRow key={song.name} song={song} active={song.name === activeSong} synced={syncedNames.has(song.name)} downloading={downloading?.name === song.name ? downloading.percent : undefined} onSelect={onSelect} onMenu={openSongMenu} />
         ))}
       </nav>
       {menu ? createPortal(
         // Portal to <body>: the sidebar's backdrop-filter makes it the containing block
         // for position:fixed children, which would offset the menu away from the cursor.
         <div className="song-menu" ref={menuRef} style={{ left: menu.x, top: menu.y }} role="menu" tabIndex={-1} aria-label={t('songLibrary')}>
-          {driveConnected && (syncedNames.has(menu.song.name) ? (
+          {syncedNames.has(menu.song.name) && !menu.song.remoteOnly && (
+            <button role="menuitem" onClick={() => { setMenu(undefined); onEvict(menu.song) }}>
+              <HardDriveDownload size={14} /> {t('driveFreeSpace')}
+            </button>
+          )}
+          {driveConnected && (menu.song.remoteOnly ? (
+            <button role="menuitem" onClick={() => { setMenu(undefined); onDriveDownload(menu.song) }}>
+              <CloudDownload size={14} /> {t('driveDownloadSong')}
+            </button>
+          ) : syncedNames.has(menu.song.name) ? (
             <button role="menuitem" onClick={() => { setMenu(undefined); onDriveRemove(menu.song) }}>
               <CloudOff size={14} /> {t('driveSongRemove')}
             </button>

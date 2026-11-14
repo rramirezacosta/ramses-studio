@@ -55,6 +55,8 @@ export default function App() {
   const [activeSong, setActiveSong] = useState<string>()
   const [tracks, setTracks] = useState<TrackState[]>([])
   const [loadingSong, setLoadingSong] = useState<string>()
+  /** On-demand Drive download in progress ({ name, percent }), if any. */
+  const [downloading, setDownloading] = useState<{ name: string; percent: number }>()
   const [error, setError] = useState<string>()
   const [loopRange, setLoopRange] = useState<[number, number]>()
   const [looping, setLooping] = useState(false)
@@ -146,10 +148,18 @@ export default function App() {
     setError(undefined)
     setNotice(undefined)
     try {
-      const loaded = await Promise.all(song.stems.map(async (stemName) => ({
+      let target = song
+      if (song.remoteOnly) {
+        // On-demand download: the song only exists on Drive until now.
+        if (!useSyncStore.getState().connected) throw new Error(t('driveSongOffline'))
+        setDownloading({ name: song.name, percent: 0 })
+        await useSyncStore.getState().downloadSong(song.name, (percent) => setDownloading({ name: song.name, percent }))
+        target = useLibraryStore.getState().songs.find((item) => item.name === song.name) ?? song
+      }
+      const loaded = await Promise.all(target.stems.map(async (stemName) => ({
         id: stemName,
         name: stemName,
-        buffer: await engine.decode(await library.getStemBuffer(song.name, stemName)),
+        buffer: await engine.decode(await library.getStemBuffer(target.name, stemName)),
         volume: 0.85,
         pan: 0,
         muted: false,
@@ -161,18 +171,19 @@ export default function App() {
       engine.setMasterVolume(useTransportStore.getState().masterVolume)
       engine.setLoopRange()
       setTracks(loaded)
-      setActiveSong(song.name)
+      setActiveSong(target.name)
       setLoopRange(undefined)
       setLooping(false)
       setTransport({ currentTime: 0, duration: engine.duration, isPlaying: false })
-      await library.touchSong(song.name, { duration: engine.duration })
+      await library.touchSong(target.name, { duration: engine.duration })
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : t('unknownAudioLoadingError')
       setError(t('loadSongFailed', { name: song.name, message }))
     } finally {
       setLoadingSong(undefined)
+      setDownloading(undefined)
     }
-  }, [engine, library, setTransport])
+  }, [engine, library, setTransport, t])
 
   const seek = useCallback((time: number) => {
     engine.seek(time)
@@ -310,14 +321,20 @@ export default function App() {
     }
     try {
       if (library.hasName(newName)) throw new Error('A song with that name already exists')
-      await library.renameSongName(renamingSong.name, newName)
+      if (renamingSong.remoteOnly) {
+        // The remote backup must move with it; that needs a live connection.
+        if (!sync.connected) throw new Error(t('renameNeedsDrive'))
+        await sync.renameRemoteSong(renamingSong.name, newName)
+      } else {
+        await library.renameSongName(renamingSong.name, newName)
+      }
       if (activeSong === renamingSong.name) setActiveSong(newName)
       setRenamingSong(undefined)
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : t('unknownRenameError')
       setError(t('renameFailed', { name: renamingSong.name, message }))
     }
-  }, [activeSong, library, renameArtist, renameTitle, renamingSong, t])
+  }, [activeSong, library, renameArtist, renameTitle, renamingSong, sync, t])
 
   const deleteSong = useCallback((song: Song) => {
     setConfirmDialog({
@@ -452,7 +469,7 @@ export default function App() {
     <main className="app-shell">
       <TitleBar onOpenSettings={openSettings} onOpenAbout={openAbout} />
       <div className="app-content">
-        <Sidebar songs={library.songs} activeSong={activeSong} loading={library.loading} importing={importing} cancelling={cancelling} importProgress={importProgress} importStage={importStage} syncedNames={sync.syncedNames} driveConnected={sync.connected} onDriveRemove={(song) => { void sync.removeBackup(song.name) }} onDriveSync={(song) => { void sync.backupSong(song.name) }} onSelect={selectSong} onImport={openImportSource} onCancelImport={cancelImport} onRename={openRenameDialog} onDelete={deleteSong} />
+        <Sidebar songs={library.songs} activeSong={activeSong} loading={library.loading} importing={importing} cancelling={cancelling} importProgress={importProgress} importStage={importStage} syncedNames={sync.syncedNames} driveConnected={sync.connected} downloading={downloading} onDriveRemove={(song) => { void sync.removeBackup(song.name) }} onDriveSync={(song) => { void sync.backupSong(song.name) }} onEvict={(song) => { void sync.freeUpSpace(song.name) }} onDriveDownload={(song) => { void selectSong(song) }} onSelect={selectSong} onImport={openImportSource} onCancelImport={cancelImport} onRename={openRenameDialog} onDelete={deleteSong} />
         <div className="workspace">
         <div className="timeline-header"><span>TRACK</span><span>{activeSong ? songDisplayName(activeSong) : t('selectSongHint')}</span></div>
         {(error || library.unavailable) && <div className="error-message" role="alert">{error ?? t('readingLibraryFailed', { message: library.unavailable ?? '' })}</div>}

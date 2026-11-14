@@ -114,7 +114,10 @@ export async function deleteSongWithFiles(name: string): Promise<void> {
   const song = await songs.get(name)
   if (song) {
     await songs.delete(name)
-    const fileIds = new Set([...Object.values(song.stems), ...(song.coverFileId ? [song.coverFileId] : [])])
+    const fileIds = new Set([
+      ...Object.values(song.stems).filter((fileId): fileId is RecordId => fileId !== null),
+      ...(song.coverFileId ? [song.coverFileId] : []),
+    ])
     for (const fileId of fileIds) {
       await files.delete(fileId)
     }

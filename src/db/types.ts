@@ -21,7 +21,7 @@ export interface FileRecord {
 }
 
 /** Stem file ids keyed by stem name ('vocals', 'drums', ...), matching SIX_STEM_NAMES. */
-export type StemFileIds = Record<string, RecordId>
+export type StemFileIds = Record<string, RecordId | null>
 
 /** Metadata for one song in the library. Blobs are never stored here. */
 export interface SongRecord {
@@ -31,8 +31,11 @@ export interface SongRecord {
   /** Updated on every open so the sidebar can order by recency. */
   lastOpened: number
   duration: number
+  /** `null` stem ids have no local blob: the song is backed up on Drive only. */
   stems: StemFileIds
   coverFileId?: RecordId
+  /** True when every stem was evicted; the song re-downloads from Drive on open. */
+  remoteOnly?: boolean
 }
 
 /** Small persisted values that belong with the library (not theme/language). */

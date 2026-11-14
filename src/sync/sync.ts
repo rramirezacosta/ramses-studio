@@ -1,4 +1,4 @@
-import { getFile, getKv, setKv } from '../db/db'
+import { getFile, getKv, setKv, updateSong } from '../db/db'
 import type { RecordId, SongPayload, SongRecord } from '../db/types'
 import { useLibraryStore } from '../store/useLibraryStore'
 import { clearAllTombstones, getPendingTombstones } from './tombstones'
@@ -96,6 +96,17 @@ async function getLocalFile(fileId: RecordId): Promise<LocalFile | undefined> {
   return { fileId, bytes: new Uint8Array(await file.blob.arrayBuffer()), mime: file.mime, size: file.size }
 }
 
+/** Metadata of a record as exchanged with Drive. */
+function songPayload(record: SongRecord): SongPayload {
+  return {
+    name: record.name,
+    createdAt: record.createdAt,
+    lastOpened: record.lastOpened,
+    duration: record.duration,
+    stems: Object.keys(record.stems).sort(),
+  }
+}
+
 /**
  * Reconcile one file against its remote and snapshot entries.
  * A side that matches the snapshot is unchanged; when both changed, the
@@ -128,13 +139,20 @@ async function reconcileFile(options: {
   return { file: await uploadFile(name, local.mime, local.bytes, sha, remote.fileId) }
 }
 
-async function pullSong(slug: string, entry: ManifestSong): Promise<void> {
+/**
+ * Pull one song's metadata (and cover) from Drive. With `withStems` the stem
+ * blobs come along too (full local copy); without them the song lands as
+ * remote-only and its stems download on demand when the user opens it.
+ */
+async function pullSong(slug: string, entry: ManifestSong, withStems: boolean): Promise<void> {
   const library = useLibraryStore.getState()
   const payloadBytes = await window.api.driveDownload(entry.json.fileId)
   const payload = JSON.parse(new TextDecoder().decode(payloadBytes)) as SongPayload
   const files: Array<{ stemName: string; bytes: Uint8Array }> = []
-  for (const [stemName, meta] of Object.entries(entry.stems ?? {})) {
-    files.push({ stemName, bytes: await window.api.driveDownload(meta.fileId) })
+  if (withStems) {
+    for (const [stemName, meta] of Object.entries(entry.stems ?? {})) {
+      files.push({ stemName, bytes: await window.api.driveDownload(meta.fileId) })
+    }
   }
   let cover: Uint8Array | undefined
   if (entry.cover) cover = await window.api.driveDownload(entry.cover.fileId)
@@ -142,19 +160,29 @@ async function pullSong(slug: string, entry: ManifestSong): Promise<void> {
   await library.upsertRemoteSong({ ...payload, name: slug }, files, cover)
 }
 
+/** Apply a remote payload's metadata to a local (remote-only) record without touching stems. */
+async function refreshRemoteSongMeta(record: SongRecord, entry: ManifestSong): Promise<void> {
+  const payloadBytes = await window.api.driveDownload(entry.json.fileId)
+  const payload = JSON.parse(new TextDecoder().decode(payloadBytes)) as SongPayload
+  await updateSong(record.name, {
+    createdAt: payload.createdAt,
+    lastOpened: payload.lastOpened,
+    duration: payload.duration,
+    stems: Object.fromEntries(payload.stems.map((stemName) => [stemName, null])),
+  })
+  useLibraryStore.getState().replaceRecord({ ...record, createdAt: payload.createdAt, lastOpened: payload.lastOpened, duration: payload.duration, stems: Object.fromEntries(payload.stems.map((stemName) => [stemName, null])) })
+}
+
 /** Upload one local song completely (new song, or first sync). */
 async function pushSong(record: SongRecord): Promise<ManifestSong> {
-  const payload: SongPayload = {
-    name: record.name,
-    createdAt: record.createdAt,
-    lastOpened: record.lastOpened,
-    duration: record.duration,
-    stems: Object.keys(record.stems).sort(),
-  }
+  if (record.remoteOnly) throw new Error(`Cannot back up "${record.name}": its stems are not downloaded.`)
+  const payload = songPayload(record)
   const jsonBytes = encodeJson(payload)
   const json = await uploadFile(songJsonName(record.name), 'application/json', jsonBytes, await sha256Hex(jsonBytes))
   const stems: Record<string, ManifestFile> = {}
   for (const [stemName, fileId] of Object.entries(record.stems)) {
+    // Stems are never null on the push path (guarded above); skip defensively.
+    if (fileId === null) continue
     const local = await getLocalFile(fileId)
     if (!local) continue
     const sha = await sha256Hex(local.bytes, snapshotKey(local.fileId, local.size))
@@ -175,11 +203,36 @@ async function pushSong(record: SongRecord): Promise<ManifestSong> {
 async function reconcileSong(record: SongRecord, entry: ManifestSong, snapshotSong: ManifestSong | undefined): Promise<ManifestSong> {
   const remoteStems = entry.stems ?? {}
   const snapshotStems = snapshotSong?.stems ?? {}
+
+  // Remote-only song: stems live on Drive; keep those entries authoritative.
+  if (record.remoteOnly) {
+    const jsonBytes = encodeJson(songPayload(record))
+    const jsonResult = await reconcileFile({
+      name: songJsonName(record.name),
+      local: { fileId: 'json', bytes: jsonBytes, mime: 'application/json', size: jsonBytes.length },
+      remote: entry.json,
+      snapshot: snapshotSong?.json,
+    })
+    if (jsonResult.repull) await refreshRemoteSongMeta(record, entry)
+    let cover = entry.cover
+    if (record.coverFileId && entry.cover) {
+      const local = await getLocalFile(record.coverFileId)
+      const coverResult = await reconcileFile({ name: coverFileName(record.name), local, remote: entry.cover, snapshot: snapshotSong?.cover })
+      if (coverResult.repull && local) {
+        const bytes = await window.api.driveDownload(entry.cover.fileId)
+        await useLibraryStore.getState().applyStemFiles(record.name, [], bytes)
+      }
+      cover = coverResult.file
+    }
+    return { name: record.name, json: jsonResult.file, stems: { ...remoteStems }, ...(cover ? { cover } : {}) }
+  }
+
   const stems: Record<string, ManifestFile> = {}
   const removedRemote: string[] = []
   let repull = false
 
   for (const [stemName, fileId] of Object.entries(record.stems)) {
+    if (fileId === null) continue // Evicted stems are handled by the remote-only branch.
     const local = await getLocalFile(fileId)
     const result = await reconcileFile({
       name: stemFileName(record.name, stemName),
@@ -214,18 +267,12 @@ async function reconcileSong(record: SongRecord, entry: ManifestSong, snapshotSo
     // The remote changed this song while it stayed the same locally.
     await Promise.allSettled(removedRemote.map((fileId) => window.api.driveDelete(fileId)))
     const pulledEntry = pruneRemoved(entry, removedRemote)
-    await pullSong(record.name, pulledEntry)
+    await pullSong(record.name, pulledEntry, true)
     return pulledEntry
   }
 
   // Song metadata: regenerate locally, reconcile like any other file.
-  const payload: SongPayload = {
-    name: record.name,
-    createdAt: record.createdAt,
-    lastOpened: record.lastOpened,
-    duration: record.duration,
-    stems: Object.keys(record.stems).sort(),
-  }
+  const payload = songPayload(record)
   const jsonBytes = encodeJson(payload)
   const jsonResult = await reconcileFile({
     name: songJsonName(record.name),
@@ -236,7 +283,7 @@ async function reconcileSong(record: SongRecord, entry: ManifestSong, snapshotSo
   if (jsonResult.repull) {
     await Promise.allSettled(removedRemote.map((fileId) => window.api.driveDelete(fileId)))
     const pulledEntry = pruneRemoved(entry, removedRemote)
-    await pullSong(record.name, pulledEntry)
+    await pullSong(record.name, pulledEntry, true)
     return pulledEntry
   }
 
@@ -300,6 +347,8 @@ async function loadRemoteManifest(): Promise<{ manifest: Manifest; manifestFileI
  * future syncs stop backing it up from this device. Returns the synced set.
  */
 export async function removeSongFromDrive(slug: string): Promise<Set<string>> {
+  const record = useLibraryStore.getState().records.get(slug)
+  if (record?.remoteOnly) throw new Error(`Download "${slug}" before removing its backup: it has no local copy.`)
   const excluded = await excludedSlugs()
   excluded.add(slug)
   await setExcludedSlugs(excluded)
@@ -308,6 +357,74 @@ export async function removeSongFromDrive(slug: string): Promise<Set<string>> {
   const entry = manifest.songs[slug]
   if (!entry) return new Set(Object.keys(manifest.songs))
   return persistManifest(await deleteSongRemotely(manifest, entry), manifestFileId)
+}
+
+/**
+ * Download a remote-only song's stems (and cover, when missing) from Drive
+ * into the local library, reporting progress 0..1 per stem.
+ */
+export async function downloadSongToLibrary(slug: string, onProgress?: (percent: number) => void): Promise<void> {
+  const library = useLibraryStore.getState()
+  const record = library.records.get(slug)
+  if (!record) throw new Error(`"${slug}" is not in the local library.`)
+  if (!record.remoteOnly) return
+  const entry = (await getKv<Manifest>(MANIFEST_SNAPSHOT_KEY))?.songs?.[slug]
+  if (!entry) throw new Error(`"${slug}" has no backup on Google Drive.`)
+  const status = await window.api.driveStatus()
+  if (!status.connected) throw new Error('Google Drive is not connected.')
+
+  const stemEntries = Object.entries(entry.stems ?? {})
+  const files: Array<{ stemName: string; bytes: Uint8Array }> = []
+  let done = 0
+  for (const [stemName, meta] of stemEntries) {
+    files.push({ stemName, bytes: await window.api.driveDownload(meta.fileId) })
+    done += 1
+    onProgress?.(stemEntries.length ? done / stemEntries.length : 1)
+  }
+  let cover: Uint8Array | undefined
+  if (entry.cover && !record.coverFileId) cover = await window.api.driveDownload(entry.cover.fileId)
+  await library.applyStemFiles(slug, files, cover)
+}
+
+/**
+ * True when the song can free its local stems: it has one, is fully local,
+ * and a backup exists on Drive (in the last synced manifest, not excluded).
+ */
+export async function canEvictSong(slug: string): Promise<boolean> {
+  const record = useLibraryStore.getState().records.get(slug)
+  if (!record || record.remoteOnly) return false
+  if (!(await getKv<Manifest>(MANIFEST_SNAPSHOT_KEY))?.songs?.[slug]) return false
+  return !(await excludedSlugs()).has(slug)
+}
+
+/**
+ * Rename a remote-only song on Drive: the json is re-uploaded with the new
+ * name while the stem/cover files keep their ids (content is immutable), and
+ * the manifest entry moves from the old slug to the new one. Idempotent: a
+ * retried call picks up the entry wherever the previous attempt left it.
+ */
+export async function renameSongOnDrive(oldName: string, newName: string): Promise<Set<string>> {
+  const library = useLibraryStore.getState()
+  const record = library.records.get(oldName) ?? library.records.get(newName)
+  if (!record) throw new Error(`"${oldName}" is not in the local library.`)
+
+  const { manifest, manifestFileId } = await loadRemoteManifest()
+  const oldEntry = manifest.songs[oldName]
+  const existing = manifest.songs[newName]
+  // Neither entry: nothing backed up under either slug; a plain local rename is enough.
+  if (!oldEntry && !existing) return new Set(Object.keys(manifest.songs))
+
+  // The json content changes with the name; stems and cover only borrow it.
+  const payload: SongPayload = { ...songPayload(record), name: newName }
+  const jsonBytes = encodeJson(payload)
+  const json = existing && record.remoteOnly
+    ? existing.json
+    : await uploadFile(songJsonName(newName), 'application/json', jsonBytes, await sha256Hex(jsonBytes), oldEntry?.json.fileId ?? existing?.json.fileId)
+  const songs = { ...manifest.songs }
+  const base = oldEntry ?? existing!
+  delete songs[oldName]
+  songs[newName] = { name: newName, json, stems: { ...base.stems }, ...(base.cover ? { cover: base.cover } : {}) }
+  return persistManifest({ ...manifest, songs }, manifestFileId)
 }
 
 /**
@@ -375,10 +492,12 @@ export async function syncLibrary(): Promise<Set<string>> {
   }
 
   // --- Pull songs that only exist remotely ---
+  // New remote songs land as metadata + cover only; their stems download
+  // on demand when the user opens them.
   for (const [slug, entry] of Object.entries(manifest.songs)) {
     if (removedSongs.has(slug) || library.records.has(slug)) continue
     if (excluded.has(slug)) continue // This device opted out of this song's backup.
-    await pullSong(slug, entry)
+    await pullSong(slug, entry, false)
   }
 
   // --- Reconcile/push local songs ---
@@ -397,6 +516,8 @@ export async function syncLibrary(): Promise<Set<string>> {
   for (const record of localRecords) {
     if (tombstones[record.name] !== undefined || excluded.has(record.name)) continue
     const entry = manifest.songs[record.name]
+    // A remote-only song with no manifest entry cannot be pushed (no local stems).
+    if (record.remoteOnly && !entry) continue
     const snapshotSong = snapshot.songs?.[record.name]
     songs[record.name] = entry
       ? await reconcileSong(record, entry, snapshotSong)
