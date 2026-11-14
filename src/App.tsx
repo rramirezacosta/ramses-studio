@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AudioEngine } from './audio/AudioEngine'
 import { TrackLane } from './components/daw/TrackLane'
 import { Sidebar } from './components/layout/Sidebar'
+import { DriveLogo } from './components/drive/DriveLogo'
 import { TitleBar } from './components/layout/TitleBar'
 import { TransportBar } from './components/layout/TransportBar'
 import { encodeWav } from './components/stemsplitter/audio/wav'
@@ -589,25 +590,41 @@ export default function App() {
             <div className="settings-section" role="group" aria-label={t('driveSync')}>
               <span className="settings-section-label">{t('driveSync')}</span>
               {sync.connected ? (
-                <>
-                  <span className="drive-account">{sync.account}</span>
-                  <span className="drive-last-synced">
-                    {sync.lastSyncedAt ? t('driveLastSynced', { time: new Date(sync.lastSyncedAt).toLocaleString() }) : ''}
-                  </span>
+                <div className="drive-card connected">
+                  <div className="drive-head">
+                    <DriveLogo className="drive-logo" />
+                    <span className="drive-status-dot" aria-hidden="true" />
+                    <div className="drive-who">
+                      <strong>{sync.account}</strong>
+                      <small>
+                        {sync.syncing
+                          ? t('driveSyncing')
+                          : sync.lastSyncedAt
+                            ? t('driveLastSynced', { time: new Date(sync.lastSyncedAt).toLocaleString() })
+                            : t('driveNeverSynced')}
+                      </small>
+                    </div>
+                  </div>
                   <div className="drive-actions">
                     <button type="button" className="primary-button" disabled={sync.syncing} onClick={() => { void sync.syncNow() }}>
-                      {sync.syncing ? t('driveSyncing') : t('driveSyncNow')}
+                      {sync.syncing ? (<><span className="drive-spinner" aria-hidden="true" /> {t('driveSyncing')}</>) : t('driveSyncNow')}
                     </button>
                     <button type="button" onClick={() => { void sync.disconnect() }}>{t('driveDisconnect')}</button>
                   </div>
-                </>
+                </div>
               ) : (
-                <>
-                  <small>{t('driveNotConnected')}</small>
+                <div className="drive-card">
+                  <div className="drive-head">
+                    <DriveLogo className="drive-logo muted" />
+                    <div className="drive-who">
+                      <strong>{t('driveSync')}</strong>
+                      <small>{t('driveNotConnected')}</small>
+                    </div>
+                  </div>
                   <div className="drive-actions">
                     <button type="button" className="primary-button" onClick={connectDrive}>{t('driveConnect')}</button>
                   </div>
-                </>
+                </div>
               )}
               {sync.error && <small className="drive-error" role="alert">{t('driveSyncFailed', { message: sync.error })}</small>}
             </div>
