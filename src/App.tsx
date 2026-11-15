@@ -699,7 +699,7 @@ export default function App() {
     <main className="app-shell">
       <TitleBar onOpenSettings={openSettings} onOpenAbout={openAbout} drive={library.songs.length === 0 ? undefined : { connected: sync.connected, syncing: sync.syncing, error: sync.error, pendingChanges: sync.pendingChanges }} onOpenDrive={() => setLibraryManageOpen(true)} />
       <div className="app-content">
-        <Sidebar songs={library.songs} activeSong={activeSong} loading={library.loading} importing={importing} cancelling={cancelling} importProgress={importProgress} importStage={importStage} syncedNames={sync.syncedNames} driveConnected={sync.connected} downloading={downloading} remoteCount={library.songs.filter((song) => song.remoteOnly).length} onDriveRemove={(song) => { void sync.removeBackup(song.name) }} onDriveSync={(song) => { void sync.backupSong(song.name) }} onEvict={(song) => { void sync.freeUpSpace(song.name) }} onDriveDownload={(song) => { void selectSong(song) }} onDownloadAll={downloadAllRemote} onSelect={selectSong} onImport={openImportSource} onCancelImport={cancelImport} onRename={openRenameDialog} onDelete={deleteSong} onBulkDelete={bulkDeleteSongs} onBulkSync={bulkSyncSongs} onBulkDownload={bulkDownloadSongs} onBulkEvict={bulkEvictSongs} />
+        <Sidebar songs={library.songs} activeSong={activeSong} loading={library.loading} importing={importing} cancelling={cancelling} importProgress={importProgress} importStage={importStage} syncedNames={sync.syncedNames} driveConnected={sync.connected} downloading={downloading} remoteCount={library.songs.filter((song) => song.remoteOnly).length} onDriveRemove={(song) => { void sync.removeBackup(song.name) }} onDriveSync={(song) => { void sync.backupSong(song.name) }} onEvict={(song) => { void sync.freeUpSpace(song.name) }} onDriveDownload={(song) => { void selectSong(song) }} onDownloadAll={downloadAllRemote} onSelect={selectSong} onImport={openImportSource} onCancelImport={cancelImport} onRename={openRenameDialog} onDelete={deleteSong} onBulkDelete={bulkDeleteSongs} onBulkSync={bulkSyncSongs} onBulkDownload={bulkDownloadSongs} onBulkEvict={bulkEvictSongs} onOpenLibraryManager={() => setLibraryManageOpen(true)} />
         <div className="workspace">
         {library.songs.length === 0 && !library.loading ? (
           <div className="welcome">
@@ -928,23 +928,6 @@ export default function App() {
               ) : (
                 <small className="storage-usage">{t('storageUsage', { used: '—', total: '—' })}</small>
               )}
-              <div className="drive-actions">
-                <button type="button" onClick={() => {
-                  void sync.freeUpOldest(5).then((freed) => {
-                    if (freed > 0) setNotice(t('storageFreed', { size: formatBytes(freed) }))
-                    void navigator.storage?.estimate?.().then((e) => { if (e?.quota) setStorage({ usage: e.usage ?? 0, quota: e.quota }) })
-                  })
-                }}>{t('storageFreeOldest')}</button>
-              </div>
-            </div>
-            <div className="settings-section" role="group" aria-label={t('syncLegendTitle')}>
-              <span className="settings-section-label">{t('syncLegendTitle')}</span>
-              <div className="sync-legend">
-                <span className="sync-pill sync-pill-local">{t('syncPillLocal')}</span>
-                <span className="sync-pill sync-pill-synced">{t('syncPillSynced')}</span>
-                <span className="sync-pill sync-pill-remote">{t('syncPillRemote')}</span>
-                <span className="sync-pill sync-pill-downloading">{t('syncPillDownloading')}</span>
-              </div>
             </div>
             <p className="settings-footer">
               <span>{t('version')} {__APP_VERSION__}</span>

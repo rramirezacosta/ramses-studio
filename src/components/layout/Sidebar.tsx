@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { CloudDownload, CloudOff, CloudUpload, FilePenLine, FilePlus2, HardDrive, HardDriveDownload, Search, Trash2, Info, Check, ArrowUpDown, Filter, Music, Wand2, Headphones, Cloud } from 'lucide-react'
+import { CloudDownload, CloudOff, CloudUpload, FilePenLine, FilePlus2, HardDrive, HardDriveDownload, Search, Trash2, Info, Check, ArrowUpDown, Filter, Music, Wand2, Headphones, Cloud, Settings2 } from 'lucide-react'
 import { DriveLogo } from '../drive/DriveLogo'
 import logo from '../../assets/logo.png'
 import { useTranslation } from '../../i18n'
@@ -116,10 +116,11 @@ interface Props {
   onBulkSync?: (songs: Song[]) => void
   onBulkDownload?: (songs: Song[]) => void
   onBulkEvict?: (songs: Song[]) => void
+  onOpenLibraryManager: () => void
 }
 
 
-export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, importing, cancelling, importProgress, importStage, syncedNames, driveConnected, downloading, remoteCount, onDriveRemove, onDriveSync, onEvict, onDriveDownload, onDownloadAll, onSelect, onImport, onCancelImport, onRename, onDelete, onBulkDelete, onBulkSync, onBulkDownload, onBulkEvict }: Props) {
+export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, importing, cancelling, importProgress, importStage, syncedNames, driveConnected, downloading, remoteCount, onDriveRemove, onDriveSync, onEvict, onDriveDownload, onDownloadAll, onSelect, onImport, onCancelImport, onRename, onDelete, onBulkDelete, onBulkSync, onBulkDownload, onBulkEvict, onOpenLibraryManager }: Props) {
   const t = useTranslation()
   const [query, setQuery] = useState('')
   const [importHovered, setImportHovered] = useState(false)
@@ -266,6 +267,15 @@ export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, impor
           </div>
         </div>
       )}
+      <div className="sidebar-toolbar">
+        <label className="library-search">
+          <Search size={15} aria-hidden="true" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('searchLibrary')} aria-label={t('searchLibraryAria')} />
+        </label>
+        <button className="library-management-btn" onClick={onOpenLibraryManager} title={t('libraryManagement')}>
+          <Settings2 size={14} />
+        </button>
+      </div>
       {!loading && songs.length > 0 && visibleSongs.length === 0 && (
         <p className="empty-state">{t('noMatchingSongs')}</p>
       )}
@@ -365,10 +375,6 @@ export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, impor
         document.body,
       ) : null}
 
-      <label className="library-search">
-        <Search size={15} aria-hidden="true" />
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('searchLibrary')} aria-label={t('searchLibraryAria')} />
-      </label>
     </aside>
   )
 })
