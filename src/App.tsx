@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Download, Headphones, Repeat2, SlidersVertical, VolumeX } from 'lucide-react'
+import { Download, Headphones, Music, Repeat2, SlidersVertical, VolumeX } from 'lucide-react'
 import { AudioEngine } from './audio/AudioEngine'
 import { SkeletonLoader } from './components/daw/SkeletonLoader'
 import { TrackLane } from './components/daw/TrackLane'
@@ -825,8 +825,12 @@ export default function App() {
               ))}
               {!tracks.length && loadingSong && <SkeletonLoader />}
               {!tracks.length && !loadingSong && (
-                <div className="empty-state">
-                  <p>{t('selectSongHint')}</p>
+                <div className="no-song-empty">
+                  <div className="no-song-empty-icon">
+                    <Music size={40} />
+                  </div>
+                  <h3 className="no-song-empty-title">{t('noSongTitle')}</h3>
+                  <p className="no-song-empty-body">{t('noSongBody')}</p>
                 </div>
               )}
             </div>

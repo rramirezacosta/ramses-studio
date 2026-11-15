@@ -81,17 +81,17 @@
 
 /* Sidebar song rows — hover slide */
 .song-row:hover {
-  transform: translateX(3px);
+  transform: translateX(2px);
 }
 .song-row.active {
-  animation: song-select-pulse 0.4s ease both;
+  animation: song-select-pulse 0.35s ease both;
 }
 @keyframes song-select-pulse {
   0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 40%, transparent);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 30%, transparent);
   }
   50% {
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 15%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
   }
   100% {
     box-shadow: none;
@@ -100,7 +100,7 @@
 
 /* Sidebar song rows — staggered list entrance */
 .sidebar .song-row {
-  animation: sidebar-row-fade-in 0.25s ease both;
+  animation: sidebar-row-fade-in 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 }
 .sidebar .song-row:nth-child(1) { animation-delay: 0.02s; }
 .sidebar .song-row:nth-child(2) { animation-delay: 0.04s; }
@@ -116,7 +116,7 @@
 @keyframes sidebar-row-fade-in {
   from {
     opacity: 0;
-    transform: translateX(-12px);
+    transform: translateX(-8px);
   }
   to {
     opacity: 1;
@@ -140,6 +140,28 @@
   }
   50% {
     transform: translateY(-6px);
+  }
+}
+
+/* Generic fade-in animation */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Icon float animation for empty-state icons */
+@keyframes icon-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
   }
 }
 
