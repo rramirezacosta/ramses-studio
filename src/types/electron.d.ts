@@ -50,6 +50,10 @@ declare global {
       minimizeWindow: () => Promise<void>
       toggleWindowMaximize: () => Promise<boolean>
       closeWindow: () => Promise<void>
+      checkForUpdates: () => Promise<void>
+      downloadUpdate: () => Promise<void>
+      openReleasesPage: () => Promise<void>
+      onUpdaterState: (listener: (state: { status: string; version?: string; message?: string }) => void) => () => void
     }
   }
 }

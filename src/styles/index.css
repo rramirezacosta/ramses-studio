@@ -511,6 +511,13 @@ code { color: #b9b1ff; }
 .titlebar-drive-indicator { display: flex; align-items: center; gap: 4px; padding: 6px 8px; color: #7a84a0; cursor: default; }
 .titlebar-drive-indicator.syncing { color: var(--accent-bright); animation: drive-pulse 1.4s ease-out infinite; }
 .titlebar-drive-indicator.error { color: #ff7a7a; }
+.update-indicator { display: flex; align-items: center; gap: 4px; margin-left: 8px; padding: 3px 6px; border-radius: 6px; background: rgba(255, 255, 255, .06); color: var(--accent-bright); -webkit-app-region: no-drag; }
+.update-indicator-button { display: grid; place-items: center; padding: 3px; border: none; border-radius: 4px; color: inherit; background: transparent; cursor: pointer; }
+.update-indicator-button:hover { background: rgba(255, 255, 255, .15); color: #fff; }
+.update-indicator-check { display: grid; place-items: center; padding: 3px; border: none; border-radius: 4px; color: #7a84a0; background: transparent; cursor: pointer; }
+.update-indicator-check:hover { background: rgba(255, 255, 255, .1); color: #fff; }
+.update-indicator-check:disabled { opacity: .4; cursor: default; }
+.update-indicator-spinner { animation: drive-rotate .8s linear infinite; }
 .drop-overlay { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(5, 6, 14, .55); backdrop-filter: blur(6px); pointer-events: none; }
 .drop-overlay-card { padding: 18px 28px; border: 2px dashed color-mix(in srgb, var(--accent-bright) 70%, transparent); border-radius: 12px; background: color-mix(in srgb, var(--accent-deeper) 25%, rgba(8, 10, 21, .7)); color: #f2f4ff; font-weight: 800; font-size: 14px; letter-spacing: .02em; }
 .storage-bar { position: relative; height: 8px; border-radius: 4px; overflow: hidden; background: rgba(255, 255, 255, .08); }

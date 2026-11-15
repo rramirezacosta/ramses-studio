@@ -22,6 +22,9 @@ contextBridge.exposeInMainWorld('api', {
   minimizeWindow: () => ipcRenderer.invoke('window:minimize'),
   toggleWindowMaximize: () => ipcRenderer.invoke('window:toggle-maximize'),
   closeWindow: () => ipcRenderer.invoke('window:close'),
+  checkForUpdates: () => ipcRenderer.invoke('updater:check'),
+  downloadUpdate: () => ipcRenderer.invoke('updater:download'),
+  openReleasesPage: () => ipcRenderer.invoke('updater:open-releases'),
   onImportProgress: (listener: (progress: { progress: number; currentSegment: number; totalSegments: number }) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, progress: { progress: number; currentSegment: number; totalSegments: number }) => listener(progress)
     ipcRenderer.on('songs:import-progress', handler)
@@ -31,5 +34,10 @@ contextBridge.exposeInMainWorld('api', {
     const handler = (_event: Electron.IpcRendererEvent, stage: string) => listener(stage)
     ipcRenderer.on('songs:import-stage', handler)
     return () => ipcRenderer.removeListener('songs:import-stage', handler)
+  },
+  onUpdaterState: (listener: (state: { status: string; version?: string; message?: string }) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, state: { status: string; version?: string; message?: string }) => listener(state)
+    ipcRenderer.on('updater:state', handler)
+    return () => ipcRenderer.removeListener('updater:state', handler)
   },
 })

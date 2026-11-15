@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { registerStemImportIpc } from './ipc/stemImport'
 import { registerMixIpc } from './ipc/mixExport'
 import { registerDriveIpc } from './drive/ipc'
+import { registerAutoUpdater, registerUpdaterIpc } from './autoUpdater'
 
 if (process.platform === 'linux') app.commandLine.appendSwitch('enable-features', 'Vulkan')
 
@@ -95,6 +96,8 @@ app.whenReady().then(() => {
   registerMixIpc()
   registerWindowIpc()
   registerDriveIpc()
+  registerUpdaterIpc()
+  registerAutoUpdater()
   createWindow()
 })
 
