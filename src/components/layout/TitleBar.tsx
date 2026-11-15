@@ -1,6 +1,7 @@
 import { CircleHelp, Cloud, CloudOff, Copy, Minus, Settings, Square, X } from 'lucide-react'
 import { memo, useEffect, useState } from 'react'
 import { useTranslation } from '../../i18n'
+import { UpdateIndicator } from './UpdateIndicator'
 
 type WindowButton = 'minimize' | 'maximize' | 'close'
 
@@ -87,11 +88,12 @@ export const TitleBar = memo(function TitleBar({ onOpenSettings, onOpenAbout, dr
   return (
     <header className="titlebar">
       <div className="titlebar-window-controls">
-        {hasLeftButtons ? leftControls.map(renderButton) : [driveButton, aboutButton, settingsButton].filter(Boolean)}
+        {hasLeftButtons ? leftControls.map(renderButton) : [settingsButton, aboutButton, driveButton].filter(Boolean)}
       </div>
       <div className="titlebar-drag-region" onDoubleClick={toggleMaximize}>
         <span className="titlebar-name">Ramses Studio</span>
         <span className="titlebar-version">v{__APP_VERSION__}</span>
+        <UpdateIndicator />
       </div>
       <div className="titlebar-window-controls">
         {hasLeftButtons ? [driveButton, aboutButton, settingsButton].filter(Boolean) : rightControls.map(renderButton)}
