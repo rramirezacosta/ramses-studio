@@ -7,6 +7,12 @@ import { registerStemImportIpc } from './ipc/stemImport'
 import { registerMixIpc } from './ipc/mixExport'
 import { registerDriveIpc } from './drive/ipc'
 import { registerAutoUpdater, registerUpdaterIpc } from './autoUpdater'
+import pkg from '../package.json'
+
+if (process.argv.includes('--version')) {
+  console.log(pkg.version)
+  process.exit(0)
+}
 
 if (process.platform === 'linux') app.commandLine.appendSwitch('enable-features', 'Vulkan')
 
