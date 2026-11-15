@@ -66,6 +66,11 @@ const SongRow = memo(function SongRow({ song, active, synced, downloading, selec
         ) : (
           <span className="song-cover song-cover-fallback" style={{ '--art-hue': artHue(song.name) } as React.CSSProperties}>{initialsFor(artist, title)}</span>
         )}
+        {song.remoteOnly ? (
+          <span className="drive-badge-chip" title={t('driveRemoteSong')}>
+            <DriveLogo className="drive-badge" />
+          </span>
+        ) : null}
         {downloading !== undefined ? (
           <span className="song-download" style={{ width: `${Math.round(downloading * 100)}%` }} />
         ) : null}
@@ -116,11 +121,12 @@ interface Props {
   onBulkSync?: (songs: Song[]) => void
   onBulkDownload?: (songs: Song[]) => void
   onBulkEvict?: (songs: Song[]) => void
-  onOpenLibraryManager: () => void
+  libraryManagerOpen: boolean
+  onToggleLibraryManager: () => void
 }
 
 
-export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, importing, cancelling, importProgress, importStage, syncedNames, driveConnected, downloading, remoteCount, onDriveRemove, onDriveSync, onEvict, onDriveDownload, onDownloadAll, onSelect, onImport, onCancelImport, onRename, onDelete, onBulkDelete, onBulkSync, onBulkDownload, onBulkEvict, onOpenLibraryManager }: Props) {
+export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, importing, cancelling, importProgress, importStage, syncedNames, driveConnected, downloading, remoteCount, onDriveRemove, onDriveSync, onEvict, onDriveDownload, onDownloadAll, onSelect, onImport, onCancelImport, onRename, onDelete, onBulkDelete, onBulkSync, onBulkDownload, onBulkEvict, libraryManagerOpen, onToggleLibraryManager }: Props) {
   const t = useTranslation()
   const [query, setQuery] = useState('')
   const [importHovered, setImportHovered] = useState(false)
@@ -211,17 +217,6 @@ export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, impor
   return (
     <aside className="sidebar">
       <div className="brand"><img src={logo} alt="Ramses Studio" /></div>
-      <div className="library-title">{t('songLibrary')}</div>
-      <button
-        className={`import-button${importing && importHovered && !cancelling ? ' cancel' : ''}${cancelling ? ' cancelling' : ''}`}
-        onClick={importing && !cancelling ? () => onCancelImport?.() : onImport}
-        disabled={cancelling}
-        onMouseEnter={() => setImportHovered(true)}
-        onMouseLeave={() => setImportHovered(false)}
-      >
-        {!importing ? <FilePlus2 size={15} /> : null} <span>{cancelling ? t('cancelling') : importing ? (importHovered ? t('cancel') : importStage ?? t('splittingPercent', { percent: Math.round((importProgress ?? 0) * 100) })) : t('importSong')}</span>
-      </button>
-      {importing && <p className="import-fallback-message">{t('cpuInference')}</p>}
 
       {loading && (
         <div className="song-list skeleton-list" aria-busy="true">
@@ -272,7 +267,7 @@ export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, impor
           <Search size={15} aria-hidden="true" />
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('searchLibrary')} aria-label={t('searchLibraryAria')} />
         </label>
-        <button className="library-management-btn" onClick={onOpenLibraryManager} title={t('libraryManagement')}>
+        <button className="library-management-btn" onClick={onToggleLibraryManager} title={t('libraryManagement')}>
           <Settings2 size={14} />
         </button>
       </div>
@@ -314,6 +309,17 @@ export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, impor
           </div>
         </div>
       )}
+
+      <button
+        className={`import-button${importing && importHovered && !cancelling ? ' cancel' : ''}${cancelling ? ' cancelling' : ''}`}
+        onClick={importing && !cancelling ? () => onCancelImport?.() : onImport}
+        disabled={cancelling}
+        onMouseEnter={() => setImportHovered(true)}
+        onMouseLeave={() => setImportHovered(false)}
+      >
+        {!importing ? <FilePlus2 size={15} /> : null} <span>{cancelling ? t('cancelling') : importing ? (importHovered ? t('cancel') : importStage ?? t('splittingPercent', { percent: Math.round((importProgress ?? 0) * 100) })) : t('importSong')}</span>
+      </button>
+      {importing && <p className="import-fallback-message">{t('cpuInference')}</p>}
 
       {menu ? createPortal(
         <div className="song-menu" ref={menuRef} style={{ left: menu.x, top: menu.y }} role="menu" tabIndex={-1} aria-label={t('songLibrary')}>

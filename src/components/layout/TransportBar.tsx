@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo } from 'react'
 import { Download, Pause, Play, Repeat, RotateCcw, Square } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 import { useTransportStore } from '../../store/useTransportStore'
@@ -8,13 +8,13 @@ interface Props {
   looping: boolean
   exportingMix: boolean
   exportingStems: boolean
+  exportPopupOpen: boolean
   onPlayPause: () => void
   onStop: () => void
   onSeek: (value: number) => void
   onMasterVolume: (value: number) => void
   onToggleLoop: () => void
-  onExportMix: () => void
-  onExportStems: () => void
+  onToggleExportPopup: () => void
 }
 
 const formatTime = (seconds: number) => {
@@ -28,59 +28,33 @@ export const TransportBar = memo(function TransportBar(props: Props) {
   const currentTime = useTransportStore((store) => store.currentTime)
   const duration = useTransportStore((store) => store.duration)
   const masterVolume = useTransportStore((store) => store.masterVolume)
-  const [open, setOpen] = useState(false)
-  const buttonRef = useRef<HTMLButtonElement | null>(null)
-  const menuRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const dismiss = (event: PointerEvent) => {
-      if (menuRef.current?.contains(event.target as Node) || buttonRef.current?.contains(event.target as Node)) return
-      setOpen(false)
-    }
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false) }
-    window.addEventListener('pointerdown', dismiss, true)
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('pointerdown', dismiss, true)
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [open])
 
   const exporting = props.exportingMix || props.exportingStems
+
+  const hasSong = duration > 0
 
   return (
     <header className="transport">
       <div className="transport-controls">
-        <button className="icon-button" onClick={props.onStop} title={t('returnToStart')}><Square size={16} /></button>
-        <button className="play-button" onClick={props.onPlayPause} title={t('playPause')}>
+        <button className="icon-button" onClick={props.onStop} disabled={!hasSong} title={t('returnToStart')}><Square size={16} /></button>
+        <button className="play-button" onClick={props.onPlayPause} disabled={!hasSong} title={t('playPause')}>
           {isPlaying ? <Pause size={19} fill="currentColor" /> : <Play size={19} fill="currentColor" />}
         </button>
-        <button className="icon-button" onClick={() => props.onSeek(0)} title={t('returnToStart')}><RotateCcw size={16} /></button>
+        <button className="icon-button" onClick={() => props.onSeek(0)} disabled={!hasSong} title={t('returnToStart')}><RotateCcw size={16} /></button>
         <button className={`icon-button loop-button ${props.looping ? 'active' : ''}`} onClick={props.onToggleLoop} disabled={!props.loopRange} title={props.loopRange ? t('loopSelectedRange') : t('dragToLoop')} aria-label={t('loopSelectedRange')}><Repeat size={16} /></button>
       </div>
       <div className="time-readout">{formatTime(currentTime)} <span>/ {formatTime(duration)}</span></div>
       {props.loopRange && <div className="loop-readout">{t('loopReadout')} {formatTime(props.loopRange[0])}–{formatTime(props.loopRange[1])}</div>}
-      <input className="seek" type="range" min="0" max={Math.max(duration, 0.01)} step="0.01" value={currentTime} onChange={(event) => props.onSeek(Number(event.target.value))} />
-      <label className="master-volume">{t('master')} <input type="range" min="0" max="1" step="0.01" value={masterVolume} onChange={(event) => props.onMasterVolume(Number(event.target.value))} /></label>
-      <div style={{ position: 'relative' }}>
-        <button
-          ref={buttonRef}
-          className="export-mix-button"
-          onClick={() => { if (duration && !exporting) setOpen((v) => !v) }}
-          disabled={!duration || exporting}
-          title={duration ? t('exportMixTooltip') : t('exportMixDisabledTooltip')}
-          aria-label={t('exportMixAria')}
-        >
-          <Download size={14} /> {exporting ? t('exporting') : t('export')}
-        </button>
-        {open && (
-          <div className="export-menu" ref={menuRef}>
-            <button type="button" onClick={() => { setOpen(false); props.onExportMix() }}>{t('exportCurrentMix')}</button>
-            <button type="button" onClick={() => { setOpen(false); props.onExportStems() }}>{t('exportStems')}</button>
-          </div>
-        )}
-      </div>
+      <input className="seek" type="range" min="0" max={Math.max(duration, 0.01)} step="0.01" value={currentTime} disabled={!hasSong} onChange={(event) => props.onSeek(Number(event.target.value))} />
+      <label className="master-volume">{t('master')} <input type="range" min="0" max="1" step="0.01" value={masterVolume} disabled={!hasSong} onChange={(event) => props.onMasterVolume(Number(event.target.value))} /></label>
+      <button
+        className="export-mix-button"
+        onClick={() => { if (duration && !exporting) props.onToggleExportPopup() }}
+        disabled={!duration || exporting}
+        aria-label={t('exportMixAria')}
+      >
+        <Download size={14} /> {exporting ? t('exporting') : t('export')}
+      </button>
     </header>
   )
 })

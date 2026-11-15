@@ -15,10 +15,9 @@ interface TitleBarProps {
   onOpenSettings?: () => void
   onOpenAbout?: () => void
   drive?: { connected: boolean; syncing: boolean; error?: string; pendingChanges?: number }
-  onOpenDrive?: () => void
 }
 
-export const TitleBar = memo(function TitleBar({ onOpenSettings, onOpenAbout, drive, onOpenDrive }: TitleBarProps) {
+export const TitleBar = memo(function TitleBar({ onOpenSettings, onOpenAbout, drive }: TitleBarProps) {
   const t = useTranslation()
   const [layout, setLayout] = useState<ButtonLayout>(defaultLayout)
   const [maximized, setMaximized] = useState(false)
@@ -68,17 +67,14 @@ export const TitleBar = memo(function TitleBar({ onOpenSettings, onOpenAbout, dr
   )
 
   const driveButton = drive ? (
-    <button
+    <span
       key="drive"
-      className={`titlebar-button titlebar-drive${drive.syncing ? ' syncing' : ''}${drive.error ? ' error' : ''}`}
-      type="button"
-      aria-label={t('driveSync')}
-      title={drive.error ? drive.error : t('driveSync')}
-      onClick={onOpenDrive}
+      className={`titlebar-drive-indicator${drive.syncing ? ' syncing' : ''}${drive.error ? ' error' : ''}`}
+      title={drive.error ? drive.error : (drive.syncing ? t('syncing') : (drive.pendingChanges ? t('pendingChanges', { count: drive.pendingChanges }) : t('synced')))}
     >
       {drive.error ? <CloudOff size={15} /> : <Cloud size={15} />}
       {drive.pendingChanges ? <span className="pending-badge">{drive.pendingChanges}</span> : null}
-    </button>
+    </span>
   ) : null
 
   const leftControls = [...layout.left]

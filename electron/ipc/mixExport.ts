@@ -15,7 +15,7 @@ const safeFileName = (value: string) =>
 export function registerMixIpc() {
   ipcMain.handle('mix:export', async (_event, request: { songName?: unknown; wav?: unknown }) => {
     if (typeof request?.songName !== 'string' || !request.songName.trim()) throw new Error('Invalid song name.')
-    if (!(request.wav instanceof Uint8Array) || !request.wav.length) throw new Error('Invalid mix audio.')
+    if (!(request.wav instanceof Uint8Array || request.wav instanceof ArrayBuffer) || (!request.wav || !request.wav.byteLength)) throw new Error('Invalid mix audio.')
     const selection = await dialog.showSaveDialog({
       title: 'Export current mix',
       defaultPath: `${safeFileName(request.songName.replace(/[^a-z0-9-]+/gi, '-').toLowerCase())}-mix.mp3`,
@@ -25,7 +25,8 @@ export function registerMixIpc() {
     const directory = await mkdtemp(join(tmpdir(), 'ramses-mix-'))
     try {
       const wavPath = join(directory, 'mix.wav')
-      await writeFile(wavPath, request.wav)
+      const wavBytes = request.wav instanceof Uint8Array ? request.wav : new Uint8Array(request.wav)
+      await writeFile(wavPath, wavBytes)
       await execFile(ffmpegPath(), ['-v', 'error', '-y', '-i', wavPath, '-codec:a', 'libmp3lame', '-q:a', '2', selection.filePath])
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
@@ -42,7 +43,7 @@ export function registerMixIpc() {
     const stems = request.stems as Array<{ name?: unknown; data?: unknown }>
     for (const stem of stems) {
       if (typeof stem?.name !== 'string' || !stem.name.trim()) throw new Error('Invalid stem name.')
-      if (!(stem.data instanceof Uint8Array) || !stem.data.length) throw new Error('Invalid stem audio.')
+      if (!(stem.data instanceof Uint8Array || stem.data instanceof ArrayBuffer) || (!stem.data || !stem.data.byteLength)) throw new Error('Invalid stem audio.')
     }
     const selection = await dialog.showSaveDialog({
       title: 'Export stems',

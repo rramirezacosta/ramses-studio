@@ -1,21 +1,12 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { CloudDownload, CloudOff, CloudUpload, FilePenLine, FilePlus2, HardDrive, HardDriveDownload, Search, Trash2, Info, ArrowUpDown, X, Music } from 'lucide-react'
+import { CloudDownload, CloudOff, CloudUpload, FilePenLine, FilePlus2, HardDrive, HardDriveDownload, Search, Trash2, Info, ArrowUpDown, X, Music, CheckCheck } from 'lucide-react'
 import { DriveLogo } from '../drive/DriveLogo'
 import { useTranslation } from '../../i18n'
 import { parseSongName, songDisplayName } from '../../utils/songName'
 import type { Song } from '../../types/audio'
 
-function artHue(name: string): number {
-  return [...name].reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) % 360, 0)
-}
-
-const LEADING_ARTICLE = /^(the|los|las|les)-/i
-const songSortKey = (name: string) => name.replace(LEADING_ARTICLE, '')
-
-interface Props {
-  open: boolean
-  onClose: () => void
+export interface LibraryManagerProps {
   songs: Song[]
   activeSong?: string
   loading: boolean
@@ -32,8 +23,6 @@ interface Props {
   onEvict: (song: Song) => void
   onDriveDownload: (song: Song) => void
   onDownloadAll: () => void
-  onSelect: (song: Song) => void
-  onImport: () => void
   onCancelImport?: () => void
   onRename: (song: Song) => void
   onDelete: (song: Song) => void
@@ -41,14 +30,22 @@ interface Props {
   onBulkSync?: (songs: Song[]) => void
   onBulkDownload?: (songs: Song[]) => void
   onBulkEvict?: (songs: Song[]) => void
+  onClose?: () => void
 }
 
-type SortKey = 'name' | 'recent' | 'size' | 'stems'
+function artHue(name: string): number {
+  return [...name].reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) % 360, 0)
+}
+
+const LEADING_ARTICLE = /^(the|los|las|les)-/i
+const songSortKey = (name: string) => name.replace(LEADING_ARTICLE, '')
+
+type SortKey = 'name' | 'recent' | 'size'
 type FilterKey = 'all' | 'local' | 'synced' | 'remote'
 
-export const LibraryManager = memo(function LibraryManager(props: Props) {
+export const LibraryManager = memo(function LibraryManager(props: LibraryManagerProps) {
   const t = useTranslation()
-  const { open, onClose } = props
+  const { onClose } = props
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<SortKey>('name')
   const [filter, setFilter] = useState<FilterKey>('all')
@@ -72,7 +69,6 @@ export const LibraryManager = memo(function LibraryManager(props: Props) {
   const visibleSongs = [...filtered].sort((a, b) => {
     if (sort === 'recent') return (b.lastOpened ?? 0) - (a.lastOpened ?? 0)
     if (sort === 'size') return (b.size ?? 0) - (a.size ?? 0)
-    if (sort === 'stems') return b.stems.length - a.stems.length || songSortKey(a.name).localeCompare(songSortKey(b.name))
     return songSortKey(a.name).localeCompare(songSortKey(b.name)) || a.name.localeCompare(b.name)
   })
 
@@ -89,6 +85,21 @@ export const LibraryManager = memo(function LibraryManager(props: Props) {
   }, [])
 
   const clearSelection = useCallback(() => setSelected(new Set()), [])
+
+  const toggleSelectAll = useCallback(() => {
+    setSelected((prev) => {
+      const allNames = new Set(visibleSongs.map((s) => s.name))
+      const allVisibleSelected = visibleSongs.length > 0 && visibleSongs.every((s) => prev.has(s.name))
+      if (allVisibleSelected) {
+        const next = new Set(prev)
+        for (const s of visibleSongs) next.delete(s.name)
+        return next
+      }
+      const next = new Set(prev)
+      for (const s of visibleSongs) next.add(s.name)
+      return next
+    })
+  }, [visibleSongs])
 
   useEffect(() => {
     if (!menu) return
@@ -148,201 +159,198 @@ export const LibraryManager = memo(function LibraryManager(props: Props) {
     return `${m}:${s.toString().padStart(2, '0')}`
   }
 
-  if (!open) return null
-
-  return createPortal(
-    <div className="library-manager-overlay" role="dialog" aria-modal="true" aria-labelledby="library-manager-title">
-      <div className="library-manager-panel">
-        <div className="library-manager-header">
-          <h2 id="library-manager-title">{t('libraryManagement')}</h2>
+  return (
+    <div className="library-manager-inline" role="region" aria-labelledby="library-manager-title">
+      <div className="library-manager-header">
+        <h2 id="library-manager-title">{t('libraryManagement')}</h2>
+        {onClose && (
           <button type="button" className="library-manager-close" onClick={onClose} aria-label={t('close')}><X size={18} /></button>
-        </div>
-
-        <div className="library-manager-toolbar">
-          <label className="library-search">
-            <Search size={15} aria-hidden="true" />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('searchLibrary')} aria-label={t('searchLibraryAria')} />
-          </label>
-          <div className="library-filter-chips">
-            {(['all', 'local', 'synced', 'remote'] as FilterKey[]).map((key) => (
-              <button key={key} type="button" className={`filter-chip ${filter === key ? 'active' : ''}`} onClick={() => setFilter(key)}>
-                {key === 'all' ? t('filterAll') : key === 'local' ? t('filterLocal') : key === 'synced' ? t('filterSynced') : t('filterRemote')}
-              </button>
-            ))}
-          </div>
-          <label className="library-sort">
-            <ArrowUpDown size={12} />
-            <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label={t('sortBy')}>
-              <option value="name">{t('sortByName')}</option>
-              <option value="recent">{t('sortByRecent')}</option>
-              <option value="size">{t('sortBySize')}</option>
-              <option value="stems">{t('sortByStems')}</option>
-            </select>
-          </label>
-          <button type="button" className="import-button" onClick={props.onImport} style={{ width: 'auto', margin: 0 }}>
-            <FilePlus2 size={15} /> {t('importSong')}
-          </button>
-        </div>
-
-        {props.loading ? (
-          <div className="song-list skeleton-list" aria-busy="true">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="song-row skeleton">
-                <span className="song-cover skeleton-block" />
-                <span className="song-meta">
-                  <span className="skeleton-line skeleton-title" />
-                  <span className="skeleton-line skeleton-sub" />
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : props.songs.length === 0 ? (
-          <div className="empty-state library-empty-state">
-            <div className="library-empty-header">
-              <h3>{t('libraryEmptyTitle')}</h3>
-              <p>{t('libraryEmptySubtitle')}</p>
-            </div>
-            <div className="library-empty-steps">
-              <h4>{t('libraryEmptyHowItWorks')}</h4>
-              <div className="library-empty-step">
-                <span className="library-empty-step-number">1</span>
-                <span>{t('libraryEmptyStep1')}</span>
-              </div>
-              <div className="library-empty-step">
-                <span className="library-empty-step-number">2</span>
-                <span>{t('libraryEmptyStep2')}</span>
-              </div>
-              <div className="library-empty-step">
-                <span className="library-empty-step-number">3</span>
-                <span>{t('libraryEmptyStep3')}</span>
-              </div>
-            </div>
-            <button type="button" className="primary-button" onClick={props.onImport}>{t('importSong')}</button>
-          </div>
-        ) : visibleSongs.length === 0 ? (
-          <p className="empty-state">{t('noMatchingSongs')}</p>
-        ) : (
-          <div className="library-manager-grid">
-            {visibleSongs.map((song) => {
-              const synced = props.syncedNames.has(song.name)
-              const selectedRow = selected.has(song.name)
-              const driveButtons = props.driveConnected ? (
-                song.remoteOnly ? (
-                  <button type="button" onClick={() => props.onDriveDownload(song)} title={t('driveDownloadSong')}><CloudDownload size={13} /></button>
-                ) : synced ? (
-                  <>
-                    <button type="button" onClick={() => props.onDriveRemove(song)} title={t('driveSongRemove')}><CloudOff size={13} /></button>
-                    <button type="button" onClick={() => props.onEvict(song)} title={t('driveFreeSpace')}><HardDriveDownload size={13} /></button>
-                  </>
-                ) : (
-                  <button type="button" onClick={() => props.onDriveSync(song)} title={t('driveSongSync')}><CloudUpload size={13} /></button>
-                )
-              ) : null
-              return (
-                <div key={song.name} className={`song-row ${song.name === props.activeSong ? 'active' : ''} ${selectedRow ? 'selected' : ''}`}>
-                  <label className="song-select visible" onClick={(e) => e.stopPropagation()}>
-                    <input type="checkbox" checked={selectedRow} onChange={() => toggleSelect(song)} aria-label={songDisplayName(song.name)} />
-                  </label>
-                  <button className="song-item" onClick={() => props.onSelect(song)} title={songDisplayName(song.name)}>
-                    {song.cover ? (
-                      <img className="song-cover" src={song.cover} alt="" loading="lazy" />
-                    ) : (
-                      <span className="song-cover song-cover-fallback" style={{ '--art-hue': artHue(song.name) } as React.CSSProperties}>{song.name.slice(0, 2).toUpperCase()}</span>
-                    )}
-                    <span className={`sync-pill sync-pill-${song.remoteOnly ? 'remote' : synced ? 'synced' : 'local'}`}>
-                      {song.remoteOnly ? t('syncPillRemote') : synced ? t('syncPillSynced') : t('syncPillLocal')}
-                    </span>
-                    <span className="song-meta">
-                      <strong>{parseSongName(song.name).title}</strong>
-                      <small>{parseSongName(song.name).artist ?? t('stemsCount', { count: song.stems.length })}</small>
-                    </span>
-                  </button>
-                  <div className="library-manage-actions">
-                    <button type="button" onClick={() => setDetails(song)} title={t('songDetails')}><Info size={13} /></button>
-                    {driveButtons}
-                    <button type="button" onClick={() => props.onRename(song)} title={t('rename')}><FilePenLine size={13} /></button>
-                    <button type="button" className="danger" onClick={() => props.onDelete(song)} title={t('delete')}><Trash2 size={13} /></button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-
-        {anySelected && (
-          <div className="bulk-bar">
-            <span className="bulk-count">{t('selectedCount', { count: selected.size })}</span>
-            <div className="bulk-actions">
-              {props.onBulkSync && (
-                <button type="button" onClick={() => { props.onBulkSync!(selectedSongs); clearSelection() }} title={t('driveSongSync')}><CloudUpload size={13} /></button>
-              )}
-              {props.onBulkDownload && selectedSongs.some((s) => s.remoteOnly) && (
-                <button type="button" onClick={() => { props.onBulkDownload!(selectedSongs); clearSelection() }} title={t('driveDownloadSong')}><CloudDownload size={13} /></button>
-              )}
-              {props.onBulkEvict && selectedSongs.some((s) => !s.remoteOnly && props.syncedNames.has(s.name)) && (
-                <button type="button" onClick={() => { props.onBulkEvict!(selectedSongs); clearSelection() }} title={t('driveFreeSpace')}><HardDriveDownload size={13} /></button>
-              )}
-              <button type="button" className="danger" onClick={() => { props.onBulkDelete(selectedSongs); clearSelection() }} title={t('delete')}><Trash2 size={13} /></button>
-              <button type="button" onClick={clearSelection} title={t('cancel')}>✕</button>
-            </div>
-          </div>
-        )}
-
-        {menu && createPortal(
-          <div className="song-menu" ref={menuRef} style={{ left: menu.x, top: menu.y }} role="menu" tabIndex={-1}>
-            {props.syncedNames.has(menu.song.name) && !menu.song.remoteOnly && (
-              <button role="menuitem" onClick={() => { setMenu(undefined); props.onEvict(menu.song) }}>
-                <HardDriveDownload size={14} /> {t('driveFreeSpace')}
-              </button>
-            )}
-            {props.driveConnected && (menu.song.remoteOnly ? (
-              <button role="menuitem" onClick={() => { setMenu(undefined); props.onDriveDownload(menu.song) }}>
-                <CloudDownload size={14} /> {t('driveDownloadSong')}
-              </button>
-            ) : props.syncedNames.has(menu.song.name) ? (
-              <button role="menuitem" onClick={() => { setMenu(undefined); props.onDriveRemove(menu.song) }}>
-                <CloudOff size={14} /> {t('driveSongRemove')}
-              </button>
-            ) : (
-              <button role="menuitem" onClick={() => { setMenu(undefined); props.onDriveSync(menu.song) }}>
-                <CloudUpload size={14} /> {t('driveSongSync')}
-              </button>
-            ))}
-            <button role="menuitem" onClick={() => { setMenu(undefined); props.onRename(menu.song) }}>
-              <FilePenLine size={14} /> {t('rename')}
-            </button>
-            <button role="menuitem" className="danger" onClick={() => { setMenu(undefined); props.onDelete(menu.song) }}>
-              <Trash2 size={14} /> {t('delete')}
-            </button>
-          </div>,
-          document.body,
-        )}
-
-        {details && createPortal(
-          <div className="dialog-backdrop" role="presentation" onClick={() => setDetails(undefined)}>
-            <div className="rename-dialog confirm-dialog details-dialog" ref={detailsRef} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
-              <h2>{songDisplayName(details.name)}</h2>
-              <div className="details-body">
-                {details.cover && <img className="details-cover" src={details.cover} alt="" />}
-                <dl>
-                  <dt>{t('artistName')}</dt><dd>{parseSongName(details.name).artist ?? '—'}</dd>
-                  <dt>{t('songTitle')}</dt><dd>{parseSongName(details.name).title}</dd>
-                  <dt>{t('stemsCount', { count: details.stems.length })}</dt><dd>{details.stems.join(', ')}</dd>
-                  <dt>{t('duration')}</dt><dd>{formatDuration(details.duration)}</dd>
-                  <dt>{t('songSize')}</dt><dd>{formatBytes(details.size ?? 0)}</dd>
-                  <dt>{t('status')}</dt><dd>{details.remoteOnly ? t('driveRemoteSong') : props.syncedNames.has(details.name) ? t('driveSynced') : t('localOnlySong')}</dd>
-                  {details.lastOpened ? <><dt>{t('lastOpened')}</dt><dd>{new Date(details.lastOpened).toLocaleString()}</dd></> : null}
-                </dl>
-              </div>
-              <div className="dialog-actions">
-                <button type="button" onClick={() => setDetails(undefined)}>{t('close')}</button>
-              </div>
-            </div>
-          </div>,
-          document.body,
         )}
       </div>
-    </div>,
-    document.body,
+
+      <div className="library-manager-toolbar">
+        <label className="library-search">
+          <Search size={15} aria-hidden="true" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('searchLibrary')} aria-label={t('searchLibraryAria')} />
+        </label>
+        <div className="library-filter-chips">
+          {(['all', 'local', 'synced', 'remote'] as FilterKey[]).map((key) => (
+            <button key={key} type="button" className={`filter-chip ${filter === key ? 'active' : ''}`} onClick={() => setFilter(key)}>
+              {key === 'all' ? t('filterAll') : key === 'local' ? t('filterLocal') : key === 'synced' ? t('filterSynced') : t('filterRemote')}
+            </button>
+          ))}
+        </div>
+        <label className="library-sort">
+          <ArrowUpDown size={12} />
+          <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label={t('sortBy')}>
+            <option value="name">{t('sortByName')}</option>
+            <option value="recent">{t('sortByRecent')}</option>
+            <option value="size">{t('sortBySize')}</option>
+          </select>
+        </label>
+        {visibleSongs.length > 0 && (
+          <button type="button" className="library-select-all" onClick={toggleSelectAll} title={visibleSongs.every((s) => selected.has(s.name)) ? t('deselectAll') : t('selectAll')}>
+            <CheckCheck size={14} />
+          </button>
+        )}
+      </div>
+
+      {props.loading ? (
+        <div className="song-list skeleton-list" aria-busy="true">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="song-row skeleton">
+              <span className="song-cover skeleton-block" />
+              <span className="song-meta">
+                <span className="skeleton-line skeleton-title" />
+                <span className="skeleton-line skeleton-sub" />
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : props.songs.length === 0 ? (
+        <div className="empty-state library-empty-state">
+          <div className="library-empty-header">
+            <h3>{t('libraryEmptyTitle')}</h3>
+            <p>{t('libraryEmptySubtitle')}</p>
+          </div>
+          <div className="library-empty-steps">
+            <h4>{t('libraryEmptyHowItWorks')}</h4>
+            <div className="library-empty-step">
+              <span className="library-empty-step-number">1</span>
+              <span>{t('libraryEmptyStep1')}</span>
+            </div>
+            <div className="library-empty-step">
+              <span className="library-empty-step-number">2</span>
+              <span>{t('libraryEmptyStep2')}</span>
+            </div>
+            <div className="library-empty-step">
+              <span className="library-empty-step-number">3</span>
+              <span>{t('libraryEmptyStep3')}</span>
+            </div>
+          </div>
+        </div>
+      ) : visibleSongs.length === 0 ? (
+        <p className="empty-state">{t('noMatchingSongs')}</p>
+      ) : (
+        <div className="library-manager-grid">
+          {visibleSongs.map((song) => {
+            const synced = props.syncedNames.has(song.name)
+            const selectedRow = selected.has(song.name)
+            const driveButtons = props.driveConnected ? (
+              song.remoteOnly ? (
+                <button type="button" onClick={() => props.onDriveDownload(song)} title={t('driveDownloadSong')}><CloudDownload size={13} /></button>
+              ) : synced ? (
+                <>
+                  <button type="button" onClick={() => props.onDriveRemove(song)} title={t('driveSongRemove')}><CloudOff size={13} /></button>
+                  <button type="button" onClick={() => props.onEvict(song)} title={t('driveFreeSpace')}><HardDriveDownload size={13} /></button>
+                </>
+              ) : (
+                <button type="button" onClick={() => props.onDriveSync(song)} title={t('driveSongSync')}><CloudUpload size={13} /></button>
+              )
+            ) : null
+            return (
+              <div key={song.name} className={`song-row ${song.name === props.activeSong ? 'active' : ''} ${selectedRow ? 'selected' : ''}`}>
+                <label className="song-select visible" onClick={(e) => e.stopPropagation()}>
+                  <input type="checkbox" checked={selectedRow} onChange={() => toggleSelect(song)} aria-label={songDisplayName(song.name)} />
+                </label>
+                <button className="song-item" title={songDisplayName(song.name)}>
+                  {song.cover ? (
+                    <img className="song-cover" src={song.cover} alt="" loading="lazy" />
+                  ) : (
+                    <span className="song-cover song-cover-fallback" style={{ '--art-hue': artHue(song.name) } as React.CSSProperties}>{song.name.slice(0, 2).toUpperCase()}</span>
+                  )}
+                  <span className={`sync-pill sync-pill-${song.remoteOnly ? 'remote' : synced ? 'synced' : 'local'}`}>
+                    {song.remoteOnly ? t('syncPillRemote') : synced ? t('syncPillSynced') : t('syncPillLocal')}
+                  </span>
+                  <span className="song-meta">
+                    <strong>{parseSongName(song.name).title}</strong>
+                    <small>{parseSongName(song.name).artist ?? t('stemsCount', { count: song.stems.length })}</small>
+                  </span>
+                </button>
+                <div className="library-manage-actions">
+                  <button type="button" onClick={() => setDetails(song)} title={t('songDetails')}><Info size={13} /></button>
+                  {driveButtons}
+                  <button type="button" onClick={() => props.onRename(song)} title={t('rename')}><FilePenLine size={13} /></button>
+                  <button type="button" className="danger" onClick={() => props.onDelete(song)} title={t('delete')}><Trash2 size={13} /></button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {anySelected && (
+        <div className="bulk-bar">
+          <span className="bulk-count">{t('selectedCount', { count: selected.size })}</span>
+          <div className="bulk-actions">
+            {props.onBulkSync && (
+              <button type="button" onClick={() => { props.onBulkSync!(selectedSongs); clearSelection() }} title={t('driveSongSync')}><CloudUpload size={13} /></button>
+            )}
+            {props.onBulkDownload && selectedSongs.some((s) => s.remoteOnly) && (
+              <button type="button" onClick={() => { props.onBulkDownload!(selectedSongs); clearSelection() }} title={t('driveDownloadSong')}><CloudDownload size={13} /></button>
+            )}
+            {props.onBulkEvict && selectedSongs.some((s) => !s.remoteOnly && props.syncedNames.has(s.name)) && (
+              <button type="button" onClick={() => { props.onBulkEvict!(selectedSongs); clearSelection() }} title={t('driveFreeSpace')}><HardDriveDownload size={13} /></button>
+            )}
+            <button type="button" className="danger" onClick={() => { props.onBulkDelete(selectedSongs); clearSelection() }} title={t('delete')}><Trash2 size={13} /></button>
+            <button type="button" onClick={clearSelection} title={t('cancel')}>✕</button>
+          </div>
+        </div>
+      )}
+
+      {menu && createPortal(
+        <div className="song-menu" ref={menuRef} style={{ left: menu.x, top: menu.y }} role="menu" tabIndex={-1}>
+          {props.syncedNames.has(menu.song.name) && !menu.song.remoteOnly && (
+            <button role="menuitem" onClick={() => { setMenu(undefined); props.onEvict(menu.song) }}>
+              <HardDriveDownload size={14} /> {t('driveFreeSpace')}
+            </button>
+          )}
+          {props.driveConnected && (menu.song.remoteOnly ? (
+            <button role="menuitem" onClick={() => { setMenu(undefined); props.onDriveDownload(menu.song) }}>
+              <CloudDownload size={14} /> {t('driveDownloadSong')}
+            </button>
+          ) : props.syncedNames.has(menu.song.name) ? (
+            <button role="menuitem" onClick={() => { setMenu(undefined); props.onDriveRemove(menu.song) }}>
+              <CloudOff size={14} /> {t('driveSongRemove')}
+            </button>
+          ) : (
+            <button role="menuitem" onClick={() => { setMenu(undefined); props.onDriveSync(menu.song) }}>
+              <CloudUpload size={14} /> {t('driveSongSync')}
+            </button>
+          ))}
+          <button role="menuitem" onClick={() => { setMenu(undefined); props.onRename(menu.song) }}>
+            <FilePenLine size={14} /> {t('rename')}
+          </button>
+          <button role="menuitem" className="danger" onClick={() => { setMenu(undefined); props.onDelete(menu.song) }}>
+            <Trash2 size={14} /> {t('delete')}
+          </button>
+        </div>,
+        document.body,
+      )}
+
+      {details && createPortal(
+        <div className="dialog-backdrop" role="presentation" onClick={() => setDetails(undefined)}>
+          <div className="rename-dialog confirm-dialog details-dialog" ref={detailsRef} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+            <h2>{songDisplayName(details.name)}</h2>
+            <div className="details-body">
+              {details.cover && <img className="details-cover" src={details.cover} alt="" />}
+              <dl>
+                <dt>{t('artistName')}</dt><dd>{parseSongName(details.name).artist ?? '—'}</dd>
+                <dt>{t('songTitle')}</dt><dd>{parseSongName(details.name).title}</dd>
+                <dt>{t('stemsCount', { count: details.stems.length })}</dt><dd>{details.stems.join(', ')}</dd>
+                <dt>{t('duration')}</dt><dd>{formatDuration(details.duration)}</dd>
+                <dt>{t('songSize')}</dt><dd>{formatBytes(details.size ?? 0)}</dd>
+                <dt>{t('status')}</dt><dd>{details.remoteOnly ? t('driveRemoteSong') : props.syncedNames.has(details.name) ? t('driveSynced') : t('localOnlySong')}</dd>
+                {details.lastOpened ? <><dt>{t('lastOpened')}</dt><dd>{new Date(details.lastOpened).toLocaleString()}</dd></> : null}
+              </dl>
+            </div>
+            <div className="dialog-actions">
+              <button type="button" onClick={() => setDetails(undefined)}>{t('close')}</button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+    </div>
   )
 })
