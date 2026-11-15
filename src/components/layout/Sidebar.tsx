@@ -1,7 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { CloudDownload, CloudOff, CloudUpload, FilePenLine, FilePlus2, HardDrive, HardDriveDownload, Search, Trash2, Info, Check, ArrowUpDown, Filter, Music, Wand2, Headphones, Cloud, Settings2 } from 'lucide-react'
-import { DriveLogo } from '../drive/DriveLogo'
+import { CloudDownload, CloudOff, CloudUpload, FilePenLine, FilePlus2, HardDrive, HardDriveDownload, Search, Trash2, Info, Check, ArrowUpDown, Filter, Music, Wand2, Headphones, Cloud, Settings2, Play } from 'lucide-react'
 import logo from '../../assets/logo.png'
 import { useTranslation } from '../../i18n'
 import { parseSongName, songDisplayName } from '../../utils/songName'
@@ -60,23 +59,33 @@ const SongRow = memo(function SongRow({ song, active, synced, downloading, selec
       <label className={`song-select ${anySelected || selected ? 'visible' : ''}`} onClick={(e) => e.stopPropagation()}>
         <input type="checkbox" checked={selected} onChange={() => onToggleSelect(song)} aria-label={songDisplayName(song.name)} />
       </label>
-      <button className="song-item" onClick={() => onSelect(song)} title={songDisplayName(song.name)}>
-        {hasCover ? (
-          <img className="song-cover" src={song.cover} alt="" loading="lazy" onError={() => setCoverFailed(true)} />
-        ) : (
-          <span className="song-cover song-cover-fallback" style={{ '--art-hue': artHue(song.name) } as React.CSSProperties}>{initialsFor(artist, title)}</span>
-        )}
-        {song.remoteOnly ? (
-          <span className="drive-badge-chip" title={t('driveRemoteSong')}>
-            <DriveLogo className="drive-badge" />
-          </span>
-        ) : null}
-        {downloading !== undefined ? (
-          <span className="song-download" style={{ width: `${Math.round(downloading * 100)}%` }} />
-        ) : null}
-        <span className="song-meta">
+      <button className="song-card" onClick={() => onSelect(song)} title={songDisplayName(song.name)}>
+        <div className="song-card-cover-wrap">
+          {hasCover ? (
+            <img className="song-cover" src={song.cover} alt="" loading="lazy" onError={() => setCoverFailed(true)} />
+          ) : (
+            <span className="song-cover song-cover-fallback" style={{ '--art-hue': artHue(song.name) } as React.CSSProperties}>{initialsFor(artist, title)}</span>
+          )}
+          {active && <span className="song-card-play-icon"><Play size={16} fill="currentColor" /></span>}
+          {downloading !== undefined ? (
+            <span className="song-download" style={{ width: `${Math.round(downloading * 100)}%` }} />
+          ) : null}
+        </div>
+        <span className="song-card-meta">
           <strong>{title}</strong>
-          <small>{artist ?? t('stemsCount', { count: song.stems.length })}</small>
+          {artist && <small className="song-card-artist">{artist}</small>}
+          <span className="song-card-tags">
+            {synced && !song.remoteOnly && (
+              <span className="song-card-sync-badge" title={t('driveSynced')}>
+                <Cloud size={11} />
+              </span>
+            )}
+            {song.remoteOnly && (
+              <span className="song-card-remote-badge" title={t('driveRemoteSong')}>
+                <CloudDownload size={11} />
+              </span>
+            )}
+          </span>
         </span>
       </button>
       <button className="song-info-btn" onClick={(e) => { e.stopPropagation(); onInfo(song) }} title={t('songDetails')} aria-label={t('songDetails')}>

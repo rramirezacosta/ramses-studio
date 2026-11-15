@@ -131,10 +131,10 @@
 }
 .song-row {
   display: flex;
-  align-items: center;
-  margin: 3px 0;
+  align-items: stretch;
+  margin: 4px 0;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: 14px;
   transition:
     background 0.2s ease,
     border-color 0.2s ease,
@@ -144,7 +144,7 @@
 .song-row:hover {
   border-color: rgba(195, 202, 255, 0.1);
   background: rgba(255, 255, 255, 0.04);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 .song-row.active {
   border-color: color-mix(in srgb, var(--accent) 30%, transparent);
@@ -157,6 +157,129 @@
     inset 3px 0 0 var(--accent-bright),
     0 2px 8px color-mix(in srgb, var(--accent-deeper) 15%, transparent);
 }
+
+/* Card-style song item */
+.song-card {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 13px;
+  color: #c8cfe0;
+  background: transparent;
+  text-align: left;
+  position: relative;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+/* Cover art wrapper with download progress overlay */
+.song-card-cover-wrap {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+.song-card .song-cover {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+}
+.song-card .song-download {
+  bottom: -4px;
+  left: 4px;
+  max-width: calc(56px - 8px);
+}
+.song-card .drive-badge-chip {
+  bottom: 4px;
+  left: 55px;
+}
+
+/* Play icon overlay on the active song cover */
+.song-card-play-icon {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.55);
+  color: var(--accent-bright, #c5b4ff);
+  backdrop-filter: blur(2px);
+}
+
+/* Song metadata column */
+.song-card-meta {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  text-transform: capitalize;
+}
+.song-card-meta strong {
+  font-size: 14.5px;
+  font-weight: 650;
+  line-height: 1.3;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.song-card-artist {
+  color: #9aa3bc;
+  font-size: 12px;
+  font-weight: 450;
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Tags row: sync badge, remote badge */
+.song-card-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.song-card-sync-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  background: linear-gradient(135deg, rgba(52, 209, 123, 0.2), rgba(34, 197, 94, 0.15));
+  color: #8ce9aa;
+  border: 1px solid rgba(52, 209, 123, 0.25);
+}
+.song-card-remote-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  background: linear-gradient(135deg, rgba(85, 178, 255, 0.2), rgba(59, 130, 246, 0.15));
+  color: #93c5ff;
+  border: 1px solid rgba(85, 178, 255, 0.25);
+}
+
+/* Hover & active state color overrides */
+.song-row:hover .song-card,
+.song-row.active .song-card {
+  color: #fff;
+}
+.song-row.active .song-card {
+  color: #eeeaff;
+}
+.song-row:hover .song-card-artist,
+.song-row.active .song-card-artist {
+  color: #b8c0d8;
+}
+
+/* Legacy .song-item class — kept for backward compatibility */
 .song-item {
   display: flex;
   flex: 1;
@@ -385,6 +508,25 @@
 .library-search svg {
   flex: 0 0 auto;
   opacity: 0.6;
+}
+/* Search clear button */
+.library-search-clear {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: #9da6c0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+.library-search-clear:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
 }
 .library-management-btn {
   display: grid;
@@ -1976,6 +2118,9 @@ code {
   flex-wrap: nowrap;
 }
 .filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   padding: 5px 11px;
   border: 1px solid rgba(201, 209, 247, 0.12);
   border-radius: 999px;
@@ -1985,6 +2130,14 @@ code {
   font-weight: 650;
   white-space: nowrap;
   transition: all 0.15s ease;
+  cursor: pointer;
+}
+.filter-chip svg {
+  flex: 0 0 auto;
+  opacity: 0.7;
+}
+.filter-chip.active svg {
+  opacity: 1;
 }
 .filter-chip:hover {
   border-color: rgba(201, 209, 247, 0.25);
@@ -2022,6 +2175,41 @@ code {
 .library-sort select:focus {
   outline: none;
   border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+/* Sort pill buttons */
+.library-sort-pills {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+.sort-pill {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(201, 209, 247, 0.12);
+  border-radius: 8px;
+  color: #9da6c0;
+  background: rgba(7, 9, 20, 0.25);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+.sort-pill:hover {
+  border-color: rgba(201, 209, 247, 0.25);
+  color: #c5cfe6;
+  background: rgba(7, 9, 20, 0.4);
+}
+.sort-pill.active {
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  color: #fff;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.sort-pill:active {
+  transform: scale(0.95);
 }
 .library-select-all {
   display: grid;
@@ -2287,6 +2475,7 @@ code {
 }
 .library-manage-actions {
   display: flex;
+  align-items: center;
   gap: 6px;
   margin-right: 6px;
   flex-wrap: wrap;
@@ -2473,11 +2662,128 @@ code {
   font-weight: 500;
   text-transform: none;
 }
+/* Library manager grid — card-style song rows */
 .library-manager-grid .song-row {
   transition: transform 0.12s ease;
 }
 .library-manager-grid .song-row:hover {
   transform: translateY(-1px);
+}
+
+/* Card-style song item in library manager grid */
+.library-manager-grid .song-card {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 13px;
+  color: #c8cfe0;
+  background: transparent;
+  text-align: left;
+  position: relative;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+/* Cover art wrapper with download progress overlay */
+.library-manager-grid .song-card-cover-wrap {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+.library-manager-grid .song-card .song-cover {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+}
+.library-manager-grid .song-card .drive-badge-chip {
+  bottom: 4px;
+  left: 55px;
+}
+
+/* Play icon overlay on the active song cover */
+.library-manager-grid .song-card-play-icon {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.55);
+  color: var(--accent-bright, #c5b4ff);
+  backdrop-filter: blur(2px);
+}
+
+/* Song metadata column */
+.library-manager-grid .song-card-meta {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  text-transform: capitalize;
+}
+.library-manager-grid .song-card-meta strong {
+  font-size: 14.5px;
+  font-weight: 650;
+  line-height: 1.3;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.library-manager-grid .song-card-artist {
+  color: #9aa3bc;
+  font-size: 12px;
+  font-weight: 450;
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Tags row: sync badge, remote badge */
+.library-manager-grid .song-card-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.library-manager-grid .song-card-sync-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  background: linear-gradient(135deg, rgba(52, 209, 123, 0.2), rgba(34, 197, 94, 0.15));
+  color: #8ce9aa;
+  border: 1px solid rgba(52, 209, 123, 0.25);
+}
+.library-manager-grid .song-card-remote-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  background: linear-gradient(135deg, rgba(85, 178, 255, 0.2), rgba(59, 130, 246, 0.15));
+  color: #93c5ff;
+  border: 1px solid rgba(85, 178, 255, 0.25);
+}
+
+/* Hover & active state color overrides */
+.library-manager-grid .song-row:hover .song-card,
+.library-manager-grid .song-row.active .song-card {
+  color: #fff;
+}
+.library-manager-grid .song-row.active .song-card {
+  color: #eeeaff;
+}
+.library-manager-grid .song-row:hover .song-card-artist,
+.library-manager-grid .song-row.active .song-card-artist {
+  color: #b8c0d8;
 }
 /* Consistent dialog headers and close buttons */
 .dialog-header {

@@ -1,7 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { CloudDownload, CloudOff, CloudUpload, FilePenLine, FilePlus2, HardDrive, HardDriveDownload, Search, Trash2, Info, ArrowUpDown, X, Music, CheckCheck } from 'lucide-react'
-import { DriveLogo } from '../drive/DriveLogo'
+import { CloudDownload, CloudOff, CloudUpload, FilePenLine, FilePlus2, HardDrive, HardDriveDownload, Search, Trash2, Info, ArrowUpDown, X, Music, CheckCheck, Cloud, Play, ListOrdered, Clock4, Scale } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 import { parseSongName, songDisplayName } from '../../utils/songName'
 import type { Song } from '../../types/audio'
@@ -202,22 +201,33 @@ export const LibraryManager = memo(function LibraryManager(props: LibraryManager
         <label className="library-search">
           <Search size={15} aria-hidden="true" />
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('searchLibrary')} aria-label={t('searchLibraryAria')} />
+          {query && (
+            <button type="button" className="library-search-clear" onClick={() => setQuery('')} aria-label={t('clearFilters')}>
+              <X size={14} />
+            </button>
+          )}
         </label>
         <div className="library-filter-chips">
-          {(['all', 'local', 'synced', 'remote'] as FilterKey[]).map((key) => (
-            <button key={key} type="button" className={`filter-chip ${filter === key ? 'active' : ''}`} onClick={() => setFilter(key)}>
-              {key === 'all' ? t('filterAll') : key === 'local' ? t('filterLocal') : key === 'synced' ? t('filterSynced') : t('filterRemote')}
-            </button>
-          ))}
+          {(['all', 'local', 'synced', 'remote'] as FilterKey[]).map((key) => {
+            const Icon = key === 'all' ? ListOrdered : key === 'local' ? HardDrive : key === 'synced' ? Cloud : CloudDownload
+            return (
+              <button key={key} type="button" className={`filter-chip ${filter === key ? 'active' : ''}`} onClick={() => setFilter(key)}>
+                <Icon size={12} />
+                {key === 'all' ? t('filterAll') : key === 'local' ? t('filterLocal') : key === 'synced' ? t('filterSynced') : t('filterRemote')}
+              </button>
+            )
+          })}
         </div>
-        <label className="library-sort">
-          <ArrowUpDown size={12} />
-          <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label={t('sortBy')}>
-            <option value="name">{t('sortByName')}</option>
-            <option value="recent">{t('sortByRecent')}</option>
-            <option value="size">{t('sortBySize')}</option>
-          </select>
-        </label>
+        <div className="library-sort-pills">
+          {(['name', 'recent', 'size'] as SortKey[]).map((key) => {
+            const Icon = key === 'name' ? ListOrdered : key === 'recent' ? Clock4 : Scale
+            return (
+              <button key={key} type="button" className={`sort-pill ${sort === key ? 'active' : ''}`} onClick={() => setSort(key)} title={key === 'name' ? t('sortByName') : key === 'recent' ? t('sortByRecent') : t('sortBySize')}>
+                <Icon size={13} />
+              </button>
+            )
+          })}
+        </div>
         {visibleSongs.length > 0 && (
           <button type="button" className="library-select-all" onClick={toggleSelectAll} title={visibleSongs.every((s) => selected.has(s.name)) ? t('deselectAll') : t('selectAll')}>
             <CheckCheck size={14} />
@@ -281,23 +291,37 @@ export const LibraryManager = memo(function LibraryManager(props: LibraryManager
                 <button type="button" onClick={() => props.onDriveSync(song)} title={t('driveSongSync')}><CloudUpload size={13} /></button>
               )
             ) : null
+            const { artist, title } = parseSongName(song.name)
+            const hasCover = Boolean(song.cover)
             return (
               <div key={song.name} className={`song-row ${song.name === props.activeSong ? 'active' : ''} ${selectedRow ? 'selected' : ''}`} aria-current={song.name === props.activeSong ? 'true' : undefined}>
                 <label className="song-select visible" onClick={(e) => e.stopPropagation()}>
                   <input type="checkbox" checked={selectedRow} onChange={() => toggleSelect(song)} aria-label={songDisplayName(song.name)} />
                 </label>
-                <button className="song-item" title={songDisplayName(song.name)}>
-                  {song.cover ? (
-                    <img className="song-cover" src={song.cover} alt="" loading="lazy" />
-                  ) : (
-                    <span className="song-cover song-cover-fallback" style={{ '--art-hue': artHue(song.name) } as React.CSSProperties}>{song.name.slice(0, 2).toUpperCase()}</span>
-                  )}
-                  <span className={`sync-pill sync-pill-${song.remoteOnly ? 'remote' : synced ? 'synced' : 'local'}`}>
-                    {song.remoteOnly ? t('syncPillRemote') : synced ? t('syncPillSynced') : t('syncPillLocal')}
-                  </span>
-                  <span className="song-meta">
-                    <strong>{parseSongName(song.name).title}</strong>
-                    <small>{parseSongName(song.name).artist ?? t('stemsCount', { count: song.stems.length })}</small>
+                <button className="song-card" title={songDisplayName(song.name)}>
+                  <div className="song-card-cover-wrap">
+                    {hasCover ? (
+                      <img className="song-cover" src={song.cover} alt="" loading="lazy" />
+                    ) : (
+                      <span className="song-cover song-cover-fallback" style={{ '--art-hue': artHue(song.name) } as React.CSSProperties}>{song.name.slice(0, 2).toUpperCase()}</span>
+                    )}
+                    {song.name === props.activeSong && <span className="song-card-play-icon"><Play size={16} fill="currentColor" /></span>}
+                  </div>
+                  <span className="song-card-meta">
+                    <strong>{title}</strong>
+                    {artist && <small className="song-card-artist">{artist}</small>}
+                    <span className="song-card-tags">
+                      {synced && !song.remoteOnly && (
+                        <span className="song-card-sync-badge" title={t('driveSynced')}>
+                          <Cloud size={11} />
+                        </span>
+                      )}
+                      {song.remoteOnly && (
+                        <span className="song-card-remote-badge" title={t('driveRemoteSong')}>
+                          <CloudDownload size={11} />
+                        </span>
+                      )}
+                    </span>
                     <small className="song-meta-extra">{formatBytes(song.size ?? 0)} · {formatDuration(song.duration)}</small>
                   </span>
                 </button>

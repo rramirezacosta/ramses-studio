@@ -299,7 +299,10 @@ export default function App() {
 
   const selectSong = useCallback(async (song: Song) => {
     setLibraryManageView(false)
+    engine.stop()
     setLoadingSong(song.name)
+    setTracks([])
+    setTransport({ currentTime: 0, duration: 0, isPlaying: false })
     setError(undefined)
     setNotice(undefined)
     try {
@@ -1050,12 +1053,6 @@ export default function App() {
               <button type="button" autoFocus onClick={() => setAboutOpen(false)} className="primary-button settings-close">{t('close')}</button>
             </div>
           </div>
-        </div>
-      )}
-      {(library.loading || loadingSong) && (
-        <div className="work-banner" role="status" aria-live="polite">
-          <div className="work-spinner" />
-          <div><strong>{loadingSong ? t('loadingSongStems') : t('loadingLibrary')}</strong><span>{loadingSong ? songDisplayName(loadingSong) : t('preparingWorkspace')}</span></div>
         </div>
       )}
     </main>
