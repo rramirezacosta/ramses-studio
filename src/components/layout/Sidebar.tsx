@@ -359,7 +359,7 @@ export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, impor
       {details ? createPortal(
         <div className="dialog-backdrop" role="presentation" onClick={() => setDetails(undefined)}>
           <div className="rename-dialog confirm-dialog details-dialog" ref={detailsRef} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="details-title">
-            <h2 id="details-title">{songDisplayName(details.name)}</h2>
+            <div className="dialog-header"><h2 id="details-title">{songDisplayName(details.name)}</h2><button type="button" className="dialog-close" onClick={() => setDetails(undefined)} aria-label={t('close')}>×</button></div>
             <div className="details-body">
               {details.cover && <img className="details-cover" src={details.cover} alt="" />}
               <dl>

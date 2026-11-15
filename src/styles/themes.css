@@ -1,0 +1,114 @@
+/* ── Design tokens ── */
+
+:root {
+  /* Typography scale */
+  --text-xs: 10px;
+  --text-sm: 12px;
+  --text-base: 14px;
+  --text-lg: 17px;
+  --text-xl: 20px;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* Semantic colors */
+  --text-primary: #edf0ff;
+  --text-secondary: #9da6c0;
+  --text-muted: #7a82a0;
+  --text-heading: #f4f4ff;
+  --text-body: #bdc4d9;
+  --text-link: var(--accent-bright);
+  --surface-overlay: rgba(10, 12, 24, 0.97);
+  --surface-panel: rgba(7, 9, 19, 0.74);
+  --border-subtle: rgba(207, 215, 255, 0.12);
+  --border-panel: var(--panel-border);
+
+  /* Panel */
+  --panel-radius: 16px;
+  --panel-border: rgba(205, 210, 255, 0.11);
+  --panel-shadow:
+    0 18px 46px rgba(0, 0, 0, 0.35), inset 0 1px rgba(255, 255, 255, 0.05);
+
+  /* Labels */
+  --label-color: #8f98b5;
+  --label-size: 10px;
+  --label-spacing: 0.1em;
+
+  /* Accent */
+  --accent: #a9a0ff;
+  --accent-bright: color-mix(in srgb, var(--accent) 80%, white);
+  --accent-deep: color-mix(in srgb, var(--accent) 58%, #3b2f96);
+  --accent-deeper: color-mix(in srgb, var(--accent) 45%, #241a5e);
+
+  /* Glow */
+  --glow-1: rgba(105, 78, 238, 0.16);
+  --glow-2: rgba(30, 144, 166, 0.08);
+
+  /* Background layers */
+  --bg-1: #080a15;
+  --bg-2: #04050a;
+  --bg-3: #070812;
+
+  /* Global background & text */
+  color: var(--text-primary);
+  background: var(--bg-2);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-synthesis: none;
+}
+
+/* ── Theme overrides ── */
+
+[data-theme="adwaita"] {
+  --accent: #3584e4;
+  --glow-1: rgba(53, 132, 228, 0.13);
+  --glow-2: rgba(28, 113, 216, 0.07);
+  --bg-1: #272727;
+  --bg-2: #1e1e1e;
+  --bg-3: #222222;
+}
+
+[data-theme="ocean"] {
+  --accent: #55b2ff;
+  --glow-1: rgba(47, 127, 209, 0.18);
+  --glow-2: rgba(46, 196, 182, 0.09);
+  --bg-1: #060d19;
+  --bg-2: #03060b;
+  --bg-3: #050a13;
+}
+
+[data-theme="ember"] {
+  --accent: #ff9e64;
+  --glow-1: rgba(214, 84, 32, 0.16);
+  --glow-2: rgba(240, 150, 60, 0.07);
+  --bg-1: #130a07;
+  --bg-2: #080504;
+  --bg-3: #100806;
+}
+
+[data-theme="aurora"] {
+  --accent: #4fd88f;
+  --glow-1: rgba(22, 140, 86, 0.15);
+  --glow-2: rgba(90, 200, 140, 0.07);
+  --bg-1: #060f0c;
+  --bg-2: #030608;
+  --bg-3: #050d0a;
+}
+
+[data-theme="orchid"] {
+  --accent: #f386d8;
+  --glow-1: rgba(196, 56, 164, 0.15);
+  --glow-2: rgba(240, 105, 180, 0.07);
+  --bg-1: #110810;
+  --bg-2: #080308;
+  --bg-3: #0d070c;
+}
+
+/* ── Theme transition ── */
+:root {
+  transition: background 0.3s ease, color 0.3s ease;
+}

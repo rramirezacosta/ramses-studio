@@ -1,0 +1,112 @@
+/* ── App shell & layout ── */
+
+.app-shell {
+  position: relative;
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  flex-direction: column;
+  background:
+    radial-gradient(circle at 85% -8%, var(--glow-1), transparent 31%),
+    radial-gradient(circle at 7% 94%, var(--glow-2), transparent 30%),
+    linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 55%, var(--bg-3) 100%);
+  user-select: none;
+}
+
+.app-shell::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+  background-size: 32px 32px;
+  content: "";
+  mask-image: linear-gradient(to bottom, black, transparent 62%);
+  pointer-events: none;
+}
+
+.titlebar {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  height: 40px;
+  flex: 0 0 40px;
+  align-items: stretch;
+  padding: 0 8px;
+  background: transparent;
+}
+
+.titlebar-drag-region {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  -webkit-app-region: drag;
+}
+
+.titlebar-name {
+  overflow: hidden;
+  color: #d3d9ec;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+.titlebar-version {
+  margin-left: 6px;
+  padding: 2px 7px;
+  border: 1px solid rgba(201, 207, 255, 0.12);
+  border-radius: 6px;
+  color: #737a96;
+  font-size: 10px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.titlebar-window-controls {
+  display: flex;
+  min-width: 72px;
+  align-items: center;
+  gap: 2px;
+}
+
+.titlebar-window-controls:last-child {
+  justify-content: flex-end;
+}
+
+.titlebar-button {
+  display: grid;
+  width: 30px;
+  height: 28px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  color: #aeb8d1;
+  background: transparent;
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-button:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.11);
+}
+
+.titlebar-close:hover {
+  background: #d65061;
+}
+
+.app-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  padding: 14px;
+  gap: 14px;
+}

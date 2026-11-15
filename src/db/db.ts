@@ -73,6 +73,21 @@ export async function putFile(file: FileRecord): Promise<void> {
   await database.put('files', file)
 }
 
+/**
+ * Write multiple files in a single transaction so a bulk import (stems + cover)
+ * commits atomically instead of opening one transaction per file.
+ */
+export async function putFiles(files: FileRecord[]): Promise<void> {
+  if (files.length === 0) return
+  const database = await openLibrary()
+  const transaction = database.transaction('files', 'readwrite')
+  const store = transaction.objectStore('files')
+  for (const file of files) {
+    store.put(file)
+  }
+  await transaction.done
+}
+
 export async function getFile(id: RecordId): Promise<FileRecord | undefined> {
   const database = await openLibrary()
   return database.get('files', id)

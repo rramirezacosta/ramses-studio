@@ -1,0 +1,850 @@
+/* ── Eye candy: entrance & transition animations ── */
+
+/* Dialog backdrop fade-in */
+.dialog-backdrop {
+  animation: backdrop-fade-in 0.25s ease both;
+}
+@keyframes backdrop-fade-in {
+  from {
+    background: rgba(5, 6, 14, 0);
+  }
+  to {
+    background: rgba(5, 6, 14, 0.66);
+  }
+}
+
+/* Dialog scale + slide entrance */
+.rename-dialog,
+.export-popup {
+  animation: dialog-entrance 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes dialog-entrance {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Export popup — slightly faster */
+.export-popup {
+  animation-name: dialog-entrance-fast;
+  animation-duration: 0.22s;
+}
+@keyframes dialog-entrance-fast {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Track lanes — staggered fade-in */
+.track-lane {
+  animation: track-fade-in 0.35s ease both;
+}
+.track-lane:nth-child(1) { animation-delay: 0.05s; }
+.track-lane:nth-child(2) { animation-delay: 0.1s; }
+.track-lane:nth-child(3) { animation-delay: 0.15s; }
+.track-lane:nth-child(4) { animation-delay: 0.2s; }
+.track-lane:nth-child(5) { animation-delay: 0.25s; }
+.track-lane:nth-child(6) { animation-delay: 0.3s; }
+@keyframes track-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Track lane — subtle selection glow pulse */
+.track-lane.dragging {
+  animation: track-glow-pulse 1.2s ease-in-out infinite;
+}
+@keyframes track-glow-pulse {
+  0%, 100% {
+    box-shadow: inset 0 0 0 1px rgba(177, 169, 255, 0.4);
+  }
+  50% {
+    box-shadow: inset 0 0 0 1px rgba(177, 169, 255, 0.7), 0 0 16px color-mix(in srgb, var(--accent) 20%, transparent);
+  }
+}
+
+/* Sidebar song rows — hover slide */
+.song-row:hover {
+  transform: translateX(3px);
+}
+.song-row.active {
+  animation: song-select-pulse 0.4s ease both;
+}
+@keyframes song-select-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 40%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 15%, transparent);
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
+/* Sidebar song rows — staggered list entrance */
+.sidebar .song-row {
+  animation: sidebar-row-fade-in 0.25s ease both;
+}
+.sidebar .song-row:nth-child(1) { animation-delay: 0.02s; }
+.sidebar .song-row:nth-child(2) { animation-delay: 0.04s; }
+.sidebar .song-row:nth-child(3) { animation-delay: 0.06s; }
+.sidebar .song-row:nth-child(4) { animation-delay: 0.08s; }
+.sidebar .song-row:nth-child(5) { animation-delay: 0.1s; }
+.sidebar .song-row:nth-child(6) { animation-delay: 0.12s; }
+.sidebar .song-row:nth-child(7) { animation-delay: 0.14s; }
+.sidebar .song-row:nth-child(8) { animation-delay: 0.16s; }
+.sidebar .song-row:nth-child(9) { animation-delay: 0.18s; }
+.sidebar .song-row:nth-child(10) { animation-delay: 0.2s; }
+.sidebar .song-row:nth-child(n+11) { animation-delay: 0.22s; }
+@keyframes sidebar-row-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Welcome screen — staggered feature cards */
+.welcome-feature-card:nth-child(1) { animation-delay: 0.1s; }
+.welcome-feature-card:nth-child(2) { animation-delay: 0.2s; }
+.welcome-feature-card:nth-child(3) { animation-delay: 0.3s; }
+.welcome-feature-card:nth-child(4) { animation-delay: 0.4s; }
+
+/* Welcome screen — logo float animation */
+.welcome-logo {
+  animation: logo-float 3s ease-in-out infinite;
+}
+@keyframes logo-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+/* Work banner — slide down entrance */
+.work-banner {
+  animation: banner-slide-down 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes banner-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Drop overlay — scale entrance */
+.drop-overlay {
+  animation: drop-fade-in 0.2s ease both;
+}
+.drop-overlay-card {
+  animation: drop-card-entrance 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes drop-fade-in {
+  from {
+    background: rgba(5, 6, 14, 0);
+  }
+  to {
+    background: rgba(5, 6, 14, 0.55);
+  }
+}
+@keyframes drop-card-entrance {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Bulk bar — slide up entrance */
+.bulk-bar {
+  animation: bulk-slide-up 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes bulk-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Filter chips — staggered entrance */
+.filter-chip {
+  animation: chip-fade-in 0.2s ease both;
+}
+.filter-chip:nth-child(1) { animation-delay: 0.05s; }
+.filter-chip:nth-child(2) { animation-delay: 0.1s; }
+.filter-chip:nth-child(3) { animation-delay: 0.15s; }
+.filter-chip:nth-child(4) { animation-delay: 0.2s; }
+.filter-chip:nth-child(5) { animation-delay: 0.25s; }
+@keyframes chip-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Theme options — staggered entrance in settings */
+.theme-option {
+  animation: theme-option-fade-in 0.2s ease both;
+}
+.theme-option:nth-child(1) { animation-delay: 0.05s; }
+.theme-option:nth-child(2) { animation-delay: 0.1s; }
+.theme-option:nth-child(3) { animation-delay: 0.15s; }
+.theme-option:nth-child(4) { animation-delay: 0.2s; }
+.theme-option:nth-child(5) { animation-delay: 0.25s; }
+.theme-option:nth-child(6) { animation-delay: 0.3s; }
+@keyframes theme-option-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Library manager grid rows — staggered entrance */
+.library-manager-grid .song-row {
+  animation: lib-row-fade-in 0.2s ease both;
+}
+.library-manager-grid .song-row:nth-child(1) { animation-delay: 0.03s; }
+.library-manager-grid .song-row:nth-child(2) { animation-delay: 0.06s; }
+.library-manager-grid .song-row:nth-child(3) { animation-delay: 0.09s; }
+.library-manager-grid .song-row:nth-child(4) { animation-delay: 0.12s; }
+.library-manager-grid .song-row:nth-child(5) { animation-delay: 0.15s; }
+.library-manager-grid .song-row:nth-child(6) { animation-delay: 0.18s; }
+.library-manager-grid .song-row:nth-child(7) { animation-delay: 0.21s; }
+.library-manager-grid .song-row:nth-child(8) { animation-delay: 0.24s; }
+.library-manager-grid .song-row:nth-child(n+9) { animation-delay: 0.27s; }
+@keyframes lib-row-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Timeline header — fade in */
+.timeline-header {
+  animation: header-fade-in 0.3s ease both;
+}
+@keyframes header-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Error and status messages — slide in */
+.error-message,
+.status-message {
+  animation: message-slide-in 0.25s ease both;
+}
+@keyframes message-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Transport bar — subtle fade in */
+.transport-bar {
+  animation: transport-fade-in 0.4s ease 0.15s both;
+}
+@keyframes transport-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Eye candy: custom scrollbar with fade-when-idle ── */
+
+/* Shared scroll containers */
+.song-list,
+.tracks,
+.library-manager-grid {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--accent) 38%, transparent) transparent;
+}
+
+/* Webkit scrollbar — thin, themed, rounded thumb */
+.song-list::-webkit-scrollbar,
+.tracks::-webkit-scrollbar,
+.library-manager-grid::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.song-list::-webkit-scrollbar-track,
+.tracks::-webkit-scrollbar-track,
+.library-manager-grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+.song-list::-webkit-scrollbar-thumb,
+.tracks::-webkit-scrollbar-thumb,
+.library-manager-grid::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 38%, transparent);
+  transition: background 0.4s ease;
+}
+.song-list::-webkit-scrollbar-thumb:hover,
+.tracks::-webkit-scrollbar-thumb:hover,
+.library-manager-grid::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/* Fade-when-idle: hide scrollbar after 2s of no scrolling */
+.song-list.idle,
+.tracks.idle,
+.library-manager-grid.idle {
+  scrollbar-color: transparent transparent;
+}
+.song-list.idle::-webkit-scrollbar-thumb,
+.tracks.idle::-webkit-scrollbar-thumb,
+.library-manager-grid.idle::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+.song-list.idle::-webkit-scrollbar-thumb:hover,
+.tracks.idle::-webkit-scrollbar-thumb:hover,
+.library-manager-grid.idle::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--accent) 38%, transparent);
+}
+
+/* Scroll reveal: track lanes fade in as they enter the viewport */
+.track-lane.scroll-reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 0.4s ease,
+    transform 0.4s ease;
+}
+.track-lane.scroll-reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── Eye candy: micro-interaction animations ── */
+
+/* Play button — pulsing glow ring when playing */
+.transport.playing .play-button {
+  animation: play-pulse 2s ease-in-out infinite;
+}
+@keyframes play-pulse {
+  0%, 100% {
+    box-shadow:
+      0 8px 20px color-mix(in srgb, var(--accent-deep) 60%, transparent),
+      inset 0 1px rgba(255, 255, 255, 0.35);
+  }
+  50% {
+    box-shadow:
+      0 8px 20px color-mix(in srgb, var(--accent-deep) 60%, transparent),
+      0 0 0 6px color-mix(in srgb, var(--accent) 18%, transparent),
+      inset 0 1px rgba(255, 255, 255, 0.35);
+  }
+}
+
+/* Play button — quick scale bounce on click */
+.play-button:active:not(:disabled) {
+  animation: play-bounce 0.25s ease both;
+}
+@keyframes play-bounce {
+  0% { transform: scale(0.97); }
+  40% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+/* Loop button — spin animation when toggled active */
+.loop-button.active {
+  animation: loop-spin 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes loop-spin {
+  0% {
+    transform: rotate(0deg) scale(0.85);
+    opacity: 0.5;
+  }
+  60% {
+    transform: rotate(360deg) scale(1.1);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+    opacity: 1;
+  }
+}
+
+
+/* Mute button — bounce flash when toggled */
+.toggle-row button.active.mute {
+  animation: mute-flash 0.35s ease both;
+}
+@keyframes mute-flash {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.25); }
+  60% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+/* Solo button — bounce flash when toggled */
+.toggle-row button.active.solo {
+  animation: solo-flash 0.35s ease both;
+}
+@keyframes solo-flash {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.25); }
+  60% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+/* Remove stem button — shake on hover */
+.toggle-row .remove-stem-button:hover {
+  animation: remove-shake 0.4s ease both;
+}
+@keyframes remove-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-2px); }
+  40% { transform: translateX(2px); }
+  60% { transform: translateX(-1px); }
+  80% { transform: translateX(1px); }
+}
+
+/* Waveform playhead — enhanced glow trail */
+.waveform-playhead {
+  box-shadow:
+    0 0 6px color-mix(in srgb, var(--accent-bright) 60%, transparent),
+    0 0 16px color-mix(in srgb, var(--accent-bright) 30%, transparent),
+    -6px 0 12px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+/* Loop selection — entrance scale */
+.loop-selection {
+  animation: loop-select-entrance 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes loop-select-entrance {
+  from {
+    opacity: 0;
+    transform: scaleX(0.3);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+/* Export button — shimmer animation while exporting */
+.export-mix-button:disabled {
+  animation: export-shimmer 1.5s linear infinite;
+}
+@keyframes export-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.export-mix-button:disabled {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0.04) 75%
+  );
+  background-size: 200% 100%;
+}
+
+/* Seek slider — gradient track fill */
+.seek {
+  accent-color: var(--accent);
+  transition: opacity 0.2s ease;
+}
+.seek::-webkit-slider-thumb {
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.seek::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/* Master volume slider — gradient track fill */
+.master-volume input::-webkit-slider-thumb {
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.master-volume input::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/* Track controls volume/pan sliders — thumb glow */
+.track-controls label input[type="range"]::-webkit-slider-thumb {
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.track-controls label input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+
+/* Track stem icon — subtle spin on hover */
+.track-stem-icon {
+  transition:
+    transform 0.3s ease,
+    filter 0.2s ease;
+}
+.track-stem-icon:hover {
+  transform: rotate(12deg) scale(1.15);
+}
+
+/* Track drag handle — wiggle on hover */
+.track-drag-handle {
+  transition:
+    color 0.15s ease,
+    transform 0.2s ease;
+}
+.track-drag-handle:hover {
+  animation: drag-wiggle 0.5s ease both;
+}
+@keyframes drag-wiggle {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+/* Icon button — ripple effect on click */
+.icon-button:not(:disabled):active {
+  animation: icon-ripple 0.3s ease both;
+}
+@keyframes icon-ripple {
+  0% {
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.08);
+  }
+  50% {
+    box-shadow:
+      inset 0 1px rgba(255, 255, 255, 0.08),
+      0 0 0 4px color-mix(in srgb, var(--accent) 15%, transparent);
+  }
+  100% {
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.08);
+  }
+}
+
+/* Time readout — subtle color pulse when playing */
+.transport.playing .time-readout {
+  animation: time-pulse 2s ease-in-out infinite;
+}
+@keyframes time-pulse {
+  0%, 100% {
+    color: #f3f4ff;
+  }
+  50% {
+    color: #fff;
+  }
+}
+
+/* Volume tooltip — fade in on hover */
+.track-controls .volume-tooltip {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+.volume-control:hover .volume-tooltip {
+  display: block;
+  animation: tooltip-fade-in 0.2s ease both;
+}
+@keyframes tooltip-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Pan tooltip — fade in on hover */
+.pan-control:hover .pan-tooltip {
+  animation: tooltip-fade-in 0.2s ease both;
+}
+
+/* Waveform canvas — fade in when peaks load */
+.waveform {
+  animation: waveform-fade-in 0.5s ease both;
+}
+@keyframes waveform-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Sidebar new song button — subtle pulse */
+.sidebar .new-song-button {
+  animation: new-song-pulse 3s ease-in-out infinite;
+}
+@keyframes new-song-pulse {
+  0%, 100% {
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.08);
+  }
+  50% {
+    box-shadow:
+      inset 0 1px rgba(255, 255, 255, 0.08),
+      0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+}
+
+/* Workspace — subtle border glow on hover */
+.workspace:hover {
+  box-shadow:
+    var(--panel-shadow),
+    0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent);
+  transition: box-shadow 0.4s ease;
+}
+.workspace {
+  transition: box-shadow 0.4s ease;
+}
+
+/* Song row — active selection glow ring (enhanced) */
+.song-row.active {
+  animation:
+    song-select-pulse 0.4s ease both,
+    song-active-glow 2s ease-in-out 0.4s infinite;
+}
+@keyframes song-active-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  50% {
+    box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 12%, transparent);
+  }
+}
+
+/* Welcome screen — feature card hover lift and glow */
+.welcome-feature-card {
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+.welcome-feature-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+/* Welcome screen — title gradient shift */
+.welcome h1 {
+  background-size: 200% 100%;
+  animation: title-gradient-shift 4s ease-in-out infinite;
+}
+@keyframes title-gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Dialog close button — spin on hover */
+.dialog-close {
+  transition: transform 0.3s ease;
+}
+.dialog-close:hover {
+  transform: rotate(90deg);
+}
+
+/* Settings theme option — scale on hover */
+.theme-option {
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.theme-option:hover {
+  transform: scale(1.05);
+}
+.theme-option.active {
+  animation: theme-select 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes theme-select {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+/* Filter chip — press feedback */
+.filter-chip:active {
+  transform: scale(0.95);
+}
+
+/* Bulk bar buttons — hover lift */
+.bulk-bar button {
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.bulk-bar button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Export popup buttons — hover lift */
+.export-popup button {
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.export-popup button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Dialog actions buttons — hover lift */
+.dialog-actions button {
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.dialog-actions button:hover {
+  transform: translateY(-1px);
+}
+
+/* Primary button — shimmer on hover */
+.primary-button {
+  position: relative;
+  overflow: hidden;
+}
+.primary-button::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.08),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+.primary-button:hover::after {
+  left: 100%;
+}
+
+/* Danger button — pulse on hover */
+.primary-button.danger:hover {
+  animation: danger-pulse 0.6s ease both;
+}
+@keyframes danger-pulse {
+  0%, 100% {
+    box-shadow: 0 2px 8px rgba(217, 86, 102, 0.3);
+  }
+  50% {
+    box-shadow: 0 2px 16px rgba(217, 86, 102, 0.5);
+  }
+}
+
+/* Source option buttons in import dialog — hover lift */
+.source-option {
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.source-option:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+
+/* Library manager — add library button pulse */
+.add-library-button {
+  animation: add-lib-pulse 3s ease-in-out infinite;
+}
+@keyframes add-lib-pulse {
+  0%, 100% {
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.08);
+  }
+  50% {
+    box-shadow:
+      inset 0 1px rgba(255, 255, 255, 0.08),
+      0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+}
+
+/* About dialog — logo spin on load */
+.about-logo {
+  animation: about-logo-spin 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes about-logo-spin {
+  from {
+    transform: rotate(-180deg) scale(0.5);
+    opacity: 0;
+  }
+  to {
+    transform: rotate(0deg) scale(1);
+    opacity: 1;
+  }
+}
+
+/* Floating particles — varied drift speeds */
+.particle:nth-child(odd) {
+  animation-duration: 18s;
+}
+.particle:nth-child(even) {
+  animation-duration: 25s;
+}

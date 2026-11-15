@@ -6,11 +6,12 @@ import {
   isQuotaError,
   listSongs,
   putFile,
+  putFiles,
   putSong,
   renameSong,
   updateSong,
 } from '../db/db'
-import { newRecordId, type RecordId, type SongPayload, type SongRecord } from '../db/types'
+import { newRecordId, type FileRecord, type RecordId, type SongPayload, type SongRecord } from '../db/types'
 import { clearTombstone, recordTombstone } from '../sync/tombstones'
 import type { Song } from '../types/audio'
 
@@ -94,6 +95,26 @@ async function putFileOrQuota(recordId: RecordId, name: string, mime: string, by
   }
 }
 
+/** Build a FileRecord from raw bytes without writing yet. */
+function buildFileRecord(recordId: RecordId, name: string, mime: string, bytes: Uint8Array): FileRecord {
+  const blob = new Blob([bytes as Uint8Array<ArrayBuffer>], { type: mime })
+  return { id: recordId, name, mime, size: blob.size, createdAt: Date.now(), blob }
+}
+
+/**
+ * Write multiple files in a single batch transaction. Re-throws LibraryQuotaError
+ * when the storage quota is exceeded, mirroring `putFileOrQuota` semantics.
+ */
+async function putFilesOrQuota(records: FileRecord[]): Promise<void> {
+  if (records.length === 0) return
+  try {
+    await putFiles(records)
+  } catch (reason) {
+    if (isQuotaError(reason)) throw new LibraryQuotaError()
+    throw reason
+  }
+}
+
 /** A media file to store together with its song record. */
 interface PendingFile {
   name: string
@@ -122,15 +143,14 @@ async function computeRecordSize(record: SongRecord): Promise<number> {
 }
 
 async function writeSongWithFiles(record: SongRecord, files: PendingFile[]): Promise<Song> {
-  const written: RecordId[] = []
+  const fileRecords: FileRecord[] = []
   try {
     const stemFileIds: Record<string, RecordId> = {}
     let coverFileId: RecordId | undefined
     let coverBytes: Uint8Array | undefined
     for (const file of files) {
       const fileId = newRecordId()
-      await putFileOrQuota(fileId, file.name, file.mime, file.bytes)
-      written.push(fileId)
+      fileRecords.push(buildFileRecord(fileId, file.name, file.mime, file.bytes))
       if (file.isCover) {
         coverFileId = fileId
         coverBytes = file.bytes
@@ -138,6 +158,8 @@ async function writeSongWithFiles(record: SongRecord, files: PendingFile[]): Pro
         stemFileIds[file.stemName] = fileId
       }
     }
+    // Write all files in a single batch transaction.
+    await putFilesOrQuota(fileRecords)
     const full: SongRecord = {
       ...record,
       // Seed stems (null ids for a remote-only pull) survive for files not provided.
@@ -156,7 +178,7 @@ async function writeSongWithFiles(record: SongRecord, files: PendingFile[]): Pro
     return toUiSong(full, covers)
   } catch (reason) {
     // Never leave a half-imported song: roll back any blobs already written.
-    await Promise.allSettled(written.map((fileId) => deleteFile(fileId)))
+    await Promise.allSettled(fileRecords.map((fileRecord) => deleteFile(fileRecord.id)))
     throw reason
   }
 }
@@ -311,26 +333,26 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   applyStemFiles: async (name, files, cover) => {
     const record = get().records.get(name)
     if (!record) throw new Error(`"${name}" is not in the local library.`)
-    const written: RecordId[] = []
+    const fileRecords: FileRecord[] = []
     try {
       const stems = { ...record.stems }
       for (const { stemName, bytes } of files) {
         const fileId = newRecordId()
-        await putFileOrQuota(fileId, `${stemName}.mp3`, 'audio/mpeg', bytes)
-        written.push(fileId)
+        fileRecords.push(buildFileRecord(fileId, `${stemName}.mp3`, 'audio/mpeg', bytes))
         stems[stemName] = fileId
       }
       let coverFileId = record.coverFileId
       if (cover?.length) {
         if (record.coverFileId) await deleteFile(record.coverFileId)
         coverFileId = newRecordId()
-        await putFileOrQuota(coverFileId, 'cover.jpg', 'image/jpeg', cover)
-        written.push(coverFileId)
+        fileRecords.push(buildFileRecord(coverFileId, 'cover.jpg', 'image/jpeg', cover))
         const { covers } = get()
         const previous = covers.get(name)
         if (previous) URL.revokeObjectURL(previous)
         covers.set(name, URL.createObjectURL(new Blob([cover as Uint8Array<ArrayBuffer>], { type: 'image/jpeg' })))
       }
+      // Write all stem files (and cover if present) in a single batch transaction.
+      await putFilesOrQuota(fileRecords)
       let next: SongRecord = { ...record, stems, ...(coverFileId ? { coverFileId } : {}), remoteOnly: false }
       next.size = await computeRecordSize(next)
       await putSong(next)
@@ -338,7 +360,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
       set({ songs: buildUiSongs(get().records, get().covers) })
       return toUiSong(next, get().covers)
     } catch (reason) {
-      await Promise.allSettled(written.map((fileId) => deleteFile(fileId)))
+      await Promise.allSettled(fileRecords.map((fileRecord) => deleteFile(fileRecord.id)))
       throw reason
     }
   },

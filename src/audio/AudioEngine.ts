@@ -1,5 +1,6 @@
 import type { StereoAudio } from '../components/stemsplitter/types'
 import type { TrackState } from '../types/audio'
+import { decodeAudioInWorker } from './decodeAudio'
 
 type Channel = {
   gain: GainNode
@@ -18,8 +19,16 @@ export class AudioEngine {
   private loopRange?: { start: number; end: number }
 
   async decode(data: ArrayBuffer) {
-    const context = this.ensureContext()
-    return context.decodeAudioData(data)
+    try {
+      const decoded = await decodeAudioInWorker(data)
+      const context = this.ensureContext()
+      const buffer = context.createBuffer(decoded.numberOfChannels, decoded.channels[0]?.length ?? 0, decoded.sampleRate)
+      decoded.channels.forEach((channel, index) => buffer.copyToChannel(channel as Float32Array<ArrayBuffer>, index))
+      return buffer
+    } catch {
+      const context = this.ensureContext()
+      return context.decodeAudioData(data)
+    }
   }
 
   load(tracks: TrackState[]) {

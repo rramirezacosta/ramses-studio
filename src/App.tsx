@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Download, Headphones, Repeat2, SlidersVertical, VolumeX } from 'lucide-react'
 import { AudioEngine } from './audio/AudioEngine'
+import { SkeletonLoader } from './components/daw/SkeletonLoader'
 import { TrackLane } from './components/daw/TrackLane'
 import { Sidebar } from './components/layout/Sidebar'
 import { LibraryManager } from './components/library/LibraryManager'
@@ -179,6 +180,52 @@ export default function App() {
     }, 400)
     return () => window.clearTimeout(timer)
   }, [activeSong, tracks, loopRange, looping])
+
+  // Scroll idle: fade out scrollbar after 2s of no scrolling
+  useEffect(() => {
+    const SCROLL_IDLE_MS = 2000
+    const containers = document.querySelectorAll('.song-list, .tracks, .library-manager-grid')
+    let timer: ReturnType<typeof setTimeout>
+    const onScroll = () => {
+      containers.forEach((c) => c.classList.remove('idle'))
+      clearTimeout(timer)
+      timer = setTimeout(() => {
+        containers.forEach((c) => c.classList.add('idle'))
+      }, SCROLL_IDLE_MS)
+    }
+    containers.forEach((c) => {
+      c.addEventListener('scroll', onScroll, { passive: true })
+      // Start idle so scrollbar fades on first load
+      c.classList.add('idle')
+    })
+    // Kick the timer on mount
+    onScroll()
+    return () => {
+      clearTimeout(timer)
+      containers.forEach((c) => c.removeEventListener('scroll', onScroll))
+    }
+  }, [])
+
+  // Scroll reveal: track lanes fade in as they enter the viewport
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('revealed')
+            observer.unobserve(entry.target)
+          }
+        })
+      },
+      { root: document.querySelector('.tracks'), threshold: 0.1 }
+    )
+    const lanes = document.querySelectorAll('.track-lane')
+    lanes.forEach((lane) => {
+      lane.classList.add('scroll-reveal')
+      observer.observe(lane)
+    })
+    return () => observer.disconnect()
+  }, [tracks])
 
   // Drag & drop audio files onto the window to import them.
   useEffect(() => {
@@ -776,7 +823,8 @@ export default function App() {
                   onUpdate={updateTrack}
                 />
               ))}
-              {!tracks.length && (
+              {!tracks.length && loadingSong && <SkeletonLoader />}
+              {!tracks.length && !loadingSong && (
                 <div className="empty-state">
                   <p>{t('selectSongHint')}</p>
                 </div>
@@ -815,7 +863,7 @@ export default function App() {
       {renamingSong && (
         <div className="dialog-backdrop" role="presentation" onClick={() => setRenamingSong(undefined)}>
           <form className="rename-dialog" ref={renameDialogRef} onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); void renameSong() }} role="dialog" aria-modal="true" aria-labelledby="rename-title">
-            <h2 id="rename-title">{t('renameSong')}</h2>
+            <div className="dialog-header"><h2 id="rename-title">{t('renameSong')}</h2><button type="button" className="dialog-close" onClick={() => setRenamingSong(undefined)} aria-label={t('close')}>×</button></div>
             <label htmlFor="rename-artist">{t('artistName')}</label>
             <input id="rename-artist" value={renameArtist} onChange={(event) => setRenameArtist(event.target.value)} autoFocus />
             <label htmlFor="rename-title">{t('songTitle')}</label>
@@ -830,7 +878,7 @@ export default function App() {
       {confirmDialog && (
         <div className="dialog-backdrop" role="presentation" onClick={() => setConfirmDialog(undefined)}>
           <div className="rename-dialog confirm-dialog" ref={confirmDialogRef} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body">
-            <h2 id="confirm-title">{confirmDialog.title}</h2>
+            <div className="dialog-header"><h2 id="confirm-title">{confirmDialog.title}</h2><button type="button" className="dialog-close" onClick={() => setConfirmDialog(undefined)} aria-label={t('close')}>×</button></div>
             <p id="confirm-body">{confirmDialog.body}</p>
             <div className="dialog-actions">
               <button type="button" onClick={() => setConfirmDialog(undefined)}>{t('cancel')}</button>
@@ -842,7 +890,7 @@ export default function App() {
       {duplicateSong && (
         <div className="dialog-backdrop" role="presentation" onClick={() => resolveDuplicate(undefined)}>
           <div className="rename-dialog confirm-dialog" ref={duplicateDialogRef} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="duplicate-title">
-            <h2 id="duplicate-title">{t('duplicateSongTitle')}</h2>
+            <div className="dialog-header"><h2 id="duplicate-title">{t('duplicateSongTitle')}</h2><button type="button" className="dialog-close" onClick={() => resolveDuplicate(undefined)} aria-label={t('close')}>×</button></div>
             <p id="duplicate-body">{t('duplicateSongBody', { name: duplicateSong.display })}</p>
             <div className="dialog-actions">
               <button type="button" onClick={() => resolveDuplicate(undefined)}>{t('cancel')}</button>
@@ -855,7 +903,7 @@ export default function App() {
       {conflictName && (
         <div className="dialog-backdrop" role="presentation" onClick={() => setConflictName(undefined)}>
           <div className="rename-dialog confirm-dialog" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="conflict-title">
-            <h2 id="conflict-title">{t('conflictTitle')}</h2>
+            <div className="dialog-header"><h2 id="conflict-title">{t('conflictTitle')}</h2><button type="button" className="dialog-close" onClick={() => setConflictName(undefined)} aria-label={t('close')}>×</button></div>
             <p id="conflict-body">{t('conflictBody', { name: conflictName })}</p>
             <div className="dialog-actions">
               <button type="button" onClick={() => { void sync.resolveConflict(conflictName, 'local'); setConflictName(undefined) }}>{t('keepLocal')}</button>
@@ -868,7 +916,7 @@ export default function App() {
       {importSourceOpen && (
         <div className="dialog-backdrop" role="presentation" onClick={() => setImportSourceOpen(false)}>
           <form className="rename-dialog import-source-dialog" ref={importSourceRef} onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); importYouTubeAudio() }} role="dialog" aria-modal="true" aria-labelledby="import-source-title">
-            <h2 id="import-source-title">{t('importAudio')}</h2>
+            <div className="dialog-header"><h2 id="import-source-title">{t('importAudio')}</h2><button type="button" className="dialog-close" onClick={() => setImportSourceOpen(false)} aria-label={t('close')}>×</button></div>
             <p>{t('importAudioDescription')}</p>
             <button type="button" className="source-option" onClick={importLocalFile}>{t('chooseLocalFile')}</button>
             <div className="source-option-divider">{t('or')}</div>
@@ -884,7 +932,7 @@ export default function App() {
       {settingsOpen && (
         <div className="dialog-backdrop" role="presentation" onClick={() => setSettingsOpen(false)}>
           <div className="rename-dialog confirm-dialog settings-dialog" ref={settingsDialogRef} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="settings-title">
-            <h2 id="settings-title">{t('settings')}</h2>
+            <div className="dialog-header"><h2 id="settings-title">{t('settings')}</h2><button type="button" className="dialog-close" onClick={() => setSettingsOpen(false)} aria-label={t('close')}>×</button></div>
             <div className="settings-section" role="group" aria-label={t('theme')}>
               <span className="settings-section-label">{t('theme')}</span>
               <div className="theme-grid">
@@ -979,7 +1027,7 @@ export default function App() {
           <div className="rename-dialog about-dialog" ref={aboutDialogRef} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="about-title">
             <div className="about-header">
               <img src={appIcon} alt="" className="about-icon" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-              <h2 id="about-title">Ramses Studio</h2>
+              <div className="dialog-header"><h2 id="about-title">Ramses Studio</h2><button type="button" className="dialog-close" onClick={() => setAboutOpen(false)} aria-label={t('close')}>×</button></div>
               <p className="about-version">{t('version')} {__APP_VERSION__}</p>
             </div>
             <p className="about-description">{t('aboutDescription')}</p>

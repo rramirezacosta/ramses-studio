@@ -143,6 +143,8 @@ export const LibraryManager = memo(function LibraryManager(props: LibraryManager
     if (x !== menu.x || y !== menu.y) setMenu({ ...menu, x, y })
   }, [menu])
 
+  const progressPercent = props.importing ? (props.importProgress ?? 0) : (props.downloading?.percent ?? 0)
+
   const formatBytes = (bytes: number): string => {
     if (!Number.isFinite(bytes) || bytes < 1024) return `${bytes} B`
     const units = ['KB', 'MB', 'GB', 'TB']
@@ -167,6 +169,34 @@ export const LibraryManager = memo(function LibraryManager(props: LibraryManager
           <button type="button" className="library-manager-close" onClick={onClose} aria-label={t('close')}><X size={18} /></button>
         )}
       </div>
+
+      {(props.importing || props.downloading) && (
+        <div className="library-progress-banner" role="status" aria-live="polite">
+          <div className="library-progress-bar">
+            <div
+              className="library-progress-fill"
+              style={{ width: `${Math.round(progressPercent * 100)}%` }}
+            />
+          </div>
+          <span className="library-progress-label">
+            {props.importing
+              ? t('libraryImportProgress', { percent: Math.round((props.importProgress ?? 0) * 100) })
+              : t('libraryDownloadProgress', { name: props.downloading?.name ?? '', percent: Math.round((props.downloading?.percent ?? 0) * 100) })}
+            {props.importStage ? ` · ${props.importStage}` : ''}
+          </span>
+          {props.importing && props.onCancelImport && (
+            <button type="button" className="library-progress-cancel" onClick={props.onCancelImport}>{t('cancel')}</button>
+          )}
+        </div>
+      )}
+
+      {!props.loading && props.songs.length > 0 && (
+        <div className="library-summary" aria-label={t('libraryManagement')}>
+          <span>{t('librarySummarySongs', { count: props.songs.length })}</span>
+          <span>{t('librarySummarySize', { size: formatBytes(props.songs.reduce((sum, song) => sum + (song.size ?? 0), 0)) })}</span>
+          <span>{props.remoteCount} {t('filterRemote').toLowerCase()}</span>
+        </div>
+      )}
 
       <div className="library-manager-toolbar">
         <label className="library-search">
@@ -230,7 +260,10 @@ export const LibraryManager = memo(function LibraryManager(props: LibraryManager
           </div>
         </div>
       ) : visibleSongs.length === 0 ? (
-        <p className="empty-state">{t('noMatchingSongs')}</p>
+<div className="empty-state library-no-matches">
+           <p>{t('noMatchingSongs')}</p>
+           <button type="button" className="library-clear-filters" onClick={() => { setQuery(''); setFilter('all') }}>{t('clearFilters')}</button>
+         </div>
       ) : (
         <div className="library-manager-grid">
           {visibleSongs.map((song) => {
@@ -249,7 +282,7 @@ export const LibraryManager = memo(function LibraryManager(props: LibraryManager
               )
             ) : null
             return (
-              <div key={song.name} className={`song-row ${song.name === props.activeSong ? 'active' : ''} ${selectedRow ? 'selected' : ''}`}>
+              <div key={song.name} className={`song-row ${song.name === props.activeSong ? 'active' : ''} ${selectedRow ? 'selected' : ''}`} aria-current={song.name === props.activeSong ? 'true' : undefined}>
                 <label className="song-select visible" onClick={(e) => e.stopPropagation()}>
                   <input type="checkbox" checked={selectedRow} onChange={() => toggleSelect(song)} aria-label={songDisplayName(song.name)} />
                 </label>
@@ -265,6 +298,7 @@ export const LibraryManager = memo(function LibraryManager(props: LibraryManager
                   <span className="song-meta">
                     <strong>{parseSongName(song.name).title}</strong>
                     <small>{parseSongName(song.name).artist ?? t('stemsCount', { count: song.stems.length })}</small>
+                    <small className="song-meta-extra">{formatBytes(song.size ?? 0)} · {formatDuration(song.duration)}</small>
                   </span>
                 </button>
                 <div className="library-manage-actions">
@@ -331,7 +365,7 @@ export const LibraryManager = memo(function LibraryManager(props: LibraryManager
       {details && createPortal(
         <div className="dialog-backdrop" role="presentation" onClick={() => setDetails(undefined)}>
           <div className="rename-dialog confirm-dialog details-dialog" ref={detailsRef} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
-            <h2>{songDisplayName(details.name)}</h2>
+            <div className="dialog-header"><h2>{songDisplayName(details.name)}</h2><button type="button" className="dialog-close" onClick={() => setDetails(undefined)} aria-label={t('close')}>×</button></div>
             <div className="details-body">
               {details.cover && <img className="details-cover" src={details.cover} alt="" />}
               <dl>

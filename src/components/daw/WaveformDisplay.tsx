@@ -1,5 +1,5 @@
-import { memo, useEffect, useRef, type PointerEvent } from 'react'
-import { getCachedPeaks } from '../../audio/peakCache'
+import { memo, useEffect, useRef, useState, type PointerEvent } from 'react'
+import { ensurePeaks, type PeakEntry } from '../../audio/peakCache'
 import { useTranslation } from '../../i18n'
 import { useTransportStore } from '../../store/useTransportStore'
 
@@ -24,30 +24,50 @@ export const WaveformDisplay = memo(function WaveformDisplay({ buffer, color, du
   const t = useTranslation()
   const canvas = useRef<HTMLCanvasElement>(null)
   const dragStart = useRef<number>()
+  const [width, setWidth] = useState(0)
+  const [peaks, setPeaks] = useState<PeakEntry[] | null>(null)
 
   useEffect(() => {
     const element = canvas.current
     if (!element) return
-    const render = () => {
-      const { width, height } = element.getBoundingClientRect()
-      const ratio = window.devicePixelRatio || 1
-      element.width = width * ratio
-      element.height = height * ratio
-      const context = element.getContext('2d')!
-      context.scale(ratio, ratio)
-      context.clearRect(0, 0, width, height)
-      const peaks = getCachedPeaks(buffer, Math.ceil(width))
-      const center = height / 2
-      context.fillStyle = color
-      peaks.forEach(({ min, max }, index) => {
-        context.fillRect(index, center + min * center, 1, Math.max(1, (max - min) * center))
-      })
+    const updateWidth = () => {
+      const next = Math.max(1, Math.ceil(element.getBoundingClientRect().width))
+      setWidth(next)
     }
-    render()
-    const observer = new ResizeObserver(render)
+    updateWidth()
+    const observer = new ResizeObserver(updateWidth)
     observer.observe(element)
     return () => observer.disconnect()
-  }, [buffer, color])
+  }, [])
+
+  useEffect(() => {
+    if (width <= 0) return
+    let cancelled = false
+    void ensurePeaks(buffer, width).then((result) => {
+      if (!cancelled) setPeaks(result)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [buffer, width])
+
+  useEffect(() => {
+    const element = canvas.current
+    if (!element || width <= 0) return
+    const height = element.getBoundingClientRect().height
+    const ratio = window.devicePixelRatio || 1
+    element.width = width * ratio
+    element.height = height * ratio
+    const context = element.getContext('2d')!
+    context.setTransform(ratio, 0, 0, ratio, 0, 0)
+    context.clearRect(0, 0, width, height)
+    if (!peaks) return
+    const center = height / 2
+    context.fillStyle = color
+    peaks.forEach(({ min, max }, index) => {
+      context.fillRect(index, center + min * center, 1, Math.max(1, (max - min) * center))
+    })
+  }, [buffer, color, width, peaks])
 
   const timeAt = (event: PointerEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect()

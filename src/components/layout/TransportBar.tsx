@@ -34,7 +34,7 @@ export const TransportBar = memo(function TransportBar(props: Props) {
   const hasSong = duration > 0
 
   return (
-    <header className="transport">
+    <header className={`transport${isPlaying ? ' playing' : ''}`}>
       <div className="transport-controls">
         <button className="icon-button" onClick={props.onStop} disabled={!hasSong} title={t('returnToStart')}><Square size={16} /></button>
         <button className="play-button" onClick={props.onPlayPause} disabled={!hasSong} title={t('playPause')}>
