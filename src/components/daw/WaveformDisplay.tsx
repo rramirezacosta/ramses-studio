@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, type PointerEvent } from 'react'
-import { generatePeaks } from '../../audio/peakGenerator'
+import { getCachedPeaks } from '../../audio/peakCache'
 import { useTranslation } from '../../i18n'
 import { useTransportStore } from '../../store/useTransportStore'
 
@@ -36,7 +36,7 @@ export const WaveformDisplay = memo(function WaveformDisplay({ buffer, color, du
       const context = element.getContext('2d')!
       context.scale(ratio, ratio)
       context.clearRect(0, 0, width, height)
-      const peaks = generatePeaks(buffer, Math.ceil(width))
+      const peaks = getCachedPeaks(buffer, Math.ceil(width))
       const center = height / 2
       context.fillStyle = color
       peaks.forEach(({ min, max }, index) => {
