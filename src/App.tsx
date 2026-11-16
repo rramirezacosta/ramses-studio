@@ -1,26 +1,29 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Download, Headphones, Music, Repeat2, SlidersVertical, VolumeX } from 'lucide-react'
 import { AudioEngine } from './audio/AudioEngine'
 import { SkeletonLoader } from './components/daw/SkeletonLoader'
 import { TrackLane } from './components/daw/TrackLane'
 import { Sidebar } from './components/layout/Sidebar'
 import { LibraryManager } from './components/library/LibraryManager'
-import { DriveLogo } from './components/drive/DriveLogo'
 import { TitleBar } from './components/layout/TitleBar'
 import { TransportBar } from './components/layout/TransportBar'
+import { ErrorBoundary } from './components/ui/ErrorBoundary'
 import { encodeWav } from './components/stemsplitter/audio/wav'
 import { decodeWithFfmpeg } from './components/stemsplitter/audio/ffmpeg'
-import { useTranslation, LANGUAGES } from './i18n'
+import { useTranslation } from './i18n'
 import { useSettingsStore } from './store/useSettingsStore'
 import { useTransportStore } from './store/useTransportStore'
 import { loadPracticeState, savePracticeState, deletePracticeState, renamePracticeState } from './store/practice'
 import { useLibraryStore, LibraryQuotaError } from './store/useLibraryStore'
 import { useSyncStore } from './store/useSyncStore'
-import { useDialogFocusTrap } from './hooks/useDialogFocusTrap'
-import appIcon from './assets/app_512.png'
 import { parseSongName, songDisplayName, songFolderName, songNameFromSource } from './utils/songName'
+import appIcon from './assets/app_512.png'
 import type { Song, TrackState } from './types/audio'
 import type { StereoAudio } from './components/stemsplitter/types'
+import {
+  RenameDialog, ConfirmDialog, DuplicateDialog, ImportDialog, SettingsDialog,
+  ConflictDialog, AboutDialog, RamWarningDialog, ExportPopup,
+} from './components/dialogs'
 
 interface ConfirmData {
   title: string
@@ -41,17 +44,6 @@ type ThemeId = (typeof THEMES)[number]['id']
 
 const THEME_STORAGE_KEY = 'ramses-studio-theme'
 
-const formatBytes = (bytes: number): string => {
-  if (!Number.isFinite(bytes) || bytes < 1024) return `${bytes} B`
-  const units = ['KB', 'MB', 'GB', 'TB']
-  let value = bytes / 1024
-  let unit = 0
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024
-    unit += 1
-  }
-  return `${value.toFixed(value < 10 ? 1 : 0)} ${units[unit]}`
-}
 const loadStoredTheme = (): ThemeId => {
   const stored = localStorage.getItem(THEME_STORAGE_KEY)
   return THEMES.some((theme) => theme.id === stored) ? (stored as ThemeId) : 'midnight'
@@ -61,6 +53,7 @@ export default function App() {
   const engine = useRef(new AudioEngine()).current
   const t = useTranslation()
   const appShellRef = useRef<HTMLDivElement>(null)
+  const importDroppedFileRef = useRef<(file: File) => void>(() => {})
 
   useEffect(() => {
     if (typeof window.api?.getWindowButtonLayout !== 'function') return
@@ -70,14 +63,7 @@ export default function App() {
       }
     })
   }, [])
-  const renameDialogRef = useRef<HTMLFormElement>(null)
-  const confirmDialogRef = useRef<HTMLDivElement>(null)
-  const importSourceRef = useRef<HTMLFormElement>(null)
-  const importDroppedFileRef = useRef<(file: File) => void>(() => {})
-  const settingsDialogRef = useRef<HTMLDivElement>(null)
-  const aboutDialogRef = useRef<HTMLDivElement>(null)
-  const language = useSettingsStore((store) => store.language)
-  const setLanguage = useSettingsStore((store) => store.setLanguage)
+
   const library = useLibraryStore()
   const [activeSong, setActiveSong] = useState<string>()
   const [tracks, setTracks] = useState<TrackState[]>([])
@@ -103,7 +89,6 @@ export default function App() {
   const [draggedTrackId, setDraggedTrackId] = useState<string>()
   const [duplicateSong, setDuplicateSong] = useState<{ name: string; display: string }>()
   const [conflictName, setConflictName] = useState<string | undefined>()
-  const duplicateDialogRef = useRef<HTMLDivElement>(null)
   const duplicateResolveRef = useRef<((decision: 'replace' | 'keep' | undefined) => void) | null>(null)
   const resolveDuplicate = useCallback((decision: 'replace' | 'keep' | undefined) => {
     setDuplicateSong(undefined)
@@ -121,19 +106,13 @@ export default function App() {
   const [libraryManageView, setLibraryManageView] = useState(false)
   const [theme, setTheme] = useState<ThemeId>(loadStoredTheme)
 
+  const remoteCount = useMemo(() => library.songs.filter((song) => song.remoteOnly).length, [library.songs])
   const setTransport = useTransportStore((store) => store.setTransport)
   const sync = useSyncStore()
   const connectDrive = useCallback(() => {
     setSettingsOpen(true)
     void sync.connect()
   }, [sync])
-
-  useDialogFocusTrap(renameDialogRef, Boolean(renamingSong))
-  useDialogFocusTrap(confirmDialogRef, Boolean(confirmDialog))
-  useDialogFocusTrap(duplicateDialogRef, Boolean(duplicateSong))
-  useDialogFocusTrap(importSourceRef, importSourceOpen)
-  useDialogFocusTrap(settingsDialogRef, settingsOpen)
-  useDialogFocusTrap(aboutDialogRef, aboutOpen)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -774,6 +753,7 @@ export default function App() {
       <TitleBar onOpenSettings={openSettings} onOpenAbout={openAbout} drive={library.songs.length === 0 ? undefined : { connected: sync.connected, syncing: sync.syncing, error: sync.error, pendingChanges: sync.pendingChanges }} />
       <div className="app-content">
         <Sidebar songs={library.songs} activeSong={activeSong} loading={library.loading} importing={importing} cancelling={cancelling} importProgress={importProgress} importStage={importStage} syncedNames={sync.syncedNames} driveConnected={sync.connected} downloading={downloading} remoteCount={library.songs.filter((song) => song.remoteOnly).length} onDriveRemove={(song) => { void sync.removeBackup(song.name) }} onDriveSync={(song) => { void sync.backupSong(song.name) }} onEvict={(song) => { void sync.freeUpSpace(song.name) }} onDriveDownload={(song) => { void selectSong(song) }} onDownloadAll={downloadAllRemote} onSelect={selectSong} onImport={openImportSource} onCancelImport={cancelImport} onRename={openRenameDialog} onDelete={deleteSong} onBulkDelete={bulkDeleteSongs} onBulkSync={bulkSyncSongs} onBulkDownload={bulkDownloadSongs} onBulkEvict={bulkEvictSongs} libraryManagerOpen={libraryManageView} onToggleLibraryManager={() => { if (!libraryManageView) engine.pause(); setLibraryManageView(v => !v) }} />
+        <ErrorBoundary>
         <div className="workspace">
         {library.songs.length === 0 && !library.loading ? (
           <div className="welcome">
@@ -815,7 +795,7 @@ export default function App() {
             syncedNames={sync.syncedNames}
             driveConnected={sync.connected}
             downloading={downloading}
-            remoteCount={library.songs.filter((song) => song.remoteOnly).length}
+            remoteCount={remoteCount}
             onDriveRemove={(song) => { void sync.removeBackup(song.name) }}
             onDriveSync={(song) => { void sync.backupSong(song.name) }}
             onEvict={(song) => { void sync.freeUpSpace(song.name) }}
@@ -877,6 +857,7 @@ export default function App() {
           </>
         )}
         </div>
+        </ErrorBoundary>
       </div>
       {dragOver && (
         <div className="drop-overlay" role="presentation">
@@ -884,199 +865,64 @@ export default function App() {
         </div>
       )}
       {exportOpen && (
-        <div className="dialog-backdrop" role="presentation" onClick={() => setExportOpen(false)}>
-          <div className="export-popup" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label={t('export')}>
-            <button type="button" onClick={() => { setExportOpen(false); handleExportMix() }} autoFocus>{t('exportCurrentMix')}</button>
-            <button type="button" onClick={() => { setExportOpen(false); handleExportStems() }}>{t('exportStems')}</button>
-          </div>
-        </div>
+        <ExportPopup onExportMix={handleExportMix} onExportStems={handleExportStems} onClose={() => setExportOpen(false)} />
       )}
       {renamingSong && (
-        <div className="dialog-backdrop" role="presentation" onClick={() => setRenamingSong(undefined)}>
-          <form className="rename-dialog" ref={renameDialogRef} onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); void renameSong() }} role="dialog" aria-modal="true" aria-labelledby="rename-title">
-            <div className="dialog-header"><h2 id="rename-title">{t('renameSong')}</h2><button type="button" className="dialog-close" onClick={() => setRenamingSong(undefined)} aria-label={t('close')}>×</button></div>
-            <label htmlFor="rename-artist">{t('artistName')}</label>
-            <input id="rename-artist" value={renameArtist} onChange={(event) => setRenameArtist(event.target.value)} autoFocus />
-            <label htmlFor="rename-title">{t('songTitle')}</label>
-            <input id="rename-title" value={renameTitle} onChange={(event) => setRenameTitle(event.target.value)} />
-            <div className="dialog-actions">
-              <button type="button" onClick={() => setRenamingSong(undefined)}>{t('cancel')}</button>
-              <button type="submit" className="primary-button">{t('save')}</button>
-            </div>
-          </form>
-        </div>
+        <RenameDialog
+          artist={renameArtist}
+          title={renameTitle}
+          onArtistChange={setRenameArtist}
+          onTitleChange={setRenameTitle}
+          onSave={() => { void renameSong() }}
+          onCancel={() => setRenamingSong(undefined)}
+        />
       )}
       {confirmDialog && (
-        <div className="dialog-backdrop" role="presentation" onClick={() => setConfirmDialog(undefined)}>
-          <div className="rename-dialog confirm-dialog" ref={confirmDialogRef} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body">
-            <div className="dialog-header"><h2 id="confirm-title">{confirmDialog.title}</h2><button type="button" className="dialog-close" onClick={() => setConfirmDialog(undefined)} aria-label={t('close')}>×</button></div>
-            <p id="confirm-body">{confirmDialog.body}</p>
-            <div className="dialog-actions">
-              <button type="button" onClick={() => setConfirmDialog(undefined)}>{t('cancel')}</button>
-              <button type="button" autoFocus className="primary-button danger" onClick={() => { const dialog = confirmDialog; setConfirmDialog(undefined); void dialog.action() }}>{t('delete')}</button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title={confirmDialog.title}
+          body={confirmDialog.body}
+          onConfirm={() => { const dialog = confirmDialog; setConfirmDialog(undefined); void dialog.action() }}
+          onCancel={() => setConfirmDialog(undefined)}
+        />
       )}
       {duplicateSong && (
-        <div className="dialog-backdrop" role="presentation" onClick={() => resolveDuplicate(undefined)}>
-          <div className="rename-dialog confirm-dialog" ref={duplicateDialogRef} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="duplicate-title">
-            <div className="dialog-header"><h2 id="duplicate-title">{t('duplicateSongTitle')}</h2><button type="button" className="dialog-close" onClick={() => resolveDuplicate(undefined)} aria-label={t('close')}>×</button></div>
-            <p id="duplicate-body">{t('duplicateSongBody', { name: duplicateSong.display })}</p>
-            <div className="dialog-actions">
-              <button type="button" onClick={() => resolveDuplicate(undefined)}>{t('cancel')}</button>
-              <button type="button" className="primary-button danger" onClick={() => resolveDuplicate('replace')}>{t('replaceSong')}</button>
-              <button type="button" autoFocus className="primary-button" onClick={() => resolveDuplicate('keep')}>{t('keepBoth')}</button>
-            </div>
-          </div>
-        </div>
+        <DuplicateDialog
+          displayName={duplicateSong.display}
+          onCancel={() => resolveDuplicate(undefined)}
+          onReplace={() => resolveDuplicate('replace')}
+          onKeepBoth={() => resolveDuplicate('keep')}
+        />
       )}
       {conflictName && (
-        <div className="dialog-backdrop" role="presentation" onClick={() => setConflictName(undefined)}>
-          <div className="rename-dialog confirm-dialog" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="conflict-title">
-            <div className="dialog-header"><h2 id="conflict-title">{t('conflictTitle')}</h2><button type="button" className="dialog-close" onClick={() => setConflictName(undefined)} aria-label={t('close')}>×</button></div>
-            <p id="conflict-body">{t('conflictBody', { name: conflictName })}</p>
-            <div className="dialog-actions">
-              <button type="button" onClick={() => { void sync.resolveConflict(conflictName, 'local'); setConflictName(undefined) }}>{t('keepLocal')}</button>
-              <button type="button" onClick={() => { void sync.resolveConflict(conflictName, 'remote'); setConflictName(undefined) }}>{t('keepRemote')}</button>
-              <button type="button" autoFocus className="primary-button" onClick={() => { void sync.resolveConflict(conflictName, 'both'); setConflictName(undefined) }}>{t('keepBoth')}</button>
-            </div>
-          </div>
-        </div>
+        <ConflictDialog
+          songName={conflictName}
+          onResolve={() => setConflictName(undefined)}
+          onCancel={() => setConflictName(undefined)}
+        />
       )}
       {importSourceOpen && (
-        <div className="dialog-backdrop" role="presentation" onClick={() => setImportSourceOpen(false)}>
-          <form className="rename-dialog import-source-dialog" ref={importSourceRef} onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); importYouTubeAudio() }} role="dialog" aria-modal="true" aria-labelledby="import-source-title">
-            <div className="dialog-header"><h2 id="import-source-title">{t('importAudio')}</h2><button type="button" className="dialog-close" onClick={() => setImportSourceOpen(false)} aria-label={t('close')}>×</button></div>
-            <p>{t('importAudioDescription')}</p>
-            <button type="button" className="source-option" onClick={importLocalFile}>{t('chooseLocalFile')}</button>
-            <div className="source-option-divider">{t('or')}</div>
-            <label htmlFor="youtube-url">{t('youTubeLink')}</label>
-            <input id="youtube-url" type="url" value={youTubeUrl} onChange={(event) => setYouTubeUrl(event.target.value)} placeholder="https://www.youtube.com/watch?v=..." autoFocus />
-            <div className="dialog-actions">
-              <button type="button" onClick={() => setImportSourceOpen(false)}>{t('cancel')}</button>
-              <button type="submit" className="primary-button" disabled={!youTubeUrl.trim()}>{t('import')}</button>
-            </div>
-          </form>
-        </div>
+        <ImportDialog
+          youTubeUrl={youTubeUrl}
+          onYouTubeUrlChange={setYouTubeUrl}
+          onImportLocal={importLocalFile}
+          onImportYouTube={importYouTubeAudio}
+          onCancel={() => setImportSourceOpen(false)}
+        />
       )}
       {settingsOpen && (
-        <div className="dialog-backdrop" role="presentation" onClick={() => setSettingsOpen(false)}>
-          <div className="rename-dialog confirm-dialog settings-dialog" ref={settingsDialogRef} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
-            <button type="button" className="dialog-close settings-dialog-close" onClick={() => setSettingsOpen(false)} aria-label={t('close')}>×</button>
-            <h2 className="settings-dialog-title">{t('settings')}</h2>
-            <div className="settings-section" role="group" aria-label={t('theme')}>
-              <span className="settings-section-label">{t('theme')}</span>
-              <div className="theme-grid">
-                {THEMES.map((item) => (
-                  <button key={item.id} type="button" aria-pressed={theme === item.id} className={`theme-option${theme === item.id ? ' active' : ''}`} onClick={() => setTheme(item.id)}>
-                    <span className="theme-swatch" style={{ background: item.swatch }} />
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="settings-section" role="group" aria-label={t('language')}>
-              <span className="settings-section-label">{t('language')}</span>
-              <div className="language-grid">
-                {LANGUAGES.map((item) => (
-                  <button key={item.id} type="button" aria-pressed={language === item.id} className={`theme-option${language === item.id ? ' active' : ''}`} onClick={() => setLanguage(item.id)}>
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="settings-section" role="group" aria-label={t('driveSync')}>
-              <span className="settings-section-label">{t('driveSync')}</span>
-              {sync.connected ? (
-                <div className="drive-card connected">
-                  <div className="drive-head">
-                    <DriveLogo className="drive-logo" />
-                    <span className="drive-status-dot" aria-hidden="true" />
-                    <div className="drive-who">
-                      <strong>{sync.account}</strong>
-                      <small>
-                        {sync.syncing
-                          ? t('driveSyncing')
-                          : sync.lastSyncedAt
-                            ? t('driveLastSynced', { time: new Date(sync.lastSyncedAt).toLocaleString() })
-                            : t('driveNeverSynced')}
-                      </small>
-                    </div>
-                  </div>
-                  <div className="drive-actions">
-                    <button type="button" className="primary-button" disabled={sync.syncing} onClick={() => { void sync.syncNow() }}>
-                      {sync.syncing ? (<><span className="drive-spinner" aria-hidden="true" /> {t('driveSyncing')}</>) : t('driveSyncNow')}
-                    </button>
-                    <button type="button" onClick={() => { void sync.disconnect() }}>{t('driveDisconnect')}</button>
-                  </div>
-                </div>
-              ) : (
-                <div className="drive-card">
-                  <div className="drive-head">
-                    <DriveLogo className="drive-logo muted" />
-                    <div className="drive-who">
-                      <strong>{t('driveSync')}</strong>
-                      <small>{t('driveNotConnected')}</small>
-                    </div>
-                  </div>
-                  <div className="drive-actions">
-                    <button type="button" className="primary-button" onClick={connectDrive}>{t('driveConnect')}</button>
-                  </div>
-                </div>
-              )}
-              {sync.error && <small className="drive-error" role="alert">{t('driveSyncFailed', { message: sync.error })}</small>}
-              {sync.pendingChanges > 0 && <small className="storage-usage">{t('pendingChanges', { count: sync.pendingChanges })}</small>}
-            </div>
-            <div className="settings-section" role="group" aria-label={t('storage')}>
-              <span className="settings-section-label">{t('storage')}</span>
-              {storage && storage.usage / storage.quota >= 0.8 && (
-                <small className="storage-warning" role="alert">{t('storageWarning', { percent: Math.round((storage.usage / storage.quota) * 100) })}</small>
-              )}
-              {storage ? (
-                <>
-                  <div className="storage-bar">
-                    <div className="storage-bar-fill" style={{ width: `${Math.min(100, (storage.usage / storage.quota) * 100)}%` }} />
-                  </div>
-                  <small className="storage-usage">{t('storageUsage', { used: formatBytes(storage.usage), total: formatBytes(storage.quota) })}</small>
-                </>
-              ) : (
-                <small className="storage-usage">{t('storageUsage', { used: '—', total: '—' })}</small>
-              )}
-            </div>
-          </div>
-        </div>
+        <SettingsDialog
+          storage={storage}
+          theme={theme}
+          onThemeChange={(id) => setTheme(id as ThemeId)}
+          onConnectDrive={connectDrive}
+          onClose={() => setSettingsOpen(false)}
+        />
       )}
       {aboutOpen && (
-        <div className="dialog-backdrop" role="presentation" onClick={() => setAboutOpen(false)}>
-          <div className="rename-dialog about-dialog" ref={aboutDialogRef} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="about-title">
-            <div className="about-header">
-              <img src={appIcon} alt="" className="about-icon" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-              <div className="dialog-header"><h2 id="about-title">Ramses Studio</h2><button type="button" className="dialog-close" onClick={() => setAboutOpen(false)} aria-label={t('close')}>×</button></div>
-              <p className="about-version">{t('version')} {__APP_VERSION__}</p>
-            </div>
-            <p className="about-description">{t('aboutDescription')}</p>
-            <p className="about-model">{t('aboutModel')}</p>
-            <p className="about-license">{t('aboutLicense')}</p>
-            <div className="about-links">
-              <a href="https://rramirezacosta.github.io/ramses-studio/privacy.html" target="_blank" rel="noopener noreferrer">{t('aboutPrivacy')}</a>
-            </div>
-            <div className="about-links">
-              <a href="https://rramirezacosta.github.io/ramses-studio/terms.html" target="_blank" rel="noopener noreferrer">{t('aboutTerms')}</a>
-            </div>
-          </div>
-        </div>
+        <AboutDialog onClose={() => setAboutOpen(false)} />
       )}
       {ramWarning && (
-        <div className="dialog-backdrop" role="presentation" onClick={() => setRamWarning(false)}>
-          <div className="rename-dialog confirm-dialog" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="ram-warning-title">
-            <div className="dialog-header"><h2 id="ram-warning-title">{t('ramWarningTitle')}</h2><button type="button" className="dialog-close" onClick={() => setRamWarning(false)} aria-label={t('close')}>×</button></div>
-            <p id="ram-warning-body">{t('ramWarningBody', { ram: ramGb ?? '—' })}</p>
-            <div className="dialog-actions">
-              <button type="button" autoFocus className="primary-button" onClick={() => setRamWarning(false)}>{t('close')}</button>
-            </div>
-          </div>
-        </div>
+        <RamWarningDialog ramGb={ramGb} onClose={() => setRamWarning(false)} />
       )}
     </main>
   )

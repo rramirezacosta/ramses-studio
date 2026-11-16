@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { CloudDownload, CloudOff, CloudUpload, FilePenLine, FilePlus2, HardDrive, HardDriveDownload, Search, Trash2, Info, ArrowUpDown, X, Music, CheckCheck, Cloud, Play, ListOrdered, Clock4, Scale } from 'lucide-react'
+import { AudioLines, ClefBass, CloudDownload, CloudOff, CloudUpload, Drum, FilePenLine, FilePlus2, GuitarElectric, HardDrive, HardDriveDownload, KeyboardMusic, MicVocal, Search, Trash2, Info, ArrowUpDown, X, Music, CheckCheck, Cloud, Play, ListOrdered, Clock4, Scale } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 import { parseSongName, songDisplayName } from '../../utils/songName'
 import type { Song } from '../../types/audio'
@@ -38,6 +38,17 @@ function artHue(name: string): number {
 
 const LEADING_ARTICLE = /^(the|los|las|les)-/i
 const songSortKey = (name: string) => name.replace(LEADING_ARTICLE, '')
+
+const stemIcons: Record<string, typeof Music> = {
+  drum: Drum,
+  drums: Drum,
+  bass: ClefBass,
+  guitar: GuitarElectric,
+  piano: KeyboardMusic,
+  vocal: MicVocal,
+  vocals: MicVocal,
+  other: AudioLines,
+}
 
 type SortKey = 'name' | 'recent' | 'size'
 type FilterKey = 'all' | 'local' | 'synced' | 'remote'
@@ -305,7 +316,6 @@ export const LibraryManager = memo(function LibraryManager(props: LibraryManager
                     ) : (
                       <span className="song-cover song-cover-fallback" style={{ '--art-hue': artHue(song.name) } as React.CSSProperties}>{song.name.slice(0, 2).toUpperCase()}</span>
                     )}
-                    {song.name === props.activeSong && <span className="song-card-play-icon"><Play size={14} fill="currentColor" /></span>}
                   </div>
                   <span className="song-card-meta">
                     <strong>{title}</strong>
@@ -391,16 +401,43 @@ export const LibraryManager = memo(function LibraryManager(props: LibraryManager
           <div className="rename-dialog confirm-dialog details-dialog" ref={detailsRef} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
             <div className="dialog-header"><h2>{songDisplayName(details.name)}</h2><button type="button" className="dialog-close" onClick={() => setDetails(undefined)} aria-label={t('close')}>×</button></div>
             <div className="details-body">
-              {details.cover && <img className="details-cover" src={details.cover} alt="" />}
-              <dl>
-                <dt>{t('artistName')}</dt><dd>{parseSongName(details.name).artist ?? '—'}</dd>
-                <dt>{t('songTitle')}</dt><dd>{parseSongName(details.name).title}</dd>
-                <dt>{t('stemsCount', { count: details.stems.length })}</dt><dd>{details.stems.join(', ')}</dd>
-                <dt>{t('duration')}</dt><dd>{formatDuration(details.duration)}</dd>
-                <dt>{t('songSize')}</dt><dd>{formatBytes(details.size ?? 0)}</dd>
-                <dt>{t('status')}</dt><dd>{details.remoteOnly ? t('driveRemoteSong') : props.syncedNames.has(details.name) ? t('driveSynced') : t('localOnlySong')}</dd>
-                {details.lastOpened ? <><dt>{t('lastOpened')}</dt><dd>{new Date(details.lastOpened).toLocaleString()}</dd></> : null}
-              </dl>
+              <div className="details-cover-wrap">
+                {details.cover
+                  ? <img className="details-cover" src={details.cover} alt="" />
+                  : <span className="details-cover-fallback">{parseSongName(details.name).title.slice(0, 2).toUpperCase()}</span>
+                }
+              </div>
+              <div className="details-info">
+                <div className="details-song-name">
+                  <strong>{parseSongName(details.name).title}</strong>
+                  <small>{parseSongName(details.name).artist ?? '—'}</small>
+                </div>
+                <dl className="details-meta">
+                  <dt>{t('duration')}</dt><dd>{formatDuration(details.duration)}</dd>
+                  <dt>{t('songSize')}</dt><dd>{formatBytes(details.size ?? 0)}</dd>
+                  <dt>{t('status')}</dt>
+                  <dd>
+                    <span className={`details-status-badge ${details.remoteOnly ? 'remote' : props.syncedNames.has(details.name) ? 'synced' : 'local'}`}>
+                      {details.remoteOnly ? t('driveRemoteSong') : props.syncedNames.has(details.name) ? t('driveSynced') : t('localOnlySong')}
+                    </span>
+                  </dd>
+                  {details.lastOpened ? <><dt>{t('lastOpened')}</dt><dd>{new Date(details.lastOpened).toLocaleString()}</dd></> : null}
+                </dl>
+                <div className="details-stems-section">
+                  <span className="details-stems-label">{t('stemsCount', { count: details.stems.length })}</span>
+                  <span className="details-stems">
+                    {details.stems.map((stem) => {
+                      const StemIconComponent = stemIcons[stem as keyof typeof stemIcons] || Music;
+                      return (
+                        <span key={stem} className="details-stem-chip">
+                          <StemIconComponent className="details-stem-chip-icon" size={12} />
+                          {stem}
+                        </span>
+                      );
+                    })}
+                  </span>
+                </div>
+              </div>
             </div>
             <div className="dialog-actions">
               <button type="button" onClick={() => setDetails(undefined)}>{t('close')}</button>

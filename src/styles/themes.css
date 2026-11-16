@@ -9,12 +9,14 @@
   --text-xl: 20px;
 
   /* Spacing scale */
+  --space-0.5: 2px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
   --space-5: 24px;
   --space-6: 32px;
+  --space-7: 48px;
 
   /* Semantic colors */
   --text-primary: #edf0ff;
@@ -28,15 +30,39 @@
   --border-subtle: rgba(207, 215, 255, 0.12);
   --border-panel: var(--panel-border);
 
+  /* Border radius scale */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 999px;
+
   /* Panel */
-  --panel-radius: 16px;
+  --panel-radius: var(--radius-xl);
   --panel-border: rgba(205, 210, 255, 0.11);
   --panel-shadow:
     0 18px 46px rgba(0, 0, 0, 0.35), inset 0 1px rgba(255, 255, 255, 0.05);
 
+  /* Icon size scale */
+  --icon-xs: 12px;
+  --icon-sm: 14px;
+  --icon-md: 16px;
+  --icon-lg: 20px;
+
+  /* Transition timings */
+  --transition-fast: 0.1s ease;
+  --transition-base: 0.15s ease;
+  --transition-slow: 0.25s ease;
+
+  /* Glass surfaces */
+  --glass-1: rgba(255, 255, 255, 0.03);
+  --glass-2: rgba(255, 255, 255, 0.06);
+  --glass-3: rgba(255, 255, 255, 0.1);
+  --glass-4: rgba(255, 255, 255, 0.15);
+
   /* Labels */
-  --label-color: #8f98b5;
-  --label-size: 10px;
+  --label-color: var(--text-muted);
+  --label-size: var(--text-xs);
   --label-spacing: 0.1em;
 
   /* Accent */
@@ -110,5 +136,16 @@
 
 /* ── Theme transition ── */
 :root {
-  transition: background 0.3s ease, color 0.3s ease;
+  transition:
+    background 0.3s ease,
+    color 0.3s ease,
+    --accent 0.3s ease,
+    --accent-bright 0.3s ease,
+    --accent-deep 0.3s ease,
+    --accent-deeper 0.3s ease,
+    --glow-1 0.3s ease,
+    --glow-2 0.3s ease,
+    --bg-1 0.3s ease,
+    --bg-2 0.3s ease,
+    --bg-3 0.3s ease;
 }

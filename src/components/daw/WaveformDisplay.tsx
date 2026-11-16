@@ -63,11 +63,39 @@ export const WaveformDisplay = memo(function WaveformDisplay({ buffer, color, du
     context.clearRect(0, 0, width, height)
     if (!peaks) return
     const center = height / 2
-    context.fillStyle = color
+
+    // Draw faint horizontal center line
+    context.fillStyle = 'rgba(255, 255, 255, 0.06)'
+    context.fillRect(0, center - 0.5, width, 1)
+
+    // Compute loop range in pixel coordinates for dimming
+    let loopLeft = -1, loopRight = -1
+    if (loopRange && duration > 0) {
+      loopLeft = (loopRange[0] / duration) * width
+      loopRight = (loopRange[1] / duration) * width
+    }
+
+    // Draw waveform with solid color and loop-range dimming
     peaks.forEach(({ min, max }, index) => {
-      context.fillRect(index, center + min * center, 1, Math.max(1, (max - min) * center))
+      const barHeight = Math.max(1, (max - min) * center)
+      const y = center + min * center
+
+      // Determine opacity based on loop range
+      let opacity = 1
+      if (loopLeft >= 0 && loopRight >= 0) {
+        if (index < loopLeft || index > loopRight) {
+          opacity = 0.3
+        }
+      }
+
+      context.fillStyle = color
+      if (opacity < 1) {
+        context.globalAlpha = opacity
+      }
+      context.fillRect(index, y, 1, barHeight)
+      context.globalAlpha = 1
     })
-  }, [buffer, color, width, peaks])
+  }, [buffer, color, width, peaks, loopRange, duration])
 
   const timeAt = (event: PointerEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect()

@@ -143,6 +143,21 @@
   }
 }
 
+/* Sidebar brand — subtle idle pulse animation */
+.brand img {
+  animation: brand-pulse 4s ease-in-out infinite;
+}
+@keyframes brand-pulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.3));
+  }
+  50% {
+    transform: scale(1.03);
+    filter: drop-shadow(0 8px 20px color-mix(in srgb, var(--accent, #a78bfa) 40%, rgba(0, 0, 0, 0.3)));
+  }
+}
+
 /* Generic fade-in animation */
 @keyframes fade-in {
   from {
@@ -355,7 +370,7 @@
 .song-list::-webkit-scrollbar-thumb,
 .tracks::-webkit-scrollbar-thumb,
 .library-manager-grid::-webkit-scrollbar-thumb {
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: color-mix(in srgb, var(--accent) 38%, transparent);
   transition: background 0.4s ease;
 }
@@ -516,11 +531,53 @@
 .export-mix-button:disabled {
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.04) 25%,
+    var(--glass-1) 25%,
     rgba(255, 255, 255, 0.1) 50%,
-    rgba(255, 255, 255, 0.04) 75%
+    var(--glass-1) 75%
   );
   background-size: 200% 100%;
+}
+
+/* Generic button loading shimmer — apply .button-loading class during async operations */
+.button-loading {
+  position: relative;
+  pointer-events: none;
+  color: transparent !important;
+  overflow: hidden;
+}
+.button-loading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 25%,
+    color-mix(in srgb, var(--accent) 15%, transparent) 50%,
+    transparent 75%
+  );
+  background-size: 200% 100%;
+  animation: button-shimmer 1.2s ease-in-out infinite;
+  border-radius: inherit;
+}
+@keyframes button-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+/* Primary button loading variant — keeps the gradient background visible */
+.button-loading.primary-button {
+  opacity: 0.85;
+}
+.button-loading.primary-button::after {
+  background: linear-gradient(
+    90deg,
+    transparent 25%,
+    rgba(255, 255, 255, 0.25) 50%,
+    transparent 75%
+  );
 }
 
 /* Seek slider — gradient track fill */
@@ -592,15 +649,15 @@
 }
 @keyframes icon-ripple {
   0% {
-    box-shadow: inset 0 1px rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px var(--glass-2);
   }
   50% {
     box-shadow:
-      inset 0 1px rgba(255, 255, 255, 0.08),
+      inset 0 1px var(--glass-2),
       0 0 0 3px color-mix(in srgb, var(--accent) 8%, transparent);
   }
   100% {
-    box-shadow: inset 0 1px rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px var(--glass-2);
   }
 }
 
@@ -610,7 +667,7 @@
 }
 @keyframes time-pulse {
   0%, 100% {
-    color: #f3f4ff;
+    color: var(--text-primary);
   }
   50% {
     color: #fff;
@@ -662,11 +719,11 @@
 }
 @keyframes new-song-pulse {
   0%, 100% {
-    box-shadow: inset 0 1px rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px var(--glass-2);
   }
   50% {
     box-shadow:
-      inset 0 1px rgba(255, 255, 255, 0.08),
+      inset 0 1px var(--glass-2),
       0 0 0 2px color-mix(in srgb, var(--accent) 5%, transparent);
   }
 }
@@ -800,7 +857,7 @@
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(255, 255, 255, 0.08),
+    var(--glass-2),
     transparent
   );
   transition: left 0.5s ease;
@@ -839,11 +896,11 @@
 }
 @keyframes add-lib-pulse {
   0%, 100% {
-    box-shadow: inset 0 1px rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px var(--glass-2);
   }
   50% {
     box-shadow:
-      inset 0 1px rgba(255, 255, 255, 0.08),
+      inset 0 1px var(--glass-2),
       0 0 0 2px color-mix(in srgb, var(--accent) 5%, transparent);
   }
 }
