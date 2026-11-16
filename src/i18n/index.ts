@@ -109,6 +109,8 @@ const en = {
   decodingAudio: 'Decoding audio...',
   electronBridgeError: 'The Electron bridge is unavailable. Restart the application with npm run dev.',
   readingLibraryFailed: 'Could not read the song library: {message}',
+  ramWarningTitle: 'Low RAM Warning',
+  ramWarningBody: 'This application performs best with 64 GB of RAM for AI stem separation. Your system has {ram} GB. Processing may be slow or fail.',
   unknownLibraryError: 'Unknown library error',
   loadSongFailed: 'Could not load "{name}": {message}',
   unknownAudioLoadingError: 'Unknown audio loading error',
@@ -352,7 +354,9 @@ const es: Partial<Record<keyof typeof en, string>> = {
   aboutSource: 'Código fuente',
   aboutPrivacy: 'Política de privacidad',
   aboutTerms: 'Términos de servicio',
-  aboutLicense: 'Licenciado bajo la Licencia Pública General de GNU v3.'
+  aboutLicense: 'Licenciado bajo la Licencia Pública General de GNU v3.',
+  ramWarningTitle: 'Advertencia de RAM baja',
+  ramWarningBody: 'Esta aplicación funciona mejor con 64 GB de RAM para la separación de pistas con IA. Tu sistema tiene {ram} GB. El procesamiento puede ser lento o fallar.'
 }
 
 const pt: Partial<Record<keyof typeof en, string>> = {
@@ -503,7 +507,9 @@ const pt: Partial<Record<keyof typeof en, string>> = {
   aboutSource: 'Código-fonte',
   aboutPrivacy: 'Política de privacidade',
   aboutTerms: 'Termos de serviço',
-  aboutLicense: 'Licenciado sob a Licença Pública Geral GNU v3.'
+  aboutLicense: 'Licenciado sob a Licença Pública Geral GNU v3.',
+  ramWarningTitle: 'Aviso de RAM Baixo',
+  ramWarningBody: 'Este aplicativo funciona melhor com 64 GB de RAM para separação de faixas com IA. Seu sistema tem {ram} GB. O processamento pode ser lento ou falhar.'
 }
 
 const ru: Partial<Record<keyof typeof en, string>> = {
@@ -654,7 +660,9 @@ const ru: Partial<Record<keyof typeof en, string>> = {
   aboutSource: 'Исходный код',
   aboutPrivacy: 'Политика конфиденциальности',
   aboutTerms: 'Условия использования',
-  aboutLicense: 'Лицензия GNU GPL v3.'
+  aboutLicense: 'Лицензия GNU GPL v3.',
+  ramWarningTitle: 'Предупреждение: мало оперативной памяти',
+  ramWarningBody: 'Это приложение работает лучше с 64 ГБ оперативной памяти для разделения стемов с помощью ИИ. В вашей системе {ram} ГБ. Обработка может быть медленной или завершиться ошибкой.'
 }
 
 const ja: Partial<Record<keyof typeof en, string>> = {
@@ -804,7 +812,9 @@ const ja: Partial<Record<keyof typeof en, string>> = {
   aboutSource: 'ソースコード',
   aboutPrivacy: 'プライバシーポリシー',
   aboutTerms: '利用規約',
-  aboutLicense: 'GNU General Public License v3 の下でライセンスされています。'
+  aboutLicense: 'GNU General Public License v3 の下でライセンスされています。',
+  ramWarningTitle: 'RAM不足の警告',
+  ramWarningBody: 'AIステム分離には64 GBのRAMが必要です。お使いのシステムは{ram} GBです。処理が遅くなるか失敗する可能性があります。'
 }
 
 const ko: Partial<Record<keyof typeof en, string>> = {
@@ -954,7 +964,9 @@ const ko: Partial<Record<keyof typeof en, string>> = {
   aboutSource: '소스 코드',
   aboutPrivacy: '개인정보 처리방침',
   aboutTerms: '서비스 약관',
-  aboutLicense: 'GNU General Public License v3에 따라 라이선스가 부여됩니다.'
+  aboutLicense: 'GNU General Public License v3에 따라 라이선스가 부여됩니다.',
+  ramWarningTitle: 'RAM 부족 경고',
+  ramWarningBody: 'AI 스템 분리를 위해 64 GB의 RAM이 필요합니다. 시스템에는 {ram} GB가 있습니다. 처리가 느리거나 실패할 수 있습니다.'
 }
 
 const fr: Partial<Record<keyof typeof en, string>> = {
@@ -1105,7 +1117,9 @@ const fr: Partial<Record<keyof typeof en, string>> = {
   aboutSource: 'Code source',
   aboutPrivacy: 'Politique de confidentialité',
   aboutTerms: 'Conditions d\'utilisation',
-  aboutLicense: 'Sous licence GNU General Public License v3.'
+  aboutLicense: 'Sous licence GNU General Public License v3.',
+  ramWarningTitle: 'Avertissement : mémoire RAM insuffisante',
+  ramWarningBody: 'Cette application fonctionne mieux avec 64 Go de RAM pour la séparation des pistes par IA. Votre système dispose de {ram} Go. Le traitement peut être lent ou échouer.'
 }
 
 const zh: Partial<Record<keyof typeof en, string>> = {
@@ -1256,7 +1270,9 @@ const zh: Partial<Record<keyof typeof en, string>> = {
   aboutSource: '源代码',
   aboutPrivacy: '隐私政策',
   aboutTerms: '服务条款',
-  aboutLicense: '根据 GNU General Public License v3 授权。'
+  aboutLicense: '根据 GNU General Public License v3 授权。',
+  ramWarningTitle: '内存不足警告',
+  ramWarningBody: 'AI 音轨分离需要 64 GB 内存才能正常运行。您的系统有 {ram} GB。处理可能会变慢或失败。'
 }
 
 const de: Partial<Record<keyof typeof en, string>> = {
@@ -1407,7 +1423,9 @@ const de: Partial<Record<keyof typeof en, string>> = {
   aboutSource: 'Quellcode',
   aboutPrivacy: 'Datenschutzerklärung',
   aboutTerms: 'Nutzungsbedingungen',
-  aboutLicense: 'Lizenziert unter der GNU General Public License v3.'
+  aboutLicense: 'Lizenziert unter der GNU General Public License v3.',
+  ramWarningTitle: 'Niedriger RAM-Speicher',
+  ramWarningBody: 'Diese Anwendung funktioniert am besten mit 64 GB RAM für die KI-Stem-Trennung. Ihr System hat {ram} GB. Die Verarbeitung kann langsam sein oder fehlschlagen.'
 }
 
 const eo: Partial<Record<keyof typeof en, string>> = {
@@ -1558,7 +1576,9 @@ const eo: Partial<Record<keyof typeof en, string>> = {
   aboutSource: 'Fontkodo',
   aboutPrivacy: 'Privateca politiko',
   aboutTerms: 'Uzkondiĉoj',
-  aboutLicense: 'Licencita sub la GNU General Public License v3.'
+  aboutLicense: 'Licencita sub la GNU General Public License v3.',
+  ramWarningTitle: 'Malalta RAM-averto',
+  ramWarningBody: 'Ĉi tiu aplikaĵo funkcias plej bone kun 64 GB da RAM por AI-stem-disigo. Via sistemo havas {ram} GB. Prilaborado povas esti malrapida aŭ malsukcesi.'
 }
 
 const dictionaries: Record<Language, Partial<typeof en>> = { en, es, pt, ru, ja, ko, fr, zh, de, eo }

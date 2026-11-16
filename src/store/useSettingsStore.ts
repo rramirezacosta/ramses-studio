@@ -27,7 +27,7 @@ const matchLocale = (locale: unknown): Language | undefined => {
   return availableLanguages.has(code as Language) ? (code as Language) : undefined
 }
 
-const loadSystemLanguage = (): Language => {
+export const loadSystemLanguage = (): Language => {
   // No stored preference: follow the system, trying each configured locale
   // ('pt-BR' matches 'pt', 'zh-TW' matches 'zh', etc.).
   const candidates = [...(navigator.languages ?? []), navigator.language]
@@ -80,3 +80,25 @@ export const useSettingsStore = create<SettingsStore>()(
     },
   ),
 )
+
+/**
+ * Check whether a language preference has been explicitly stored in IndexedDB.
+ */
+async function hasStoredLanguage(): Promise<boolean> {
+  const stored = await languageStorage.getItem('ramses-studio-settings')
+  return stored != null
+}
+
+/**
+ * Ensure the detected OS language is persisted on first run. After rehydration,
+ * if no stored preference existed, the system language is saved so it persists
+ * across sessions.
+ */
+export const ensureSystemLanguageStored = async () => {
+  const hadStored = await hasStoredLanguage()
+  if (!hadStored) {
+    // First run: no stored preference — save the detected OS language.
+    const systemLang = loadSystemLanguage()
+    void useSettingsStore.getState().setLanguage(systemLang)
+  }
+}

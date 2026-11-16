@@ -40,4 +40,5 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('updater:state', handler)
     return () => ipcRenderer.removeListener('updater:state', handler)
   },
+  getSystemRam: () => ipcRenderer.invoke('system:ram'),
 })

@@ -132,9 +132,9 @@
 .song-row {
   display: flex;
   align-items: stretch;
-  margin: 4px 0;
+  margin: 2px 0;
   border: 1px solid transparent;
-  border-radius: 14px;
+  border-radius: 12px;
   transition:
     background 0.2s ease,
     border-color 0.2s ease,
@@ -164,10 +164,10 @@
   flex: 1;
   min-width: 0;
   align-items: center;
-  gap: 14px;
-  padding: 10px 14px;
+  gap: 10px;
+  padding: 6px 10px;
   border: 0;
-  border-radius: 13px;
+  border-radius: 11px;
   color: #c8cfe0;
   background: transparent;
   text-align: left;
@@ -184,14 +184,14 @@
   place-items: center;
 }
 .song-card .song-cover {
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
 }
 .song-card .song-download {
   bottom: -4px;
   left: 4px;
-  max-width: calc(56px - 8px);
+  max-width: calc(44px - 8px);
 }
 .song-card .drive-badge-chip {
   bottom: 4px;
@@ -204,7 +204,7 @@
   inset: 0;
   display: grid;
   place-items: center;
-  border-radius: 12px;
+  border-radius: 10px;
   background: rgba(0, 0, 0, 0.55);
   color: var(--accent-bright, #c5b4ff);
   backdrop-filter: blur(2px);
@@ -214,11 +214,11 @@
 .song-card-meta {
   display: grid;
   min-width: 0;
-  gap: 3px;
+  gap: 2px;
   text-transform: capitalize;
 }
 .song-card-meta strong {
-  font-size: 14.5px;
+  font-size: 13.5px;
   font-weight: 650;
   line-height: 1.3;
   overflow: hidden;
@@ -227,7 +227,7 @@
 }
 .song-card-artist {
   color: #9aa3bc;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 450;
   letter-spacing: 0.01em;
   line-height: 1.3;
@@ -240,15 +240,15 @@
 .song-card-tags {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: wrap;
 }
 .song-card-sync-badge {
   display: inline-flex;
   align-items: center;
-  padding: 2px 7px;
+  padding: 1px 6px;
   border-radius: 999px;
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 600;
   background: linear-gradient(135deg, rgba(52, 209, 123, 0.2), rgba(34, 197, 94, 0.15));
   color: #8ce9aa;
@@ -257,9 +257,9 @@
 .song-card-remote-badge {
   display: inline-flex;
   align-items: center;
-  padding: 2px 7px;
+  padding: 1px 6px;
   border-radius: 999px;
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 600;
   background: linear-gradient(135deg, rgba(85, 178, 255, 0.2), rgba(59, 130, 246, 0.15));
   color: #93c5ff;
@@ -350,7 +350,7 @@
   max-width: 44px;
   border-radius: 3px;
   background: var(--accent-bright);
-  box-shadow: 0 0 4px color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: 0 0 4px color-mix(in srgb, var(--accent) 20%, transparent);
   pointer-events: none;
   transition: width 0.3s ease;
 }
@@ -576,7 +576,7 @@
   );
   border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
   color: var(--accent-bright);
-  box-shadow: 0 4px 20px color-mix(in srgb, var(--accent-deep) 25%, transparent);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent-deep) 12%, transparent);
   animation: icon-float 3s ease-in-out infinite;
 }
 .no-song-empty-title {
@@ -607,7 +607,7 @@
   font-weight: 700;
   cursor: pointer;
   box-shadow:
-    0 6px 20px color-mix(in srgb, var(--accent-deep) 50%, transparent),
+    0 4px 12px color-mix(in srgb, var(--accent-deep) 25%, transparent),
     inset 0 1px rgba(255, 255, 255, 0.2);
   transition:
     transform 0.2s ease,
@@ -617,8 +617,8 @@
 .no-song-empty-cta:hover {
   transform: translateY(-2px);
   box-shadow:
-    0 8px 24px color-mix(in srgb, var(--accent-deeper) 50%, transparent),
-    0 0 32px color-mix(in srgb, var(--accent) 20%, transparent),
+    0 6px 16px color-mix(in srgb, var(--accent-deeper) 25%, transparent),
+    0 0 16px color-mix(in srgb, var(--accent) 10%, transparent),
     inset 0 1px rgba(255, 255, 255, 0.25);
 }
 .no-song-empty-cta:active {
@@ -695,7 +695,7 @@ code {
   border-color: var(--accent-bright);
   color: #fff;
   background: var(--accent-deep);
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent-deep) 55%, transparent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-deep) 28%, transparent);
 }
 .play-button {
   width: 46px;
@@ -704,14 +704,14 @@ code {
   border-radius: 50%;
   background: linear-gradient(135deg, var(--accent-bright), var(--accent-deep));
   box-shadow:
-    0 8px 20px color-mix(in srgb, var(--accent-deep) 60%, transparent),
+    0 4px 12px color-mix(in srgb, var(--accent-deep) 30%, transparent),
     inset 0 1px rgba(255, 255, 255, 0.35);
   color: white;
 }
 .play-button:not(:disabled):hover {
   transform: scale(1.05);
   box-shadow:
-    0 10px 24px color-mix(in srgb, var(--accent-deep) 72%, transparent),
+    0 6px 16px color-mix(in srgb, var(--accent-deep) 36%, transparent),
     inset 0 1px rgba(255, 255, 255, 0.4);
 }
 .play-button:not(:disabled):active {
@@ -1087,8 +1087,8 @@ code {
   z-index: 1;
   inset-block: 0;
   border-inline: 1px solid var(--accent-bright);
-  background: color-mix(in srgb, var(--accent) 24%, transparent);
-  box-shadow: inset 0 0 28px color-mix(in srgb, var(--accent) 14%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: inset 0 0 14px color-mix(in srgb, var(--accent) 7%, transparent);
   pointer-events: none;
 }
 .waveform-playhead {
@@ -1097,7 +1097,7 @@ code {
   inset-block: 0;
   width: 1px;
   background: rgba(255, 255, 255, 0.72);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--accent-bright) 80%, transparent);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent-bright) 40%, transparent);
   pointer-events: none;
   will-change: left;
 }
@@ -1121,7 +1121,7 @@ code {
   height: auto;
   justify-self: center;
   filter: drop-shadow(
-    0 2px 12px color-mix(in srgb, var(--accent) 30%, transparent)
+    0 2px 8px color-mix(in srgb, var(--accent) 15%, transparent)
   );
 }
 .welcome h1 {
@@ -1201,7 +1201,7 @@ code {
 }
 .welcome-feature-card:hover .welcome-feature-icon {
   transform: scale(1.1) rotate(-5deg);
-  box-shadow: 0 3px 12px color-mix(in srgb, var(--accent-deep) 30%, transparent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-deep) 15%, transparent);
 }
 .welcome-feature-icon {
   display: grid;
@@ -1282,7 +1282,7 @@ code {
     color-mix(in srgb, var(--accent) 18%, transparent),
     color-mix(in srgb, var(--accent) 8%, transparent)
   );
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-deep) 20%, transparent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-deep) 10%, transparent);
   transition:
     transform 0.25s ease,
     box-shadow 0.25s ease,
@@ -1291,8 +1291,8 @@ code {
 .onboarding-step:hover .onboarding-step-icon {
   transform: scale(1.1) rotate(-4deg);
   box-shadow:
-    0 4px 16px color-mix(in srgb, var(--accent-deep) 35%, transparent),
-    0 0 20px color-mix(in srgb, var(--accent) 15%, transparent);
+    0 2px 10px color-mix(in srgb, var(--accent-deep) 18%, transparent),
+    0 0 10px color-mix(in srgb, var(--accent) 8%, transparent);
   border-color: color-mix(in srgb, var(--accent) 45%, transparent);
 }
 .onboarding-step div {
@@ -1428,8 +1428,8 @@ code {
 .library-empty-step:hover .library-empty-step-number {
   transform: scale(1.15);
   box-shadow:
-    0 4px 14px color-mix(in srgb, var(--accent-deep) 50%, transparent),
-    0 0 20px color-mix(in srgb, var(--accent) 20%, transparent);
+    0 4px 14px color-mix(in srgb, var(--accent-deep) 25%, transparent),
+    0 0 10px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 .library-empty-step-number {
   display: grid;
@@ -1439,7 +1439,7 @@ code {
   flex: 0 0 28px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--accent), var(--accent-deep));
-  box-shadow: 0 3px 10px color-mix(in srgb, var(--accent-deep) 40%, transparent);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--accent-deep) 20%, transparent);
   color: #fff;
   font-size: 13px;
   font-weight: 800;
@@ -1514,7 +1514,7 @@ code {
 }
 .rename-dialog input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 8%, transparent);
   background: rgba(7, 9, 20, 0.62);
 }
 .dialog-actions {
@@ -1888,6 +1888,24 @@ code {
 }
 .settings-dialog {
   width: min(460px, 100%);
+  position: relative;
+}
+.settings-dialog-close {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 1;
+}
+.app-shell.buttons-left .settings-dialog-close {
+  right: auto;
+  left: 24px;
+}
+.settings-dialog-title {
+  margin: 24px 0 16px 0;
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+  color: #e4e8f7;
 }
 .settings-footer {
   display: flex;
@@ -2027,7 +2045,7 @@ code {
   border: 3px solid color-mix(in srgb, var(--accent) 18%, transparent);
   border-top-color: var(--accent-bright);
   border-radius: 50%;
-  box-shadow: 0 0 20px color-mix(in srgb, var(--accent) 30%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 15%, transparent);
   animation: work-spin 0.8s linear infinite;
 }
 @keyframes work-spin {
@@ -2148,7 +2166,7 @@ code {
   border-color: color-mix(in srgb, var(--accent) 60%, transparent);
   color: #fff;
   background: color-mix(in srgb, var(--accent) 22%, transparent);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 20%, transparent);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 .library-sort {
   display: flex;
@@ -2206,7 +2224,7 @@ code {
   border-color: color-mix(in srgb, var(--accent) 60%, transparent);
   color: #fff;
   background: color-mix(in srgb, var(--accent) 22%, transparent);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 20%, transparent);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 .sort-pill:active {
   transform: scale(0.95);
@@ -2252,17 +2270,24 @@ code {
   border-color: color-mix(in srgb, var(--accent) 40%, transparent);
   background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
+/* Vertical actions group (info + rename) on song card */
+.song-card-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
 .song-info-btn {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  margin-right: 4px;
+  width: 24px;
+  height: 24px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   color: #7a82a0;
   background: transparent;
-  opacity: 0.5;
+  opacity: 0;
   transition: opacity 0.2s ease, color 0.2s ease, background 0.2s ease;
 }
 .song-row:hover .song-info-btn,
@@ -2271,7 +2296,7 @@ code {
 }
 .song-info-btn:hover {
   color: #fff;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 /* Skeleton */
@@ -2326,7 +2351,7 @@ code {
     color-mix(in srgb, var(--accent) 12%, rgba(7, 9, 20, 0.7)),
     color-mix(in srgb, var(--accent-deep) 8%, rgba(7, 9, 20, 0.5))
   );
-  box-shadow: 0 4px 16px color-mix(in srgb, var(--accent-deep) 15%, transparent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-deep) 8%, transparent);
 }
 .bulk-count {
   color: #c9c2ff;
@@ -2477,10 +2502,9 @@ code {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-right: 6px;
   flex-wrap: wrap;
   justify-content: flex-end;
-  flex: 0 0 auto;
+  flex-shrink: 0;
 }
 .library-manage-actions button {
   display: grid;
@@ -2676,10 +2700,10 @@ code {
   flex: 1;
   min-width: 0;
   align-items: center;
-  gap: 14px;
-  padding: 10px 14px;
+  gap: 10px;
+  padding: 6px 10px;
   border: 0;
-  border-radius: 13px;
+  border-radius: 11px;
   color: #c8cfe0;
   background: transparent;
   text-align: left;
@@ -2696,9 +2720,9 @@ code {
   place-items: center;
 }
 .library-manager-grid .song-card .song-cover {
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
 }
 .library-manager-grid .song-card .drive-badge-chip {
   bottom: 4px;
@@ -2711,7 +2735,7 @@ code {
   inset: 0;
   display: grid;
   place-items: center;
-  border-radius: 12px;
+  border-radius: 10px;
   background: rgba(0, 0, 0, 0.55);
   color: var(--accent-bright, #c5b4ff);
   backdrop-filter: blur(2px);
@@ -2721,11 +2745,11 @@ code {
 .library-manager-grid .song-card-meta {
   display: grid;
   min-width: 0;
-  gap: 3px;
+  gap: 2px;
   text-transform: capitalize;
 }
 .library-manager-grid .song-card-meta strong {
-  font-size: 14.5px;
+  font-size: 13.5px;
   font-weight: 650;
   line-height: 1.3;
   overflow: hidden;
@@ -2734,7 +2758,7 @@ code {
 }
 .library-manager-grid .song-card-artist {
   color: #9aa3bc;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 450;
   letter-spacing: 0.01em;
   line-height: 1.3;
@@ -2747,15 +2771,15 @@ code {
 .library-manager-grid .song-card-tags {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: wrap;
 }
 .library-manager-grid .song-card-sync-badge {
   display: inline-flex;
   align-items: center;
-  padding: 2px 7px;
+  padding: 1px 6px;
   border-radius: 999px;
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 600;
   background: linear-gradient(135deg, rgba(52, 209, 123, 0.2), rgba(34, 197, 94, 0.15));
   color: #8ce9aa;
@@ -2764,9 +2788,9 @@ code {
 .library-manager-grid .song-card-remote-badge {
   display: inline-flex;
   align-items: center;
-  padding: 2px 7px;
+  padding: 1px 6px;
   border-radius: 999px;
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 600;
   background: linear-gradient(135deg, rgba(85, 178, 255, 0.2), rgba(59, 130, 246, 0.15));
   color: #93c5ff;
@@ -2785,13 +2809,22 @@ code {
 .library-manager-grid .song-row.active .song-card-artist {
   color: #b8c0d8;
 }
-/* Consistent dialog headers and close buttons */
+/* Consistent dialog headers and close buttons — follows titlebar window decoration position */
 .dialog-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 4px;
+  margin: -24px -24px -24px 24px;
+  padding-top: 24px;
+  padding-right: 24px;
+}
+.app-shell.buttons-left .dialog-header {
+  flex-direction: row-reverse;
+  margin: -24px 24px -24px -24px;
+  padding-top: 24px;
+  padding-right: 0;
+  padding-left: 24px;
 }
 .dialog-header h2 {
   margin: 0;
@@ -2799,14 +2832,14 @@ code {
 .dialog-close {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  flex: 0 0 32px;
-  border: 1px solid rgba(201, 209, 247, .12);
-  border-radius: 9px;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border: none;
+  border-radius: 6px;
   color: #9da6c0;
-  background: rgba(255, 255, 255, .04);
-  font-size: 18px;
+  background: transparent;
+  font-size: 16px;
   line-height: 1;
   transition: all .15s ease;
 }
@@ -2818,6 +2851,7 @@ code {
 .dialog-close:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+  outline-radius: 6px;
 }
 
 /* Skeleton loader — shimmer placeholders while stems decode */
@@ -2900,3 +2934,81 @@ code {
   animation-delay: 0.15s;
   width: 85%;
 }
+
+/* ── Toast notifications ── */
+.toast-container {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 100;
+  pointer-events: none;
+  max-width: 360px;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border-left: 3px solid var(--accent);
+  background: rgba(14, 17, 30, 0.92);
+  backdrop-filter: blur(16px) saturate(130%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  color: #c8cfe0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  pointer-events: auto;
+  animation: toast-slide-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.toast.toast-success {
+  border-left-color: #34d17b;
+}
+.toast.toast-error {
+  border-left-color: #e8567a;
+}
+.toast.toast-info {
+  border-left-color: #55b2ff;
+}
+
+.toast-message {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.toast-dismiss {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  color: #9da6c0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+  margin: -4px -4px 0 0;
+}
+.toast-dismiss:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+@keyframes toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+

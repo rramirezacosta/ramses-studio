@@ -1,6 +1,7 @@
 import { execFile as execFileCallback } from 'node:child_process'
 import { promisify } from 'node:util'
 import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron'
+import { totalmem } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { registerStemImportIpc } from './ipc/stemImport'
@@ -45,6 +46,10 @@ async function getWindowButtonLayout(): Promise<WindowButtonLayout> {
     console.warn('Could not read the GNOME window button layout.', error)
     return defaultWindowButtonLayout
   }
+}
+
+function registerSystemIpc() {
+  ipcMain.handle('system:ram', () => totalmem())
 }
 
 function registerWindowIpc() {
@@ -98,6 +103,7 @@ function createWindow() {
 
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null)
+  registerSystemIpc()
   registerStemImportIpc()
   registerMixIpc()
   registerWindowIpc()

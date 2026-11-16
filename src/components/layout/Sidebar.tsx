@@ -44,9 +44,11 @@ interface RowProps {
   onToggleSelect: (song: Song) => void
   onMenu: (song: Song, x: number, y: number) => void
   onInfo: (song: Song) => void
+  onRename: (song: Song) => void
+  onDelete: (song: Song) => void
 }
 
-const SongRow = memo(function SongRow({ song, active, synced, downloading, selected, anySelected, onSelect, onToggleSelect, onMenu, onInfo }: RowProps) {
+const SongRow = memo(function SongRow({ song, active, synced, downloading, selected, anySelected, onSelect, onToggleSelect, onMenu, onInfo, onRename, onDelete }: RowProps) {
   const t = useTranslation()
   const [coverFailed, setCoverFailed] = useState(false)
   const { artist, title } = parseSongName(song.name)
@@ -66,7 +68,7 @@ const SongRow = memo(function SongRow({ song, active, synced, downloading, selec
           ) : (
             <span className="song-cover song-cover-fallback" style={{ '--art-hue': artHue(song.name) } as React.CSSProperties}>{initialsFor(artist, title)}</span>
           )}
-          {active && <span className="song-card-play-icon"><Play size={16} fill="currentColor" /></span>}
+          {active && <span className="song-card-play-icon"><Play size={14} fill="currentColor" /></span>}
           {downloading !== undefined ? (
             <span className="song-download" style={{ width: `${Math.round(downloading * 100)}%` }} />
           ) : null}
@@ -87,9 +89,17 @@ const SongRow = memo(function SongRow({ song, active, synced, downloading, selec
             )}
           </span>
         </span>
-      </button>
-      <button className="song-info-btn" onClick={(e) => { e.stopPropagation(); onInfo(song) }} title={t('songDetails')} aria-label={t('songDetails')}>
-        <Info size={13} />
+        <div className="song-card-actions">
+          <button className="song-info-btn" onClick={(e) => { e.stopPropagation(); onInfo(song) }} title={t('songDetails')} aria-label={t('songDetails')}>
+            <Info size={13} />
+          </button>
+          <button className="song-info-btn" onClick={(e) => { e.stopPropagation(); onRename(song) }} title={t('rename')} aria-label={t('rename')}>
+            <FilePenLine size={13} />
+          </button>
+          <button className="song-info-btn" onClick={(e) => { e.stopPropagation(); onDelete(song) }} title={t('delete')} aria-label={t('delete')}>
+            <Trash2 size={13} />
+          </button>
+        </div>
       </button>
     </div>
   )
@@ -272,13 +282,17 @@ export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, impor
         </div>
       )}
       <div className="sidebar-toolbar">
-        <label className="library-search">
-          <Search size={15} aria-hidden="true" />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('searchLibrary')} aria-label={t('searchLibraryAria')} />
-        </label>
-        <button className="library-management-btn" onClick={onToggleLibraryManager} title={t('libraryManagement')}>
-          <Settings2 size={14} />
-        </button>
+        {songs.length > 0 && (
+          <label className="library-search">
+            <Search size={15} aria-hidden="true" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('searchLibrary')} aria-label={t('searchLibraryAria')} />
+          </label>
+        )}
+        {songs.length > 0 && (
+          <button className="library-management-btn" onClick={onToggleLibraryManager} title={t('libraryManagement')}>
+            <Settings2 size={14} />
+          </button>
+        )}
       </div>
       {!loading && songs.length > 0 && visibleSongs.length === 0 && (
         <p className="empty-state">{t('noMatchingSongs')}</p>
@@ -286,7 +300,7 @@ export const Sidebar = memo(function Sidebar({ songs, activeSong, loading, impor
       {!loading && (
         <nav className="song-list">
           {visibleSongs.map((song) => (
-            <SongRow key={song.name} song={song} active={song.name === activeSong} synced={syncedNames.has(song.name)} downloading={downloading?.name === song.name ? downloading.percent : undefined} selected={selected.has(song.name)} anySelected={anySelected} onSelect={onSelect} onToggleSelect={toggleSelect} onMenu={openSongMenu} onInfo={setDetails} />
+            <SongRow key={song.name} song={song} active={song.name === activeSong} synced={syncedNames.has(song.name)} downloading={downloading?.name === song.name ? downloading.percent : undefined} selected={selected.has(song.name)} anySelected={anySelected} onSelect={onSelect} onToggleSelect={toggleSelect} onMenu={openSongMenu} onInfo={setDetails} onRename={onRename} onDelete={onDelete} />
           ))}
         </nav>
       )}

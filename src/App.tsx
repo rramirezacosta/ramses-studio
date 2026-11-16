@@ -60,6 +60,16 @@ const loadStoredTheme = (): ThemeId => {
 export default function App() {
   const engine = useRef(new AudioEngine()).current
   const t = useTranslation()
+  const appShellRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (typeof window.api?.getWindowButtonLayout !== 'function') return
+    window.api.getWindowButtonLayout().then((layout) => {
+      if (appShellRef.current) {
+        appShellRef.current.classList.toggle('buttons-left', layout.left.length > 0)
+      }
+    })
+  }, [])
   const renameDialogRef = useRef<HTMLFormElement>(null)
   const confirmDialogRef = useRef<HTMLDivElement>(null)
   const importSourceRef = useRef<HTMLFormElement>(null)
@@ -106,8 +116,11 @@ export default function App() {
   const [notice, setNotice] = useState<string>()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
+  const [ramWarning, setRamWarning] = useState(false)
+  const [ramGb, setRamGb] = useState<number>()
   const [libraryManageView, setLibraryManageView] = useState(false)
   const [theme, setTheme] = useState<ThemeId>(loadStoredTheme)
+
   const setTransport = useTransportStore((store) => store.setTransport)
   const sync = useSyncStore()
   const connectDrive = useCallback(() => {
@@ -140,6 +153,17 @@ export default function App() {
       setError(t('electronBridgeError'))
       return
     }
+    // Check system RAM and warn if below 7 GB
+    const RAM_MIN_BYTES = 7 * 1024 * 1024 * 1024
+    void window.api.getSystemRam().then((totalBytes: number) => {
+      if (totalBytes < RAM_MIN_BYTES) {
+        const gb = Math.round(totalBytes / (1024 * 1024 * 1024))
+        setRamGb(gb)
+        setRamWarning(true)
+      }
+    }).catch(() => {
+      // Non-Electron environments skip the check silently
+    })
     const unsubscribe = window.api.onImportProgress(({ progress }) => {
       setImportProgress(progress)
       setImportStage(undefined)
@@ -746,7 +770,7 @@ export default function App() {
   }, [renamingSong, confirmDialog, importSourceOpen, settingsOpen, aboutOpen, duplicateSong, draggedTrackId, importing, togglePlayback, seek, exportMix, engine, resolveDuplicate])
 
   return (
-    <main className="app-shell">
+    <main ref={appShellRef} className="app-shell">
       <TitleBar onOpenSettings={openSettings} onOpenAbout={openAbout} drive={library.songs.length === 0 ? undefined : { connected: sync.connected, syncing: sync.syncing, error: sync.error, pendingChanges: sync.pendingChanges }} />
       <div className="app-content">
         <Sidebar songs={library.songs} activeSong={activeSong} loading={library.loading} importing={importing} cancelling={cancelling} importProgress={importProgress} importStage={importStage} syncedNames={sync.syncedNames} driveConnected={sync.connected} downloading={downloading} remoteCount={library.songs.filter((song) => song.remoteOnly).length} onDriveRemove={(song) => { void sync.removeBackup(song.name) }} onDriveSync={(song) => { void sync.backupSong(song.name) }} onEvict={(song) => { void sync.freeUpSpace(song.name) }} onDriveDownload={(song) => { void selectSong(song) }} onDownloadAll={downloadAllRemote} onSelect={selectSong} onImport={openImportSource} onCancelImport={cancelImport} onRename={openRenameDialog} onDelete={deleteSong} onBulkDelete={bulkDeleteSongs} onBulkSync={bulkSyncSongs} onBulkDownload={bulkDownloadSongs} onBulkEvict={bulkEvictSongs} libraryManagerOpen={libraryManageView} onToggleLibraryManager={() => { if (!libraryManageView) engine.pause(); setLibraryManageView(v => !v) }} />
@@ -938,8 +962,9 @@ export default function App() {
       )}
       {settingsOpen && (
         <div className="dialog-backdrop" role="presentation" onClick={() => setSettingsOpen(false)}>
-          <div className="rename-dialog confirm-dialog settings-dialog" ref={settingsDialogRef} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="settings-title">
-            <div className="dialog-header"><h2 id="settings-title">{t('settings')}</h2><button type="button" className="dialog-close" onClick={() => setSettingsOpen(false)} aria-label={t('close')}>×</button></div>
+          <div className="rename-dialog confirm-dialog settings-dialog" ref={settingsDialogRef} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+            <button type="button" className="dialog-close settings-dialog-close" onClick={() => setSettingsOpen(false)} aria-label={t('close')}>×</button>
+            <h2 className="settings-dialog-title">{t('settings')}</h2>
             <div className="settings-section" role="group" aria-label={t('theme')}>
               <span className="settings-section-label">{t('theme')}</span>
               <div className="theme-grid">
@@ -1019,13 +1044,6 @@ export default function App() {
                 <small className="storage-usage">{t('storageUsage', { used: '—', total: '—' })}</small>
               )}
             </div>
-            <p className="settings-footer">
-              <span>{t('version')} {__APP_VERSION__}</span>
-              <span>{LANGUAGES.find((item) => item.id === language)?.label}</span>
-            </p>
-            <div className="dialog-actions">
-              <button type="button" autoFocus onClick={() => setSettingsOpen(false)} className="primary-button settings-close">{t('close')}</button>
-            </div>
           </div>
         </div>
       )}
@@ -1046,11 +1064,16 @@ export default function App() {
             <div className="about-links">
               <a href="https://rramirezacosta.github.io/ramses-studio/terms.html" target="_blank" rel="noopener noreferrer">{t('aboutTerms')}</a>
             </div>
-
-
-
+          </div>
+        </div>
+      )}
+      {ramWarning && (
+        <div className="dialog-backdrop" role="presentation" onClick={() => setRamWarning(false)}>
+          <div className="rename-dialog confirm-dialog" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="ram-warning-title">
+            <div className="dialog-header"><h2 id="ram-warning-title">{t('ramWarningTitle')}</h2><button type="button" className="dialog-close" onClick={() => setRamWarning(false)} aria-label={t('close')}>×</button></div>
+            <p id="ram-warning-body">{t('ramWarningBody', { ram: ramGb ?? '—' })}</p>
             <div className="dialog-actions">
-              <button type="button" autoFocus onClick={() => setAboutOpen(false)} className="primary-button settings-close">{t('close')}</button>
+              <button type="button" autoFocus className="primary-button" onClick={() => setRamWarning(false)}>{t('close')}</button>
             </div>
           </div>
         </div>

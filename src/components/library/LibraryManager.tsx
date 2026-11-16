@@ -305,7 +305,7 @@ export const LibraryManager = memo(function LibraryManager(props: LibraryManager
                     ) : (
                       <span className="song-cover song-cover-fallback" style={{ '--art-hue': artHue(song.name) } as React.CSSProperties}>{song.name.slice(0, 2).toUpperCase()}</span>
                     )}
-                    {song.name === props.activeSong && <span className="song-card-play-icon"><Play size={16} fill="currentColor" /></span>}
+                    {song.name === props.activeSong && <span className="song-card-play-icon"><Play size={14} fill="currentColor" /></span>}
                   </div>
                   <span className="song-card-meta">
                     <strong>{title}</strong>

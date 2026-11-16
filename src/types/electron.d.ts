@@ -54,6 +54,7 @@ declare global {
       downloadUpdate: () => Promise<void>
       openReleasesPage: () => Promise<void>
       onUpdaterState: (listener: (state: { status: string; version?: string; message?: string }) => void) => () => void
+      getSystemRam: () => Promise<number>
     }
   }
 }
