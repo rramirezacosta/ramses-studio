@@ -99,9 +99,13 @@ export class YoutubeIE extends InfoExtractor {
     const thumbMatch = html.match(/property="og:image"\s+content="([^"]*)"/i);
     if (thumbMatch) result.thumbnail = unescapeHTML(thumbMatch[1]);
 
-    // Uploader from og:site_name or author
-    const authorMatch = html.match(/property="og:site_name"\s+content="([^"]*)"/i);
-    if (authorMatch) result.uploader = unescapeHTML(authorMatch[1]);
+    // Uploader from article:author (og:site_name is always "YouTube")
+    const authorMatch = html.match(/property="article:author"\s+content="([^"]*)"/i);
+    if (authorMatch) {
+      const url = unescapeHTML(authorMatch[1]);
+      const pathParts = url.replace(/.*\/@/, '').replace(/\/$/, '');
+      if (pathParts) result.uploader = pathParts;
+    }
 
     return result;
   }
