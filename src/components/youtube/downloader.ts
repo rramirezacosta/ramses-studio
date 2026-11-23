@@ -1,8 +1,17 @@
-import { createWriteStream } from 'node:fs';
+import { createWriteStream, unlinkSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
 
 export interface DownloadContext { url: string; filename: string; headers?: Record<string,string>; quiet?: boolean; }
+
+function cleanupPartialFile(filename: string): void {
+  try {
+    if (existsSync(filename)) unlinkSync(filename);
+  } catch {
+    // Best-effort cleanup; ignore if the file is already gone or inaccessible.
+  }
+}
 
 export async function downloadFile(ctx: DownloadContext): Promise<boolean> {
   try {
@@ -26,6 +35,7 @@ export async function downloadFile(ctx: DownloadContext): Promise<boolean> {
     return true;
   } catch (e: any) {
     console.error('Download failed: ' + (e?.message || e));
+    cleanupPartialFile(ctx.filename);
     return false;
   }
 }
