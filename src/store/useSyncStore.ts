@@ -50,6 +50,7 @@ interface SyncStore {
   /** Rename a remote-only song on Drive, then locally. */
   renameRemoteSong: (oldName: string, newName: string) => Promise<void>
   /** Clear the auto-sync toast notice. */
+  clearNotice: () => void
   /** Debounced background sync after library changes or on startup. */
   scheduleSync: () => void
   /** Resolve a sync conflict for a song. */
@@ -226,12 +227,16 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
       void get().syncNow(true)
     }, AUTO_SYNC_DELAY_MS)
   },
+
+  clearNotice: () => {
+    set({ error: undefined })
+  },
 }))
 
 /** Shared body of every explicit sync action: mutex, last-synced stamp, error line. */
 async function runSync(
-  set: StoreApi<SyncStore>['setState'],
-  get: StoreApi<SyncStore>['getState'],
+  set: (partial: Partial<SyncStore>) => void,
+  get: () => SyncStore,
   action: () => Promise<Set<string>>,
   auto = false,
 ): Promise<void> {
