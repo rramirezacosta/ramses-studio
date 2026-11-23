@@ -74,7 +74,8 @@ function readSample(view: DataView, offset: number, format: number, bits: number
 }
 
 function toInt16(value: number): number {
-  return Math.round(Math.max(-1, Math.min(1, value)) * (value < 0 ? 32768 : 32767));
+  const clamped = Math.max(-1, Math.min(1, value));
+  return Math.max(-32768, Math.min(32767, Math.round(clamped * 32767)));
 }
 
 function readAscii(view: DataView, offset: number, length: number): string {
