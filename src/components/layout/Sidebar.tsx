@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -281,16 +282,26 @@ export const Sidebar = memo(function Sidebar({
   const menuRef = useRef<HTMLDivElement | null>(null);
   const detailsRef = useRef<HTMLDivElement | null>(null);
 
-  const normalizedQuery = query.trim().toLocaleLowerCase();
-
-  const filtered = songs.filter((song) =>
-    song.name.toLocaleLowerCase().includes(normalizedQuery),
+  const normalizedQuery = useMemo(
+    () => query.trim().toLocaleLowerCase(),
+    [query],
   );
 
-  const visibleSongs = [...filtered];
+  const filtered = useMemo(
+    () =>
+      songs.filter((song) =>
+        song.name.toLocaleLowerCase().includes(normalizedQuery),
+      ),
+    [songs, normalizedQuery],
+  );
+
+  const visibleSongs = useMemo(() => [...filtered], [filtered]);
 
   const anySelected = selected.size > 0;
-  const selectedSongs = songs.filter((s) => selected.has(s.name));
+  const selectedSongs = useMemo(
+    () => songs.filter((s) => selected.has(s.name)),
+    [songs, selected],
+  );
 
   const openSongMenu = useCallback(
     (song: Song, x: number, y: number) => setMenu({ song, x, y }),
