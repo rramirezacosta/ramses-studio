@@ -71,13 +71,11 @@ export const WaveformDisplay = memo(function WaveformDisplay({ buffer, color, du
     element.height = height * ratio
     const context = element.getContext('2d')!
     context.setTransform(ratio, 0, 0, ratio, 0, 0)
-    context.clearRect(0, 0, width, height)
-    if (!peaks) return
+    if (!peaks) {
+      context.clearRect(0, 0, width, height)
+      return
+    }
     const center = height / 2
-
-    // Draw faint horizontal center line
-    context.fillStyle = 'rgba(255, 255, 255, 0.06)'
-    context.fillRect(0, center - 0.5, width, 1)
 
     // Compute loop range in pixel coordinates for dimming
     let loopLeft = -1, loopRight = -1
@@ -85,33 +83,54 @@ export const WaveformDisplay = memo(function WaveformDisplay({ buffer, color, du
       loopLeft = (loopRange[0] / duration) * width
       loopRight = (loopRange[1] / duration) * width
     }
-
-    // Draw waveform with solid color and loop-range dimming
-    // Batch draws by opacity to minimize canvas state changes
-    context.fillStyle = color
     const hasLoop = loopLeft >= 0 && loopRight >= 0
 
-    // Draw solid bars (inside loop range or no loop)
-    for (let index = 0; index < peaks.length; index += 1) {
-      if (hasLoop && (index < loopLeft || index > loopRight)) continue
-      const { min, max } = peaks[index]
-      const barHeight = Math.max(1, (max - min) * center)
-      const y = center + min * center
-      context.fillRect(index, y, 1, barHeight)
+    // Parse the waveform color into RGB components
+    const tempCanvas = document.createElement('canvas')
+    tempCanvas.width = 1
+    tempCanvas.height = 1
+    const tempCtx = tempCanvas.getContext('2d')!
+    tempCtx.fillStyle = color
+    tempCtx.fillRect(0, 0, 1, 1)
+    const [r, g, b] = tempCtx.getImageData(0, 0, 1, 1).data
+
+    // Build ImageData buffer for the entire waveform in a single pass
+    const imageData = context.createImageData(width, height)
+    const data = imageData.data
+
+    // Fill background: transparent (already zeroed by createImageData)
+    // Draw faint horizontal center line
+    const centerY = Math.floor(center)
+    for (let x = 0; x < width; x += 1) {
+      const idx = (centerY * width + x) * 4
+      data[idx] = 255
+      data[idx + 1] = 255
+      data[idx + 2] = 255
+      data[idx + 3] = 15 // ~6% opacity
     }
 
-    // Draw dimmed bars (outside loop range)
-    if (hasLoop) {
-      context.globalAlpha = 0.3
-      for (let index = 0; index < peaks.length; index += 1) {
-        if (index >= loopLeft && index <= loopRight) continue
-        const { min, max } = peaks[index]
-        const barHeight = Math.max(1, (max - min) * center)
-        const y = center + min * center
-        context.fillRect(index, y, 1, barHeight)
+    // Draw waveform bars into the ImageData buffer
+    const peakLen = peaks.length
+    for (let index = 0; index < peakLen; index += 1) {
+      const { min, max } = peaks[index]
+      const barHeight = Math.max(1, (max - min) * center)
+      const yTop = Math.max(0, Math.floor(center + min * center))
+      const yBottom = Math.min(height - 1, Math.floor(center + max * center))
+
+      const isDimmed = hasLoop && (index < loopLeft || index > loopRight)
+      const alpha = isDimmed ? 77 : 255 // 0.3 * 255 ≈ 77 for dimmed
+
+      for (let y = yTop; y <= yBottom; y += 1) {
+        const idx = (y * width + index) * 4
+        data[idx] = r
+        data[idx + 1] = g
+        data[idx + 2] = b
+        data[idx + 3] = alpha
       }
-      context.globalAlpha = 1
     }
+
+    // Single canvas call to render the entire waveform
+    context.putImageData(imageData, 0, 0)
   }, [buffer, color, width, peaks, loopRange, duration, redrawTick])
 
   const timeAt = (event: PointerEvent<HTMLDivElement>) => {
