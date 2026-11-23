@@ -26,6 +26,17 @@ export const WaveformDisplay = memo(function WaveformDisplay({ buffer, color, du
   const dragStart = useRef<number>()
   const [width, setWidth] = useState(0)
   const [peaks, setPeaks] = useState<PeakEntry[] | null>(null)
+  const [redrawTick, setRedrawTick] = useState(0)
+
+  // Redraw the waveform when the tab becomes visible again after a long period
+  // of inactivity — Chromium may lose the canvas 2D context while hidden.
+  useEffect(() => {
+    const handler = () => {
+      if (document.visibilityState === 'visible') setRedrawTick((t) => t + 1)
+    }
+    document.addEventListener('visibilitychange', handler)
+    return () => document.removeEventListener('visibilitychange', handler)
+  }, [])
 
   useEffect(() => {
     const element = canvas.current
@@ -95,7 +106,7 @@ export const WaveformDisplay = memo(function WaveformDisplay({ buffer, color, du
       context.fillRect(index, y, 1, barHeight)
       context.globalAlpha = 1
     })
-  }, [buffer, color, width, peaks, loopRange, duration])
+  }, [buffer, color, width, peaks, loopRange, duration, redrawTick])
 
   const timeAt = (event: PointerEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect()
