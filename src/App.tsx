@@ -170,7 +170,7 @@ export default function App() {
     }
     frame = requestAnimationFrame(update)
     return () => cancelAnimationFrame(frame)
-  }, [engine, setTransport])
+  }, [setTransport])
   // Persist mixer/loop state per song so practicing survives restarts.
   useEffect(() => {
     if (!activeSong || !tracks.length) return
@@ -720,7 +720,6 @@ export default function App() {
         if (renamingSong) setRenamingSong(undefined)
         else if (confirmDialog) setConfirmDialog(undefined)
         else if (duplicateSong) resolveDuplicate(undefined)
-        else if (importSourceOpen) setImportSourceOpen(false)
         else if (settingsOpen) setSettingsOpen(false)
         else if (aboutOpen) setAboutOpen(false)
         else if (libraryManageView) setLibraryManageView(false)
