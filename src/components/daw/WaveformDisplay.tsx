@@ -87,25 +87,31 @@ export const WaveformDisplay = memo(function WaveformDisplay({ buffer, color, du
     }
 
     // Draw waveform with solid color and loop-range dimming
-    peaks.forEach(({ min, max }, index) => {
+    // Batch draws by opacity to minimize canvas state changes
+    context.fillStyle = color
+    const hasLoop = loopLeft >= 0 && loopRight >= 0
+
+    // Draw solid bars (inside loop range or no loop)
+    for (let index = 0; index < peaks.length; index += 1) {
+      if (hasLoop && (index < loopLeft || index > loopRight)) continue
+      const { min, max } = peaks[index]
       const barHeight = Math.max(1, (max - min) * center)
       const y = center + min * center
-
-      // Determine opacity based on loop range
-      let opacity = 1
-      if (loopLeft >= 0 && loopRight >= 0) {
-        if (index < loopLeft || index > loopRight) {
-          opacity = 0.3
-        }
-      }
-
-      context.fillStyle = color
-      if (opacity < 1) {
-        context.globalAlpha = opacity
-      }
       context.fillRect(index, y, 1, barHeight)
+    }
+
+    // Draw dimmed bars (outside loop range)
+    if (hasLoop) {
+      context.globalAlpha = 0.3
+      for (let index = 0; index < peaks.length; index += 1) {
+        if (index >= loopLeft && index <= loopRight) continue
+        const { min, max } = peaks[index]
+        const barHeight = Math.max(1, (max - min) * center)
+        const y = center + min * center
+        context.fillRect(index, y, 1, barHeight)
+      }
       context.globalAlpha = 1
-    })
+    }
   }, [buffer, color, width, peaks, loopRange, duration, redrawTick])
 
   const timeAt = (event: PointerEvent<HTMLDivElement>) => {
