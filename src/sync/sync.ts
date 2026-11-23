@@ -18,6 +18,7 @@ const MANIFEST_NAME = 'manifest.json'
 const MANIFEST_VERSION = 1
 
 const MANIFEST_SNAPSHOT_KEY = 'drive-sync-manifest'
+const MANIFEST_FILE_ID_KEY = 'drive-sync-manifest-file-id'
 const HASH_CACHE_KEY = 'drive-sync-hashes'
 const LAST_SYNCED_KEY = 'drive-last-synced'
 /** Per-device slugs the user excluded from Drive backup ("Remove from Google Drive"). */
@@ -350,8 +351,9 @@ async function deleteSongRemotely(manifest: Manifest, entry: ManifestSong): Prom
 /** Upload the manifest back to Drive and refresh the local snapshot. */
 async function persistManifest(manifest: Manifest, manifestFileId?: string): Promise<Set<string>> {
   const bytes = encodeJson(manifest)
-  await uploadFile(MANIFEST_NAME, 'application/json', bytes, await sha256Hex(bytes), manifestFileId)
+  const uploaded = await uploadFile(MANIFEST_NAME, 'application/json', bytes, await sha256Hex(bytes), manifestFileId)
   await setKv(MANIFEST_SNAPSHOT_KEY, manifest)
+  await setKv(MANIFEST_FILE_ID_KEY, uploaded.fileId)
   return new Set(Object.keys(manifest.songs))
 }
 
@@ -359,9 +361,22 @@ async function persistManifest(manifest: Manifest, manifestFileId?: string): Pro
 async function loadRemoteManifest(): Promise<{ manifest: Manifest; manifestFileId?: string }> {
   const status = await window.api.driveStatus()
   if (!status.connected) throw new Error('Google Drive is not connected.')
+  // Prefer the persisted fileId; fall back to searching by name.
+  const persistedFileId = await getKv<string>(MANIFEST_FILE_ID_KEY)
+  let manifestFile: { id: string } | undefined
+  if (persistedFileId) {
+    try {
+      const bytes = await window.api.driveDownload(persistedFileId)
+      const manifest = parseManifest(bytes)
+      return { manifest, manifestFileId: persistedFileId }
+    } catch {
+      // Stale fileId; fall through to search by name.
+    }
+  }
   const files = await window.api.driveList()
-  const manifestFile = files.find((file) => file.name === MANIFEST_NAME)
+  manifestFile = files.find((file) => file.name === MANIFEST_NAME)
   const manifest = manifestFile ? parseManifest(await window.api.driveDownload(manifestFile.id)) : EMPTY_MANIFEST
+  if (manifestFile) await setKv(MANIFEST_FILE_ID_KEY, manifestFile.id)
   return { manifest, ...(manifestFile ? { manifestFileId: manifestFile.id } : {}) }
 }
 
@@ -557,8 +572,9 @@ export async function syncLibrary(): Promise<{ syncedNames: Set<string>; conflic
   // --- Manifest + bookkeeping ---
   const finalManifest: Manifest = { version: MANIFEST_VERSION, songs, tombstones }
   const manifestBytes = encodeJson(finalManifest)
-  await uploadFile(MANIFEST_NAME, 'application/json', manifestBytes, await sha256Hex(manifestBytes), manifestFile?.id)
+  const uploaded = await uploadFile(MANIFEST_NAME, 'application/json', manifestBytes, await sha256Hex(manifestBytes), manifestFile?.id)
   await setKv(MANIFEST_SNAPSHOT_KEY, finalManifest)
+  await setKv(MANIFEST_FILE_ID_KEY, uploaded.fileId)
   await clearAllTombstones()
   await setKv(LAST_SYNCED_KEY, Date.now())
   return { syncedNames: new Set(Object.keys(songs)), conflicts }
