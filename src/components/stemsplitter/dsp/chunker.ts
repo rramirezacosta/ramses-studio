@@ -8,7 +8,7 @@ export interface Chunk {
 
 /**
  * Creates a triangular window matching the Demucs reference implementation.
- * Ramps linearly from 1 to the midpoint, then back down to 1.
+ * Ramps linearly from 0 to 1 at the midpoint, then back down to 0.
  */
 export function createTriangularWindow(length: number): Float32Array {
   const window = new Float32Array(length);
