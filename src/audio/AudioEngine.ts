@@ -20,8 +20,12 @@ export class AudioEngine {
   private _duration = 0
 
   async decode(data: ArrayBuffer) {
+    // Clone the buffer before transferring to the worker so the fallback
+    // still has valid data if the worker throws.
+    const clone = new ArrayBuffer(data.byteLength)
+    new Uint8Array(clone).set(new Uint8Array(data))
     try {
-      const decoded = await decodeAudioInWorker(data)
+      const decoded = await decodeAudioInWorker(clone)
       const context = this.ensureContext()
       const buffer = context.createBuffer(decoded.numberOfChannels, decoded.channels[0]?.length ?? 0, decoded.sampleRate)
       decoded.channels.forEach((channel, index) => buffer.copyToChannel(channel as Float32Array<ArrayBuffer>, index))
