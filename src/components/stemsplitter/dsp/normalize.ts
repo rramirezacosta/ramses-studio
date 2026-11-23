@@ -12,17 +12,17 @@ export function normalizeStereo(input: Float32Array, output = new Float32Array(i
     return stats;
   }
 
-  const samples = input.length / 2;
+  const totalSamples = input.length;
   let mean = 0;
-  for (let i = 0; i < samples; i++) mean += (input[i] + input[samples + i]) * 0.5;
-  mean /= samples;
+  for (let i = 0; i < totalSamples; i++) mean += input[i];
+  mean /= totalSamples;
 
   let variance = 0;
-  for (let i = 0; i < samples; i++) {
-    const mono = (input[i] + input[samples + i]) * 0.5 - mean;
-    variance += mono * mono;
+  for (let i = 0; i < totalSamples; i++) {
+    const diff = input[i] - mean;
+    variance += diff * diff;
   }
-  const scale = Math.sqrt(variance / samples) + 1e-5;
+  const scale = Math.sqrt(variance / totalSamples) + 1e-5;
   for (let i = 0; i < input.length; i++) output[i] = (input[i] - mean) / scale;
   return { mean, scale };
 }
