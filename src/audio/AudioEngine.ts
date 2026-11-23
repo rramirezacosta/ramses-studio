@@ -52,10 +52,13 @@ export class AudioEngine {
     void context.resume()
     this.offset = Math.min(offset, this.duration)
     this.offset = this.normalizeLoopPosition(this.offset)
-    this.startedAt = context.currentTime - this.offset
+    const scheduledStart = context.currentTime + 0.03
+    this.startedAt = scheduledStart - this.offset
     this.tracks.forEach((track) => {
       const channel = this.channels.get(track.id)!
       const source = context.createBufferSource()
+      const trackDuration = track.buffer.length / track.buffer.sampleRate
+      const startOffset = Math.min(this.offset, trackDuration)
       source.buffer = track.buffer
       source.connect(channel.gain)
       if (this.loopRange) {
@@ -67,9 +70,8 @@ export class AudioEngine {
         if (!this.loopRange && channel.source === source && this.position >= this.duration) this.stop()
       }
       channel.source = source
-      source.start(context.currentTime + 0.03, this.offset)
+      source.start(scheduledStart, startOffset)
     })
-    this.startedAt += 0.03
     this.playing = true
   }
 
