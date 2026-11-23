@@ -227,7 +227,9 @@
   left: 4px;
   max-width: calc(52px - 8px);
 }
-/* Cloud badge embedded on the bottom of the cover art */
+/* Cloud badge embedded on the bottom of the cover art.
+   Cover art can be very light, so the badge needs a mostly opaque dark
+   backdrop — a translucent tint makes the pale cloud icon unreadable. */
 .song-cover-badge {
   position: absolute;
   bottom: 3px;
@@ -237,17 +239,17 @@
   width: 18px;
   height: 18px;
   border-radius: var(--radius-sm);
-  backdrop-filter: blur(4px);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 .song-cover-badge-sync {
-  background: rgba(52, 209, 123, 0.35);
-  color: #8ce9aa;
-  border: 1px solid rgba(52, 209, 123, 0.3);
+  background: rgba(12, 58, 36, 0.94);
+  color: #a7f3c4;
+  border: 1px solid rgba(52, 209, 123, 0.6);
 }
 .song-cover-badge-remote {
-  background: rgba(85, 178, 255, 0.35);
-  color: #93c5ff;
-  border: 1px solid rgba(85, 178, 255, 0.3);
+  background: rgba(10, 44, 76, 0.94);
+  color: #bfdbfe;
+  border: 1px solid rgba(85, 178, 255, 0.6);
 }
 
 /* Play icon overlay on the active song cover — with equalizer animation */
