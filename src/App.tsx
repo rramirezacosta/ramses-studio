@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react'
 import { Download, Headphones, Music, Repeat2, SlidersVertical, VolumeX } from 'lucide-react'
 import { AudioEngine } from './audio/AudioEngine'
 import { SkeletonLoader } from './components/daw/SkeletonLoader'
@@ -30,6 +30,121 @@ interface ConfirmData {
   body: string
   action: () => Promise<void>
 }
+
+interface DialogsOverlayProps {
+  renamingSong: Song | undefined
+  renameArtist: string
+  renameTitle: string
+  setRenameArtist: (v: string) => void
+  setRenameTitle: (v: string) => void
+  setRenamingSong: (v: Song | undefined) => void
+  renameSong: () => Promise<void>
+  confirmDialog: ConfirmData | undefined
+  setConfirmDialog: (v: ConfirmData | undefined) => void
+  duplicateSong: { name: string; display: string } | undefined
+  setDuplicateSong: (v: { name: string; display: string } | undefined) => void
+  resolveDuplicate: (decision: 'replace' | 'keep' | undefined) => void
+  conflictName: string | undefined
+  setConflictName: (v: string | undefined) => void
+  importSourceOpen: boolean
+  youTubeUrl: string
+  setYouTubeUrl: (v: string) => void
+  importLocalFile: () => void
+  importYouTubeAudio: () => void
+  setImportSourceOpen: (v: boolean) => void
+  settingsOpen: boolean
+  storage: { usage: number; quota: number } | undefined
+  theme: ThemeId
+  setTheme: (v: ThemeId) => void
+  connectDrive: () => void
+  setSettingsOpen: (v: boolean) => void
+  aboutOpen: boolean
+  setAboutOpen: (v: boolean) => void
+  ramWarning: boolean
+  ramGb: number | undefined
+  setRamWarning: (v: boolean) => void
+  exportOpen: boolean
+  setExportOpen: (v: boolean) => void
+  handleExportMix: () => void
+  handleExportStems: () => void
+}
+
+const DialogsOverlay = memo(function DialogsOverlay({
+  renamingSong, renameArtist, renameTitle, setRenameArtist, setRenameTitle, setRenamingSong, renameSong,
+  confirmDialog, setConfirmDialog,
+  duplicateSong, setDuplicateSong, resolveDuplicate,
+  conflictName, setConflictName,
+  importSourceOpen, youTubeUrl, setYouTubeUrl, importLocalFile, importYouTubeAudio, setImportSourceOpen,
+  settingsOpen, storage, theme, setTheme, connectDrive, setSettingsOpen,
+  aboutOpen, setAboutOpen,
+  ramWarning, ramGb, setRamWarning,
+  exportOpen, setExportOpen, handleExportMix, handleExportStems,
+}: DialogsOverlayProps) {
+  return (
+    <>
+      {exportOpen && (
+        <ExportPopup onExportMix={handleExportMix} onExportStems={handleExportStems} onClose={() => setExportOpen(false)} />
+      )}
+      {renamingSong && (
+        <RenameDialog
+          artist={renameArtist}
+          title={renameTitle}
+          onArtistChange={setRenameArtist}
+          onTitleChange={setRenameTitle}
+          onSave={() => { void renameSong() }}
+          onCancel={() => setRenamingSong(undefined)}
+        />
+      )}
+      {confirmDialog && (
+        <ConfirmDialog
+          title={confirmDialog.title}
+          body={confirmDialog.body}
+          onConfirm={() => { const dialog = confirmDialog; setConfirmDialog(undefined); void dialog.action() }}
+          onCancel={() => setConfirmDialog(undefined)}
+        />
+      )}
+      {duplicateSong && (
+        <DuplicateDialog
+          displayName={duplicateSong.display}
+          onCancel={() => resolveDuplicate(undefined)}
+          onReplace={() => resolveDuplicate('replace')}
+          onKeepBoth={() => resolveDuplicate('keep')}
+        />
+      )}
+      {conflictName && (
+        <ConflictDialog
+          songName={conflictName}
+          onResolve={() => setConflictName(undefined)}
+          onCancel={() => setConflictName(undefined)}
+        />
+      )}
+      {importSourceOpen && (
+        <ImportDialog
+          youTubeUrl={youTubeUrl}
+          onYouTubeUrlChange={setYouTubeUrl}
+          onImportLocal={importLocalFile}
+          onImportYouTube={importYouTubeAudio}
+          onCancel={() => setImportSourceOpen(false)}
+        />
+      )}
+      {settingsOpen && (
+        <SettingsDialog
+          storage={storage}
+          theme={theme}
+          onThemeChange={(id) => setTheme(id as ThemeId)}
+          onConnectDrive={connectDrive}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
+      {aboutOpen && (
+        <AboutDialog onClose={() => setAboutOpen(false)} />
+      )}
+      {ramWarning && (
+        <RamWarningDialog ramGb={ramGb} onClose={() => setRamWarning(false)} />
+      )}
+    </>
+  )
+})
 
 const THEMES = [
   { id: 'midnight', label: 'Midnight', swatch: '#a9a0ff' },
@@ -865,66 +980,43 @@ export default function App() {
           <div className="drop-overlay-card">{t('dropToImport')}</div>
         </div>
       )}
-      {exportOpen && (
-        <ExportPopup onExportMix={handleExportMix} onExportStems={handleExportStems} onClose={() => setExportOpen(false)} />
-      )}
-      {renamingSong && (
-        <RenameDialog
-          artist={renameArtist}
-          title={renameTitle}
-          onArtistChange={setRenameArtist}
-          onTitleChange={setRenameTitle}
-          onSave={() => { void renameSong() }}
-          onCancel={() => setRenamingSong(undefined)}
-        />
-      )}
-      {confirmDialog && (
-        <ConfirmDialog
-          title={confirmDialog.title}
-          body={confirmDialog.body}
-          onConfirm={() => { const dialog = confirmDialog; setConfirmDialog(undefined); void dialog.action() }}
-          onCancel={() => setConfirmDialog(undefined)}
-        />
-      )}
-      {duplicateSong && (
-        <DuplicateDialog
-          displayName={duplicateSong.display}
-          onCancel={() => resolveDuplicate(undefined)}
-          onReplace={() => resolveDuplicate('replace')}
-          onKeepBoth={() => resolveDuplicate('keep')}
-        />
-      )}
-      {conflictName && (
-        <ConflictDialog
-          songName={conflictName}
-          onResolve={() => setConflictName(undefined)}
-          onCancel={() => setConflictName(undefined)}
-        />
-      )}
-      {importSourceOpen && (
-        <ImportDialog
-          youTubeUrl={youTubeUrl}
-          onYouTubeUrlChange={setYouTubeUrl}
-          onImportLocal={importLocalFile}
-          onImportYouTube={importYouTubeAudio}
-          onCancel={() => setImportSourceOpen(false)}
-        />
-      )}
-      {settingsOpen && (
-        <SettingsDialog
-          storage={storage}
-          theme={theme}
-          onThemeChange={(id) => setTheme(id as ThemeId)}
-          onConnectDrive={connectDrive}
-          onClose={() => setSettingsOpen(false)}
-        />
-      )}
-      {aboutOpen && (
-        <AboutDialog onClose={() => setAboutOpen(false)} />
-      )}
-      {ramWarning && (
-        <RamWarningDialog ramGb={ramGb} onClose={() => setRamWarning(false)} />
-      )}
+      <DialogsOverlay
+        renamingSong={renamingSong}
+        renameArtist={renameArtist}
+        renameTitle={renameTitle}
+        setRenameArtist={setRenameArtist}
+        setRenameTitle={setRenameTitle}
+        setRenamingSong={setRenamingSong}
+        renameSong={renameSong}
+        confirmDialog={confirmDialog}
+        setConfirmDialog={setConfirmDialog}
+        duplicateSong={duplicateSong}
+        setDuplicateSong={setDuplicateSong}
+        resolveDuplicate={resolveDuplicate}
+        conflictName={conflictName}
+        setConflictName={setConflictName}
+        importSourceOpen={importSourceOpen}
+        youTubeUrl={youTubeUrl}
+        setYouTubeUrl={setYouTubeUrl}
+        importLocalFile={importLocalFile}
+        importYouTubeAudio={importYouTubeAudio}
+        setImportSourceOpen={setImportSourceOpen}
+        settingsOpen={settingsOpen}
+        storage={storage}
+        theme={theme}
+        setTheme={setTheme}
+        connectDrive={connectDrive}
+        setSettingsOpen={setSettingsOpen}
+        aboutOpen={aboutOpen}
+        setAboutOpen={setAboutOpen}
+        ramWarning={ramWarning}
+        ramGb={ramGb}
+        setRamWarning={setRamWarning}
+        exportOpen={exportOpen}
+        setExportOpen={setExportOpen}
+        handleExportMix={handleExportMix}
+        handleExportStems={handleExportStems}
+      />
     </main>
   )
 }
