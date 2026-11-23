@@ -67,17 +67,22 @@ export const WaveformDisplay = memo(function WaveformDisplay({ buffer, color, du
     if (!element || width <= 0) return
     const height = element.getBoundingClientRect().height
     const ratio = window.devicePixelRatio || 1
-    element.width = width * ratio
-    element.height = height * ratio
+    // putImageData writes in device pixels and ignores the canvas transform,
+    // so the ImageData must cover the full backing store, not the CSS box.
+    // Otherwise on HiDPI screens only the top-left 1/ratio of the canvas is
+    // painted and the waveform appears cropped to a fraction of its width.
+    const pixelWidth = Math.max(1, Math.round(width * ratio))
+    const pixelHeight = Math.max(1, Math.round(height * ratio))
+    element.width = pixelWidth
+    element.height = pixelHeight
     const context = element.getContext('2d')!
-    context.setTransform(ratio, 0, 0, ratio, 0, 0)
     if (!peaks) {
-      context.clearRect(0, 0, width, height)
+      context.clearRect(0, 0, pixelWidth, pixelHeight)
       return
     }
-    const center = height / 2
+    const center = pixelHeight / 2
 
-    // Compute loop range in pixel coordinates for dimming
+    // Compute loop range in CSS pixel coordinates for dimming
     let loopLeft = -1, loopRight = -1
     if (loopRange && duration > 0) {
       loopLeft = (loopRange[0] / duration) * width
@@ -95,37 +100,44 @@ export const WaveformDisplay = memo(function WaveformDisplay({ buffer, color, du
     const [r, g, b] = tempCtx.getImageData(0, 0, 1, 1).data
 
     // Build ImageData buffer for the entire waveform in a single pass
-    const imageData = context.createImageData(width, height)
+    const imageData = context.createImageData(pixelWidth, pixelHeight)
     const data = imageData.data
 
     // Fill background: transparent (already zeroed by createImageData)
-    // Draw faint horizontal center line
-    const centerY = Math.floor(center)
-    for (let x = 0; x < width; x += 1) {
-      const idx = (centerY * width + x) * 4
-      data[idx] = 255
-      data[idx + 1] = 255
-      data[idx + 2] = 255
-      data[idx + 3] = 15 // ~6% opacity
+    // Draw faint horizontal center line (~1 CSS pixel thick)
+    const centerLineThickness = Math.max(1, Math.round(ratio))
+    const centerY = Math.floor(center - centerLineThickness / 2)
+    for (let x = 0; x < pixelWidth; x += 1) {
+      for (let y = centerY; y < centerY + centerLineThickness; y += 1) {
+        const idx = (y * pixelWidth + x) * 4
+        data[idx] = 255
+        data[idx + 1] = 255
+        data[idx + 2] = 255
+        data[idx + 3] = 15 // ~6% opacity
+      }
     }
 
-    // Draw waveform bars into the ImageData buffer
+    // Draw waveform bars into the ImageData buffer. Peaks are computed per
+    // CSS pixel column; spread each column across its device-pixel slice.
     const peakLen = peaks.length
     for (let index = 0; index < peakLen; index += 1) {
       const { min, max } = peaks[index]
-      const barHeight = Math.max(1, (max - min) * center)
       const yTop = Math.max(0, Math.floor(center + min * center))
-      const yBottom = Math.min(height - 1, Math.floor(center + max * center))
+      const yBottom = Math.min(pixelHeight - 1, Math.floor(center + max * center))
 
       const isDimmed = hasLoop && (index < loopLeft || index > loopRight)
       const alpha = isDimmed ? 77 : 255 // 0.3 * 255 ≈ 77 for dimmed
 
-      for (let y = yTop; y <= yBottom; y += 1) {
-        const idx = (y * width + index) * 4
-        data[idx] = r
-        data[idx + 1] = g
-        data[idx + 2] = b
-        data[idx + 3] = alpha
+      const xStart = Math.floor((index / peakLen) * pixelWidth)
+      const xEnd = Math.max(xStart + 1, Math.floor(((index + 1) / peakLen) * pixelWidth))
+      for (let x = xStart; x < xEnd; x += 1) {
+        for (let y = yTop; y <= yBottom; y += 1) {
+          const idx = (y * pixelWidth + x) * 4
+          data[idx] = r
+          data[idx + 1] = g
+          data[idx + 2] = b
+          data[idx + 3] = alpha
+        }
       }
     }
 
