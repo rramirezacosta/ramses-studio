@@ -33,14 +33,22 @@ export class YoutubeIE extends InfoExtractor {
       uploader: '',
       channel_id: '',
       upload_date: '',
+      music_video_type: '',
     };
 
     // Use duration from innertube response (more reliable)
-    if (innertubeData.videoDetails?.lengthSeconds) {
-      info.duration = parseInt(innertubeData.videoDetails.lengthSeconds, 10);
+    const vd = innertubeData.videoDetails;
+    if (vd?.lengthSeconds) {
+      info.duration = parseInt(vd.lengthSeconds, 10);
     }
-    if (innertubeData.videoDetails?.author) {
-      info.uploader = innertubeData.videoDetails.author;
+    if (vd?.author) {
+      info.uploader = vd.author;
+    }
+    if (vd?.musicVideoType) {
+      info.music_video_type = vd.musicVideoType;
+    }
+    if (vd?.channelId) {
+      info.channel_id = vd.channelId;
     }
 
     // Extract additional metadata from page

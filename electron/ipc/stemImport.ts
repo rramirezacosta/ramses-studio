@@ -166,7 +166,24 @@ async function downloadYouTubeAudio(url: string, notifyStage: (stage: string) =>
   }
 
   const title = info.title || info.id || 'unknown'
+  const uploader = info.uploader || ''
   const thumbnailUrl = info.thumbnail || ''
+  const musicVideoType = info.music_video_type || ''
+
+  // Decide whether the channel uploader is the actual artist.
+  // Official music videos (ATV, OMV, etc.) and Topic channels are artist-uploaded.
+  // UGC (user-generated content) videos are third-party uploads—the artist, if any,
+  // is usually embedded in the title itself (e.g. "Liquits - Desde Que").
+  const isOfficialMusic =
+    musicVideoType === 'MUSIC_VIDEO_TYPE_ATV' ||
+    musicVideoType === 'MUSIC_VIDEO_TYPE_OMV' ||
+    musicVideoType === 'MUSIC_VIDEO_TYPE_PRIVATELY_OWNED_TRACK' ||
+    musicVideoType === 'MUSIC_VIDEO_TYPE_ATC' ||
+    uploader.endsWith(' - Topic')
+
+  // For official music, the uploader is the artist; for UGC, the title may already
+  // contain "Artist - Title" and should be used as-is.
+  const sourceTitle = isOfficialMusic && uploader ? `${uploader} - ${title}` : title
 
   // Select the best audio-only format
   const chosen = selectFormats(info, 'bestaudio')
@@ -180,7 +197,7 @@ async function downloadYouTubeAudio(url: string, notifyStage: (stage: string) =>
   for (const fmt of chosen) {
     if (!fmt.url) continue
     const ext = fmt.ext || 'm4a'
-    const outName = join(directory, `${title}.${ext}`)
+    const outName = join(directory, `${sourceTitle}.${ext}`)
     const ok = await downloadFile({ url: fmt.url, filename: outName, quiet: false })
     if (ok) {
       audioDownloaded = true
@@ -194,7 +211,7 @@ async function downloadYouTubeAudio(url: string, notifyStage: (stage: string) =>
       }
       // Convert audio to WAV (PCM 16-bit, 44100Hz, stereo)
       notifyStage('Converting to WAV...')
-      const wavPath = join(directory, `${title}.wav`)
+      const wavPath = join(directory, `${sourceTitle}.wav`)
       try {
         await execFile(
           ffmpegPath(),
@@ -215,7 +232,7 @@ async function downloadYouTubeAudio(url: string, notifyStage: (stage: string) =>
     for (const fmt of combinedFormats) {
       if (!fmt.url) continue
       const ext = fmt.ext || 'mp4'
-      const outName = join(directory, `${title}.${ext}`)
+      const outName = join(directory, `${sourceTitle}.${ext}`)
       const ok = await downloadFile({ url: fmt.url, filename: outName, quiet: false })
       if (ok) {
         let thumbnailPath: string | undefined
@@ -226,7 +243,7 @@ async function downloadYouTubeAudio(url: string, notifyStage: (stage: string) =>
           thumbnailPath = thumbName
         }
         notifyStage('Converting to WAV...')
-        const wavPath = join(directory, `${title}.wav`)
+        const wavPath = join(directory, `${sourceTitle}.wav`)
         try {
           await execFile(
             ffmpegPath(),
