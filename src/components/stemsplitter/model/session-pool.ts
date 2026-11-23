@@ -14,7 +14,7 @@ function sessionOptions(options: SeparatorOptions): ort.InferenceSession.Session
     graphOptimizationLevel: 'all',
     enableCpuMemArena: !options.lowMemory,
     enableMemPattern: !options.lowMemory,
-    intraOpNumThreads: Math.max(1, os.availableParallelism() >> 1),
+    intraOpNumThreads: Math.max(1, os.availableParallelism()),
     interOpNumThreads: 1,
   };
 }
