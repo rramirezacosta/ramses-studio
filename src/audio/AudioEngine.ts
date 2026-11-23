@@ -17,6 +17,7 @@ export class AudioEngine {
   private offset = 0
   private playing = false
   private loopRange?: { start: number; end: number }
+  private _duration = 0
 
   async decode(data: ArrayBuffer) {
     try {
@@ -43,6 +44,7 @@ export class AudioEngine {
       gain.connect(panner).connect(master)
       this.channels.set(track.id, { gain, panner })
     })
+    this._duration = Math.max(0, ...tracks.map((track) => track.buffer.duration))
     this.applyMix()
   }
 
@@ -116,9 +118,11 @@ export class AudioEngine {
     this.channels.delete(id)
     this.tracks = this.tracks.filter((track) => track.id !== id)
     if (!this.tracks.length) {
+      this._duration = 0
       this.stop()
       return
     }
+    this._duration = Math.max(0, ...this.tracks.map((track) => track.buffer.duration))
     this.applyMix()
   }
 
@@ -150,7 +154,7 @@ export class AudioEngine {
   }
 
   get duration() {
-    return Math.max(0, ...this.tracks.map((track) => track.buffer.duration))
+    return this._duration
   }
 
   async renderMix(): Promise<StereoAudio | null> {
