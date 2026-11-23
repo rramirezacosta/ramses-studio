@@ -1,6 +1,9 @@
 export const en = {
   close: 'Close',
   cancel: 'Cancel',
+  cut: 'Cut',
+  copy: 'Copy',
+  paste: 'Paste',
   delete: 'Delete',
   save: 'Save',
   import: 'Import',
@@ -204,6 +207,9 @@ export const en = {
 export const es: Partial<Record<keyof typeof en, string>> = {
   close: 'Cerrar',
   cancel: 'Cancelar',
+  cut: 'Cortar',
+  copy: 'Copiar',
+  paste: 'Pegar',
   delete: 'Eliminar',
   save: 'Guardar',
   import: 'Importar',
@@ -351,12 +357,16 @@ export const es: Partial<Record<keyof typeof en, string>> = {
   aboutTerms: 'Términos de servicio',
   aboutLicense: 'Licenciado bajo la Licencia Pública General de GNU v3.',
   ramWarningTitle: 'Advertencia de RAM baja',
-  ramWarningBody: 'Esta aplicación funciona mejor con 64 GB de RAM para la separación de pistas con IA. Tu sistema tiene {ram} GB. El procesamiento puede ser lento o fallar.'
+  ramWarningBody: 'Esta aplicación funciona mejor con 64 GB de RAM para la separación de pistas con IA. Tu sistema tiene {ram} GB. El procesamiento puede ser lento o fallar.',
+  selectAll: 'Seleccionar todo'
 }
 
 export const pt: Partial<Record<keyof typeof en, string>> = {
   close: 'Fechar',
   cancel: 'Cancelar',
+  cut: 'Cortar',
+  copy: 'Copiar',
+  paste: 'Colar',
   delete: 'Excluir',
   save: 'Salvar',
   import: 'Importar',
@@ -504,12 +514,16 @@ export const pt: Partial<Record<keyof typeof en, string>> = {
   aboutTerms: 'Termos de serviço',
   aboutLicense: 'Licenciado sob a Licença Pública Geral GNU v3.',
   ramWarningTitle: 'Aviso de RAM Baixo',
-  ramWarningBody: 'Este aplicativo funciona melhor com 64 GB de RAM para separação de faixas com IA. Seu sistema tem {ram} GB. O processamento pode ser lento ou falhar.'
+  ramWarningBody: 'Este aplicativo funciona melhor com 64 GB de RAM para separação de faixas com IA. Seu sistema tem {ram} GB. O processamento pode ser lento ou falhar.',
+  selectAll: 'Selecionar tudo'
 }
 
 export const ru: Partial<Record<keyof typeof en, string>> = {
   close: 'Закрыть',
   cancel: 'Отмена',
+  cut: 'Вырезать',
+  copy: 'Копировать',
+  paste: 'Вставить',
   delete: 'Удалить',
   save: 'Сохранить',
   import: 'Импорт',
@@ -657,12 +671,16 @@ export const ru: Partial<Record<keyof typeof en, string>> = {
   aboutTerms: 'Условия использования',
   aboutLicense: 'Лицензия GNU GPL v3.',
   ramWarningTitle: 'Предупреждение: мало оперативной памяти',
-  ramWarningBody: 'Это приложение работает лучше с 64 ГБ оперативной памяти для разделения стемов с помощью ИИ. В вашей системе {ram} ГБ. Обработка может быть медленной или завершиться ошибкой.'
+  ramWarningBody: 'Это приложение работает лучше с 64 ГБ оперативной памяти для разделения стемов с помощью ИИ. В вашей системе {ram} ГБ. Обработка может быть медленной или завершиться ошибкой.',
+  selectAll: 'Выделить всё'
 }
 
 export const ja: Partial<Record<keyof typeof en, string>> = {
   close: '閉じる',
   cancel: 'キャンセル',
+  cut: '切り取り',
+  copy: 'コピー',
+  paste: '貼り付け',
   delete: '削除',
   save: '保存',
   import: 'インポート',
@@ -809,12 +827,16 @@ export const ja: Partial<Record<keyof typeof en, string>> = {
   aboutTerms: '利用規約',
   aboutLicense: 'GNU General Public License v3 の下でライセンスされています。',
   ramWarningTitle: 'RAM不足の警告',
-  ramWarningBody: 'AIステム分離には64 GBのRAMが必要です。お使いのシステムは{ram} GBです。処理が遅くなるか失敗する可能性があります。'
+  ramWarningBody: 'AIステム分離には64 GBのRAMが必要です。お使いのシステムは{ram} GBです。処理が遅くなるか失敗する可能性があります。',
+  selectAll: 'すべて選択'
 }
 
 export const ko: Partial<Record<keyof typeof en, string>> = {
   close: '닫기',
   cancel: '취소',
+  cut: '잘라내기',
+  copy: '복사',
+  paste: '붙여넣기',
   delete: '삭제',
   save: '저장',
   import: '가져오기',
@@ -961,12 +983,16 @@ export const ko: Partial<Record<keyof typeof en, string>> = {
   aboutTerms: '서비스 약관',
   aboutLicense: 'GNU General Public License v3에 따라 라이선스가 부여됩니다.',
   ramWarningTitle: 'RAM 부족 경고',
-  ramWarningBody: 'AI 스템 분리를 위해 64 GB의 RAM이 필요합니다. 시스템에는 {ram} GB가 있습니다. 처리가 느리거나 실패할 수 있습니다.'
+  ramWarningBody: 'AI 스템 분리를 위해 64 GB의 RAM이 필요합니다. 시스템에는 {ram} GB가 있습니다. 처리가 느리거나 실패할 수 있습니다.',
+  selectAll: '모두 선택'
 }
 
 export const fr: Partial<Record<keyof typeof en, string>> = {
   close: 'Fermer',
   cancel: 'Annuler',
+  cut: 'Couper',
+  copy: 'Copier',
+  paste: 'Coller',
   delete: 'Supprimer',
   save: 'Enregistrer',
   import: 'Importer',
@@ -1114,12 +1140,16 @@ export const fr: Partial<Record<keyof typeof en, string>> = {
   aboutTerms: 'Conditions d\'utilisation',
   aboutLicense: 'Sous licence GNU General Public License v3.',
   ramWarningTitle: 'Avertissement : mémoire RAM insuffisante',
-  ramWarningBody: 'Cette application fonctionne mieux avec 64 Go de RAM pour la séparation des pistes par IA. Votre système dispose de {ram} Go. Le traitement peut être lent ou échouer.'
+  ramWarningBody: 'Cette application fonctionne mieux avec 64 Go de RAM pour la séparation des pistes par IA. Votre système dispose de {ram} Go. Le traitement peut être lent ou échouer.',
+  selectAll: 'Tout sélectionner'
 }
 
 export const zh: Partial<Record<keyof typeof en, string>> = {
   close: '关闭',
   cancel: '取消',
+  cut: '剪切',
+  copy: '复制',
+  paste: '粘贴',
   delete: '删除',
   save: '保存',
   import: '导入',
@@ -1267,12 +1297,16 @@ export const zh: Partial<Record<keyof typeof en, string>> = {
   aboutTerms: '服务条款',
   aboutLicense: '根据 GNU General Public License v3 授权。',
   ramWarningTitle: '内存不足警告',
-  ramWarningBody: 'AI 音轨分离需要 64 GB 内存才能正常运行。您的系统有 {ram} GB。处理可能会变慢或失败。'
+  ramWarningBody: 'AI 音轨分离需要 64 GB 内存才能正常运行。您的系统有 {ram} GB。处理可能会变慢或失败。',
+  selectAll: '全选'
 }
 
 export const de: Partial<Record<keyof typeof en, string>> = {
   close: 'Schließen',
   cancel: 'Abbrechen',
+  cut: 'Ausschneiden',
+  copy: 'Kopieren',
+  paste: 'Einfügen',
   delete: 'Löschen',
   save: 'Speichern',
   import: 'Importieren',
@@ -1420,12 +1454,16 @@ export const de: Partial<Record<keyof typeof en, string>> = {
   aboutTerms: 'Nutzungsbedingungen',
   aboutLicense: 'Lizenziert unter der GNU General Public License v3.',
   ramWarningTitle: 'Niedriger RAM-Speicher',
-  ramWarningBody: 'Diese Anwendung funktioniert am besten mit 64 GB RAM für die KI-Stem-Trennung. Ihr System hat {ram} GB. Die Verarbeitung kann langsam sein oder fehlschlagen.'
+  ramWarningBody: 'Diese Anwendung funktioniert am besten mit 64 GB RAM für die KI-Stem-Trennung. Ihr System hat {ram} GB. Die Verarbeitung kann langsam sein oder fehlschlagen.',
+  selectAll: 'Alles auswählen'
 }
 
 export const eo: Partial<Record<keyof typeof en, string>> = {
   close: 'Fermi',
   cancel: 'Nuligi',
+  cut: 'Eltondi',
+  copy: 'Kopii',
+  paste: 'Alglui',
   delete: 'Forigi',
   save: 'Konservi',
   import: 'Importi',
@@ -1573,5 +1611,6 @@ export const eo: Partial<Record<keyof typeof en, string>> = {
   aboutTerms: 'Uzkondiĉoj',
   aboutLicense: 'Licencita sub la GNU General Public License v3.',
   ramWarningTitle: 'Malalta RAM-averto',
-  ramWarningBody: 'Ĉi tiu aplikaĵo funkcias plej bone kun 64 GB da RAM por AI-stem-disigo. Via sistemo havas {ram} GB. Prilaborado povas esti malrapida aŭ malsukcesi.'
+  ramWarningBody: 'Ĉi tiu aplikaĵo funkcias plej bone kun 64 GB da RAM por AI-stem-disigo. Via sistemo havas {ram} GB. Prilaborado povas esti malrapida aŭ malsukcesi.',
+  selectAll: 'Elekti ĉiujn'
 }

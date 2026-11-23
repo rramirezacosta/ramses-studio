@@ -1,6 +1,6 @@
 import { execFile as execFileCallback } from 'node:child_process'
 import { promisify } from 'node:util'
-import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, shell, session } from 'electron'
 import { totalmem } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -99,6 +99,20 @@ function createWindow() {
   } else {
     void mainWindow.loadFile(join(__dirname, '../dist/index.html'))
   }
+
+  // Restore the default browser context menu for text inputs
+  mainWindow.webContents.on('context-menu', (_event, params) => {
+    if (params.isEditable) {
+      const menu = Menu.buildFromTemplate([
+        { role: 'cut', label: 'Cut' },
+        { role: 'copy', label: 'Copy' },
+        { role: 'paste', label: 'Paste' },
+        { type: 'separator' },
+        { role: 'selectAll', label: 'Select All' },
+      ])
+      menu.popup({ window: mainWindow, x: params.x, y: params.y })
+    }
+  })
 }
 
 app.whenReady().then(() => {

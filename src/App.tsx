@@ -630,23 +630,25 @@ export default function App() {
       action: async () => {
         try {
           await library.deleteStem(activeSong, track.name)
-          const remainingTracks = tracks.filter((item) => item.id !== track.id)
           engine.removeTrack(track.id)
-          setTracks(remainingTracks)
-          if (!remainingTracks.length) {
-            engine.setLoopRange()
-            setActiveSong(undefined)
-            setLoopRange(undefined)
-            setLooping(false)
-            setTransport({ currentTime: 0, duration: 0, isPlaying: false })
-          }
+          setTracks((items) => {
+            const remaining = items.filter((item) => item.id !== track.id)
+            if (!remaining.length) {
+              engine.setLoopRange()
+              setActiveSong(undefined)
+              setLoopRange(undefined)
+              setLooping(false)
+              setTransport({ currentTime: 0, duration: 0, isPlaying: false })
+            }
+            return remaining
+          })
         } catch (reason) {
           const message = reason instanceof Error ? reason.message : t('unknownStemDeletionError')
           setError(t('deleteStemFailed', { stem: track.name, message }))
         }
       },
     })
-  }, [activeSong, engine, library, tracks, setTransport, t])
+  }, [activeSong, engine, library, setTransport, t])
 
   const exportMix = useCallback(async () => {
     if (!activeSong || !tracks.length || exportingMix) return

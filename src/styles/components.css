@@ -549,6 +549,60 @@
   color: #ffd9df;
   background: rgba(202, 62, 85, 0.28);
 }
+
+/* ── Input context menu (Copy / Paste / etc.) ── */
+
+.input-context-menu {
+  position: fixed;
+  z-index: 30;
+  display: grid;
+  min-width: 140px;
+  padding: 5px;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-md);
+  background: rgba(10, 12, 24, 0.97);
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.45),
+    inset 0 1px var(--glass-2);
+  backdrop-filter: blur(18px);
+  outline: none;
+  animation: menu-entrance 0.15s ease-out;
+}
+.input-context-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--space-2);
+  color: var(--text-secondary);
+  background: transparent;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+.input-context-menu button:hover {
+  border-color: rgba(204, 211, 255, 0.14);
+  color: #fff;
+  background: var(--glass-2);
+}
+.input-context-menu button:disabled {
+  color: var(--text-muted);
+  opacity: 0.4;
+  cursor: default;
+}
+.input-context-menu button:disabled:hover {
+  border-color: transparent;
+  background: transparent;
+}
+.input-context-menu .menu-separator {
+  grid-column: 1 / -1;
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--panel-border);
+}
+
 .song-list {
   min-height: 0;
   overflow-y: auto;
