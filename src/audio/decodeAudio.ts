@@ -34,7 +34,9 @@ export function decodeAudioInWorker(arrayBuffer: ArrayBuffer): Promise<DecodedAu
       }
     }
     instance.addEventListener('message', handler)
-    instance.postMessage({ type: 'decode', id, buffer: arrayBuffer })
+    // Transfer the ArrayBuffer directly to the worker to avoid cloning
+    // the entire file into memory.
+    instance.postMessage({ type: 'decode', id, buffer: arrayBuffer }, [arrayBuffer])
   })
 }
 
@@ -52,8 +54,14 @@ export function computePeaksInWorker(channels: Float32Array[], columns: number):
       }
     }
     instance.addEventListener('message', handler)
-    // Transfer copies so the source AudioBuffer is not detached.
-    const transferred = channels.map((channel) => channel.slice())
+    // Use SharedArrayBuffer to transfer channel data without copying,
+    // avoiding the overhead of .slice() on large Float32Array buffers.
+    const transferred = channels.map(
+      (channel) => new Float32Array(new SharedArrayBuffer(channel.byteLength)),
+    )
+    for (let i = 0; i < channels.length; i += 1) {
+      transferred[i].set(channels[i])
+    }
     instance.postMessage({ type: 'peaks', id, channels: transferred, columns }, transferred.map((channel) => channel.buffer))
   })
 }

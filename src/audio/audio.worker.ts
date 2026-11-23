@@ -22,7 +22,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   try {
     if (message.type === 'decode') {
       const context = new OfflineAudioContext(1, 1, 44100)
-      const audioBuffer = await context.decodeAudioData(message.buffer.slice(0))
+      const audioBuffer = await context.decodeAudioData(message.buffer)
       const channels: Float32Array[] = []
       for (let index = 0; index < audioBuffer.numberOfChannels; index += 1) {
         channels.push(audioBuffer.getChannelData(index).slice())
