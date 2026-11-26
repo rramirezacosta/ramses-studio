@@ -19,20 +19,27 @@ export class AudioEngine {
   private loopRange?: { start: number; end: number }
   private _duration = 0
 
-  async decode(data: ArrayBuffer) {
-    // Clone the buffer before transferring to the worker so the fallback
-    // still has valid data if the worker throws.
-    const clone = new ArrayBuffer(data.byteLength)
-    new Uint8Array(clone).set(new Uint8Array(data))
+  /**
+   * Decode encoded audio off the main thread. The bytes are transferred to the
+   * worker rather than cloned — duplicating a full-size file here would tie up
+   * the UI thread and double peak memory for every stem.
+   *
+   * `decodeAudioData` detaches its input buffer, so a main-thread retry needs
+   * fresh bytes. Callers that own the source can pass `reload` to re-read it
+   * (e.g. from IndexedDB); without it, worker failures are surfaced directly.
+   */
+  async decode(data: ArrayBuffer, reload?: () => Promise<ArrayBuffer>) {
     try {
-      const decoded = await decodeAudioInWorker(clone)
+      const decoded = await decodeAudioInWorker(data)
       const context = this.ensureContext()
       const buffer = context.createBuffer(decoded.numberOfChannels, decoded.channels[0]?.length ?? 0, decoded.sampleRate)
       decoded.channels.forEach((channel, index) => buffer.copyToChannel(channel as Float32Array<ArrayBuffer>, index))
       return buffer
-    } catch {
+    } catch (error) {
+      if (!reload) throw error
+      const fresh = await reload()
       const context = this.ensureContext()
-      return context.decodeAudioData(data)
+      return context.decodeAudioData(fresh)
     }
   }
 

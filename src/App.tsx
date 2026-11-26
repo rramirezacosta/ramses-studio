@@ -432,15 +432,20 @@ export default function App() {
         await useSyncStore.getState().downloadSong(song.name, (percent) => setDownloading({ name: song.name, percent }))
         target = useLibraryStore.getState().songs.find((item) => item.name === song.name) ?? song
       }
-      let loaded = await Promise.all(target.stems.map(async (stemName) => ({
-        id: stemName,
-        name: stemName,
-        buffer: await engine.decode(await library.getStemBuffer(target.name, stemName)),
-        volume: 0.85,
-        pan: 0,
-        muted: false,
-        soloed: false,
-      })))
+      let loaded = await Promise.all(target.stems.map(async (stemName) => {
+        const readStem = () => library.getStemBuffer(target.name, stemName)
+        return {
+          id: stemName,
+          name: stemName,
+          // Transfer the bytes straight to the decode worker; only if that fails
+          // do we read the blob from IndexedDB a second time for the fallback.
+          buffer: await engine.decode(await readStem(), readStem),
+          volume: 0.85,
+          pan: 0,
+          muted: false,
+          soloed: false,
+        }
+      }))
       // Restore the mixer/loop state the user left this song with.
       const savedPractice = await loadPracticeState(target.name)
       if (savedPractice) {
