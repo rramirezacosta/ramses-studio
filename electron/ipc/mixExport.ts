@@ -1,38 +1,26 @@
 import { dialog, ipcMain } from 'electron'
 import AdmZip from 'adm-zip'
-import { execFile as execFileCallback } from 'node:child_process'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
-import { tmpdir } from 'node:os'
-import { promisify } from 'node:util'
-const ffmpegPath = () => 'ffmpeg'
-
-const execFile = promisify(execFileCallback)
+import { writeFile } from 'node:fs/promises'
 
 const safeFileName = (value: string) =>
   value.replace(/[/\\:*?"<>|]/g, '-').replace(/^[\s.]+|[\s.]+$/g, '') || 'song'
 
 export function registerMixIpc() {
-  ipcMain.handle('mix:export', async (_event, request: { songName?: unknown; wav?: unknown }) => {
+  ipcMain.handle('mix:export', async (_event, request: { songName?: unknown; mp3?: unknown }) => {
     if (typeof request?.songName !== 'string' || !request.songName.trim()) throw new Error('Invalid song name.')
-    if (!(request.wav instanceof Uint8Array || request.wav instanceof ArrayBuffer) || (!request.wav || !request.wav.byteLength)) throw new Error('Invalid mix audio.')
+    if (!(request.mp3 instanceof Uint8Array || request.mp3 instanceof ArrayBuffer) || (!request.mp3.byteLength)) throw new Error('Invalid MP3 audio.')
     const selection = await dialog.showSaveDialog({
       title: 'Export current mix',
       defaultPath: `${safeFileName(request.songName.replace(/[^a-z0-9-]+/gi, '-').toLowerCase())}-mix.mp3`,
       filters: [{ name: 'MP3 audio', extensions: ['mp3'] }],
     })
     if (selection.canceled || !selection.filePath) return null
-    const directory = await mkdtemp(join(tmpdir(), 'ramses-mix-'))
     try {
-      const wavPath = join(directory, 'mix.wav')
-      const wavBytes = request.wav instanceof Uint8Array ? request.wav : new Uint8Array(request.wav)
-      await writeFile(wavPath, wavBytes)
-      await execFile(ffmpegPath(), ['-v', 'error', '-y', '-i', wavPath, '-codec:a', 'libmp3lame', '-q:a', '2', selection.filePath])
+      const mp3 = request.mp3 instanceof Uint8Array ? request.mp3 : new Uint8Array(request.mp3)
+      await writeFile(selection.filePath, mp3)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       throw new Error(`Could not export the mix: ${message}`)
-    } finally {
-      await rm(directory, { recursive: true, force: true })
     }
     return selection.filePath
   })

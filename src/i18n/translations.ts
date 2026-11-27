@@ -105,6 +105,7 @@ export const en = {
   or: 'OR',
   youTubeLink: 'YouTube link',
   decodingAudio: 'Decoding audio...',
+  encodingStems: 'Encoding stems as MP3...',
   electronBridgeError: 'The Electron bridge is unavailable. Restart the application with npm run dev.',
   readingLibraryFailed: 'Could not read the song library: {message}',
   ramWarningTitle: 'Low RAM Warning',

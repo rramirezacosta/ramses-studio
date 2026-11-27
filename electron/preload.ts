@@ -4,9 +4,11 @@ contextBridge.exposeInMainWorld('api', {
   prepareImport: () => ipcRenderer.invoke('songs:prepare-import'),
   cancelImport: () => ipcRenderer.invoke('songs:cancel-import'),
   prepareYouTubeImport: (url: string) => ipcRenderer.invoke('songs:prepare-youtube-import', url),
-  separateStems: (sourceName: string, audio: { left: Float32Array; right: Float32Array; sampleRate: number }, thumbnailPath?: string) =>
-    ipcRenderer.invoke('songs:separate-native', sourceName, audio, thumbnailPath),
-  exportMix: (songName: string, wav: Uint8Array) => ipcRenderer.invoke('mix:export', { songName, wav }),
+  separateStems: (audio: { left: Float32Array; right: Float32Array; sampleRate: number }) =>
+    ipcRenderer.invoke('songs:separate-native', audio),
+  takeStem: (jobId: string, name: string) => ipcRenderer.invoke('stems:take', jobId, name),
+  discardStems: (jobId: string) => ipcRenderer.invoke('stems:discard', jobId),
+  exportMix: (songName: string, mp3: Uint8Array) => ipcRenderer.invoke('mix:export', { songName, mp3 }),
   exportStems: (songName: string, stems: Array<{ name: string; data: Uint8Array }>) => ipcRenderer.invoke('stems:export', { songName, stems }),
   readFileBuffer: (filePath: string) => ipcRenderer.invoke('files:read-buffer', filePath),
   stageFileBuffer: (fileName: string, bytes: Uint8Array) => ipcRenderer.invoke('files:stage-buffer', fileName, bytes),

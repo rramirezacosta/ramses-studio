@@ -1,11 +1,9 @@
+import { randomUUID } from 'node:crypto'
 import { app, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron'
-import { execFile as execFileCallback } from 'node:child_process'
-import { existsSync } from 'node:fs'
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, stat, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
-import { promisify } from 'node:util'
 import { Worker } from 'node:worker_threads'
 
 import { SIX_STEM_NAMES } from '../../src/components/stemsplitter/constants'
@@ -15,12 +13,27 @@ import { downloadFile } from '../../src/components/youtube/downloader.js'
 import type { SeparateWorkerData, SeparateWorkerMessage } from '../separation-worker'
 import type { StereoAudio, StemName } from '../../src/components/stemsplitter/types'
 
-const execFile = promisify(execFileCallback)
 const moduleDirectory = dirname(fileURLToPath(import.meta.url))
 const nativeModelPath = () => app.isPackaged
   ? join(process.resourcesPath, 'models', 'htdemucs_6s.onnx')
   : join(app.getAppPath(), 'src', 'components', 'stemsplitter', 'htdemucs_6s.onnx')
-export const ffmpegPath = () => 'ffmpeg'
+
+/** Raw separation output is handed to the renderer one stem at a time for WASM encoding. */
+const pendingStems = new Map<string, Map<StemName, Uint8Array>>()
+
+function discardPendingStems(jobId: string): void {
+  pendingStems.delete(jobId)
+}
+
+function takePendingStem(jobId: string, name: StemName): Uint8Array | null {
+  const stems = pendingStems.get(jobId)
+  if (!stems) return null
+  const data = stems.get(name)
+  if (!data) return null
+  stems.delete(name)
+  if (!stems.size) pendingStems.delete(jobId)
+  return data
+}
 
 function assertStereoAudio(value: unknown): asserts value is StereoAudio {
   const audio = value as StereoAudio
@@ -78,65 +91,8 @@ function notifyImportStage(event: IpcMainInvokeEvent, stage: string): void {
   if (!event.sender.isDestroyed()) event.sender.send('songs:import-stage', stage)
 }
 
-const IMAGE_PATTERN = /\.(jpe?g|webp|png)$/i
-
-/**Extract one frame (typically the embedded picture) as a raw image, or null when the media has none. */
-async function extractEmbeddedArt(sourcePath: string, temp: string): Promise<string | null> {
-  if (!existsSync(sourcePath)) return null
-  const target = join(temp, 'embedded.png')
-  try {
-    await execFile(ffmpegPath(), ['-v', 'error', '-i', sourcePath, '-map', '0:v', '-frames:v', '1', '-y', target])
-  } catch {
-    return null
-  }
-  try {
-    await stat(target)
-    return target
-  } catch {
-    return null
-  }
-}
-
-/** Produce a square 300x300 JPEG cover for the song, or null when no source image is available. */
-async function createCoverArt(sourcePath: string, thumbnailPath?: string): Promise<Buffer | null> {
-  const temp = await mkdtemp(join(tmpdir(), 'ramses-cover-'))
-  try {
-    let raw: string | null = null
-    // Use the downloaded YouTube thumbnail if available
-    if (thumbnailPath) raw = thumbnailPath
-    if (!raw) raw = await extractEmbeddedArt(sourcePath, temp)
-    if (!raw) return null
-    const square = join(temp, 'cover.jpg')
-    await execFile(ffmpegPath(), ['-v', 'error', '-y', '-i', raw, '-vf', 'scale=300:300:force_original_aspect_ratio=increase,crop=300:300', '-frames:v', '1', '-q:v', '7', square])
-    return await readFile(square)
-  } catch {
-    return null
-  } finally {
-    await rm(temp, { recursive: true, force: true }).catch(() => undefined)
-  }
-}
-
-/**
- * Encode separation results as MP3 bytes inside a temp directory. Nothing
- * touches a songs library on disk: the renderer owns persistence (IndexedDB).
- */
-async function encodeStems(stems: Record<StemName, Uint8Array>, notifyStage: () => void): Promise<Record<StemName, Uint8Array>> {
-  const directory = await mkdtemp(join(tmpdir(), 'ramses-stems-'))
-  try {
-    const wavPaths = Object.fromEntries(SIX_STEM_NAMES.map((name) => [name, join(directory, `${name}.wav`)])) as Record<StemName, string>
-    const mp3Paths = Object.fromEntries(SIX_STEM_NAMES.map((name) => [name, join(directory, `${name}.mp3`)])) as Record<StemName, string>
-    await Promise.all(SIX_STEM_NAMES.map((name) => writeFile(wavPaths[name], stems[name])))
-    notifyStage()
-    await Promise.all(SIX_STEM_NAMES.map((name) => execFile(ffmpegPath(), ['-v', 'error', '-y', '-i', wavPaths[name], '-codec:a', 'libmp3lame', '-q:a', '2', mp3Paths[name]])))
-    const encoded = await Promise.all(SIX_STEM_NAMES.map(async (name) => {
-      const bytes = await readFile(mp3Paths[name])
-      return [name, new Uint8Array(bytes)] as const
-    }))
-    return Object.fromEntries(encoded) as Record<StemName, Uint8Array>
-  } finally {
-    await rm(directory, { recursive: true, force: true }).catch(() => undefined)
-  }
-}
+const safeFileName = (value: string) =>
+  value.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-').trim() || 'audio'
 
 function validateYouTubeUrl(value: string): string {
   let url: URL
@@ -183,7 +139,8 @@ async function downloadYouTubeAudio(url: string, notifyStage: (stage: string) =>
 
   // For official music, the uploader is the artist; for UGC, the title may already
   // contain "Artist - Title" and should be used as-is.
-  const sourceTitle = isOfficialMusic && uploader ? `${uploader} - ${title}` : title
+  const rawSourceTitle = isOfficialMusic && uploader ? `${uploader} - ${title}` : title
+  const sourceTitle = safeFileName(rawSourceTitle)
 
   // Select the best audio-only format
   const chosen = selectFormats(info, 'bestaudio')
@@ -191,12 +148,13 @@ async function downloadYouTubeAudio(url: string, notifyStage: (stage: string) =>
     throw new Error('No suitable audio format found for this video')
   }
 
-  // Download audio
+  // Download audio. The renderer decodes the source with WebAssembly FFmpeg,
+  // so no native converter (or WAV staging) is needed here.
   let audioDownloaded = false
   let lastError: string | null = null
   for (const fmt of chosen) {
     if (!fmt.url) continue
-    const ext = fmt.ext || 'm4a'
+    const ext = safeFileName(fmt.ext || 'm4a')
     const outName = join(directory, `${sourceTitle}.${ext}`)
     const ok = await downloadFile({ url: fmt.url, filename: outName, quiet: false })
     if (ok) {
@@ -209,18 +167,8 @@ async function downloadYouTubeAudio(url: string, notifyStage: (stage: string) =>
         await downloadFile({ url: thumbnailUrl, filename: thumbName, quiet: true })
         thumbnailPath = thumbName
       }
-      // Convert audio to WAV (PCM 16-bit, 44100Hz, stereo)
-      notifyStage('Converting to WAV...')
-      const wavPath = join(directory, `${sourceTitle}.wav`)
-      try {
-        await execFile(
-          ffmpegPath(),
-          ['-v', 'error', '-y', '-i', outName, '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', wavPath]
-        )
-      } catch (error: any) {
-        throw new Error(`Could not convert audio to WAV: ${error?.message || error}`)
-      }
-      return { sourceName: wavPath, thumbnailPath }
+      notifyStage('Preparing audio...')
+      return { sourceName: outName, thumbnailPath }
     }
     lastError = `Format ${fmt.format_id} download failed`
   }
@@ -231,7 +179,7 @@ async function downloadYouTubeAudio(url: string, notifyStage: (stage: string) =>
     const combinedFormats = allFormats.filter((f: any) => f.vcodec !== 'none' && f.acodec !== 'none').reverse()
     for (const fmt of combinedFormats) {
       if (!fmt.url) continue
-      const ext = fmt.ext || 'mp4'
+      const ext = safeFileName(fmt.ext || 'mp4')
       const outName = join(directory, `${sourceTitle}.${ext}`)
       const ok = await downloadFile({ url: fmt.url, filename: outName, quiet: false })
       if (ok) {
@@ -242,17 +190,8 @@ async function downloadYouTubeAudio(url: string, notifyStage: (stage: string) =>
           await downloadFile({ url: thumbnailUrl, filename: thumbName, quiet: true })
           thumbnailPath = thumbName
         }
-        notifyStage('Converting to WAV...')
-        const wavPath = join(directory, `${sourceTitle}.wav`)
-        try {
-          await execFile(
-            ffmpegPath(),
-            ['-v', 'error', '-y', '-i', outName, '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', wavPath]
-          )
-        } catch (error: any) {
-          throw new Error(`Could not convert audio to WAV: ${error?.message || error}`)
-        }
-        return { sourceName: wavPath, thumbnailPath }
+        notifyStage('Preparing audio...')
+        return { sourceName: outName, thumbnailPath }
       }
       lastError = `Fallback format ${fmt.format_id} download failed`
     }
@@ -307,9 +246,9 @@ export function registerStemImportIpc() {
     return downloadYouTubeAudio(validateYouTubeUrl(url), (stage) => notifyImportStage(_event, stage))
   })
 
-  // Lets the renderer ask before importing so the user can replace or keep both copies.
-  ipcMain.handle('songs:separate-native', async (event, sourceName: unknown, audio: unknown, thumbnailPath: unknown): Promise<{ stems: Record<StemName, Uint8Array>; cover: Uint8Array | null }> => {
-    if (typeof sourceName !== 'string') throw new Error('Invalid import source.')
+  // Separation stays in the native worker (ONNX), but its raw WAV output is handed
+  // back to the renderer for MP3 encoding with the bundled WASM FFmpeg.
+  ipcMain.handle('songs:separate-native', async (event, audio: unknown): Promise<{ jobId: string; stems: StemName[] }> => {
     assertStereoAudio(audio)
     const model = nativeModelPath()
     try {
@@ -319,16 +258,23 @@ export function registerStemImportIpc() {
     }
     notifyImportStage(event, 'Loading model...')
     const wavs = await runSeparationWorker(event, model, audio)
-    const thumbPath = typeof thumbnailPath === 'string' ? thumbnailPath : undefined
-    const stems = await encodeStems(wavs, () => notifyImportStage(event, 'Encoding stems as MP3...'))
-    let cover: Uint8Array | null = null
-    try {
-      // Cover art is best-effort; a failed extraction must not discard the stems.
-      const art = await createCoverArt(sourceName, thumbPath)
-      if (art) cover = new Uint8Array(art)
-    } catch {
-      cover = null
+    const jobId = randomUUID()
+    pendingStems.set(jobId, new Map(SIX_STEM_NAMES.map((name) => [name, wavs[name]])))
+    return { jobId, stems: [...SIX_STEM_NAMES] }
+  })
+
+  ipcMain.handle('stems:take', (_event, jobId: unknown, name: unknown) => {
+    if (typeof jobId !== 'string' || typeof name !== 'string' || !SIX_STEM_NAMES.includes(name as StemName)) {
+      throw new Error('Invalid stem request.')
     }
-    return { stems, cover }
+    const data = takePendingStem(jobId, name as StemName)
+    if (!data) throw new Error('Stem data is no longer available.')
+    return data
+  })
+
+  ipcMain.handle('stems:discard', (_event, jobId: unknown) => {
+    if (typeof jobId !== 'string') throw new Error('Invalid stem request.')
+    discardPendingStems(jobId)
+    return true
   })
 }

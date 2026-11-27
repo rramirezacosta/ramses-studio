@@ -9,7 +9,7 @@ import { TitleBar } from './components/layout/TitleBar'
 import { TransportBar } from './components/layout/TransportBar'
 import { ErrorBoundary } from './components/ui/ErrorBoundary'
 import { encodeWav } from './components/stemsplitter/audio/wav'
-import { decodeWithFfmpeg } from './components/stemsplitter/audio/ffmpeg'
+import { createCoverArt, decodeWithFfmpeg, encodeMp3WithFfmpeg } from './components/stemsplitter/audio/ffmpeg'
 import { useTranslation } from './i18n'
 import { useSettingsStore } from './store/useSettingsStore'
 import { useTransportStore } from './store/useTransportStore'
@@ -19,7 +19,7 @@ import { useSyncStore } from './store/useSyncStore'
 import { parseSongName, songDisplayName, songFolderName, songNameFromSource } from './utils/songName'
 import appIcon from './assets/app_512.png'
 import type { Song, TrackState } from './types/audio'
-import type { StereoAudio } from './components/stemsplitter/types'
+import type { StemName, StereoAudio } from './components/stemsplitter/types'
 import {
   RenameDialog, ConfirmDialog, DuplicateDialog, ImportDialog, SettingsDialog,
   ConflictDialog, AboutDialog, RamWarningDialog, ExportPopup,
@@ -523,6 +523,7 @@ export default function App() {
   const importSong = useCallback(async (prepareImport: () => Promise<{ sourceName: string; thumbnailPath?: string } | null>) => {
     const controller = new AbortController()
     importAbortRef.current = controller
+    let jobId: string | undefined
     setImporting(true)
     setImportProgress(0)
     setImportStage(undefined)
@@ -544,10 +545,34 @@ export default function App() {
       const buffer = await window.api.readFileBuffer(prepared.sourceName)
       const audio = await decodeWithFfmpeg(buffer, undefined, controller.signal)
       if (controller.signal.aborted) return
-      const source = { sourceName: prepared.sourceName, audio }
-      const separated = await window.api.separateStems(source.sourceName, source.audio, prepared.thumbnailPath)
+      const separated = await window.api.separateStems(audio)
+      jobId = separated.jobId
       if (controller.signal.aborted) return
-      const song = await library.persistSeparation(name, separated.stems, separated.cover)
+
+      setImportStage(t('encodingStems'))
+      const currentJobId = separated.jobId
+      const encodedEntries = await Promise.all(separated.stems.map(async (stemName) => {
+        const wav = await window.api.takeStem(currentJobId, stemName)
+        const mp3 = await encodeMp3WithFfmpeg(wav, controller.signal)
+        return [stemName, mp3] as const
+      }))
+      const stems = Object.fromEntries(encodedEntries) as Record<StemName, Uint8Array>
+      if (controller.signal.aborted) return
+
+      let cover: Uint8Array | null = null
+      try {
+        // Prefer the downloaded YouTube thumbnail, then fall back to embedded media art.
+        if (prepared.thumbnailPath) {
+          const thumbnail = await window.api.readFileBuffer(prepared.thumbnailPath)
+          cover = await createCoverArt(thumbnail, controller.signal)
+        }
+        if (!cover) cover = await createCoverArt(buffer, controller.signal)
+      } catch {
+        cover = null
+      }
+      if (controller.signal.aborted) return
+
+      const song = await library.persistSeparation(name, stems, cover)
       await selectSong(song)
       // Push the new song to Drive in the background once connected.
       useSyncStore.getState().scheduleSync()
@@ -560,6 +585,7 @@ export default function App() {
       const message = reason instanceof Error ? reason.message : t('unknownImportError')
       setError(t('importFailed', { message }))
     } finally {
+      if (jobId) void window.api.discardStems(jobId).catch(() => undefined)
       importAbortRef.current = null
       setImporting(false)
       setImportProgress(undefined)
@@ -779,7 +805,8 @@ export default function App() {
       const mix = await engine.renderMix()
       if (!mix) return
       const wav = encodeWav(mix)
-      const savedPath = await window.api.exportMix(activeSong, wav)
+      const mp3 = await encodeMp3WithFfmpeg(wav)
+      const savedPath = await window.api.exportMix(activeSong, mp3)
       if (savedPath) setNotice(t('mixExported', { path: savedPath }))
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : t('unknownExportError')

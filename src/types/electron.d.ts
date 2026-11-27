@@ -3,10 +3,10 @@ import type { StemName } from '../components/stemsplitter/types'
 
 type WindowButton = 'minimize' | 'maximize' | 'close'
 
-/** Result of a separation run: encoded stems plus best-effort cover art bytes. */
+/** Result of a separation run: raw WAV stems staged in the main process for renderer-side encoding. */
 export interface SeparationResult {
-  stems: Record<StemName, Uint8Array>
-  cover: Uint8Array | null
+  jobId: string
+  stems: StemName[]
 }
 
 /** One file listed from the Drive app-data folder. */
@@ -32,8 +32,10 @@ declare global {
       prepareImport: () => Promise<{ sourceName: string } | null>
       cancelImport: () => Promise<boolean>
       prepareYouTubeImport: (url: string) => Promise<{ sourceName: string; thumbnailPath?: string }>
-      separateStems: (sourceName: string, audio: StereoAudio, thumbnailPath?: string) => Promise<SeparationResult>
-      exportMix: (songName: string, wav: Uint8Array) => Promise<string | null>
+      separateStems: (audio: StereoAudio) => Promise<SeparationResult>
+      takeStem: (jobId: string, name: StemName) => Promise<Uint8Array>
+      discardStems: (jobId: string) => Promise<boolean>
+      exportMix: (songName: string, mp3: Uint8Array) => Promise<string | null>
       exportStems: (songName: string, stems: Array<{ name: string; data: Uint8Array }>) => Promise<string | null>
       readFileBuffer: (filePath: string) => Promise<ArrayBuffer>
       stageFileBuffer: (fileName: string, bytes: Uint8Array) => Promise<string>

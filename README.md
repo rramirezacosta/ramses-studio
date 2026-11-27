@@ -33,7 +33,7 @@ npm install
 
 YouTube audio is downloaded using a pure-JS YouTube extractor (no external binary required).
 
-The Linux ffmpeg is required because sandboxed packages (Flatpak) cannot call the system ffmpeg; a static build (for example the one shipped at `node_modules/@ffmpeg-installer/linux-x64/ffmpeg`) works.
+Audio decoding, MP3 encoding, and cover-art generation use the bundled WebAssembly FFmpeg, so no system ffmpeg binary is required (including in Flatpak sandboxes).
 
 Creating a Flatpak additionally requires `flatpak` and `flatpak-builder` with the `org.freedesktop.Sdk` runtime installed on the build machine.
 
