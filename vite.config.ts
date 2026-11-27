@@ -17,7 +17,9 @@ export default defineConfig(() => ({
         entry: 'electron/main.ts',
         vite: {
           build: {
-            rollupOptions: { external: ['onnxruntime-node'] },
+            // undici lazily requires node:sqlite; bundling turns that into a
+            // static import which Electron 30 (Node 20) cannot load.
+            rollupOptions: { external: ['onnxruntime-node', 'undici'] },
           },
           define: {
             // Baked at build time for packaged apps; runtime env var still wins at dev.
